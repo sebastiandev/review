@@ -537,7 +537,79 @@ tokenising them once.
 
 ---
 
-## 9. Open questions
+## 9. UI language
+
+One rule above the rest: **the diff is the page.** Everything else is furniture, and
+furniture is quiet.
+
+### Layout
+
+Three regions, no more: a collapsible left rail (PR list; hidden in diff mode), the diff,
+and a collapsible right dock (chat). No header bar. The title, mode and theme picker live in
+a single 32px strip above the diff. Nothing is fixed-position over the diff.
+
+### Type and spacing
+
+- One monospace family for code, one sans for chrome. System stacks by default;
+  configurable with the theme.
+- Code at 13px / 20px line height. Chrome at 13px. No text under 12px anywhere.
+- Spacing on a 4px grid. Diff rows have no vertical padding beyond line height.
+- Measure is not capped — diffs are wide, and wrapping code is worse than scrolling.
+
+### Colour
+
+Every colour is a token from the theme. There are exactly these token groups and no
+ad-hoc values:
+
+```
+bg, bg-raised, bg-sunken            surfaces
+fg, fg-muted, fg-faint              text
+border                              one border colour, used sparingly
+accent                              one accent, used for focus and the Ask affordance
+diff-add-bg, diff-add-fg
+diff-del-bg, diff-del-fg
+diff-hunk-bg                        hunk headers
+selection-bg                        the user's selection inside the diff
+syntax-*                            keyword, string, comment, number, function, type
+```
+
+Add/delete backgrounds are tinted surfaces, not saturated fills — text stays `fg`, not
+green-on-green. Contrast for `fg` on `diff-add-bg` and on `diff-del-bg` must pass 7:1 in
+both modes; this is checked, not eyeballed.
+
+### Affordances
+
+- Nothing on the diff is decorated until the pointer is over it. Hover shows the gutter `+`
+  and nothing else.
+- A selection inside the diff shows one floating pill near its end: **Ask** (and
+  **Comment** in PR mode when the range is commentable). The pill is the only element that
+  uses `accent` as a fill.
+- Buttons are text with a 1px border. Primary action (Submit, Send) is a filled button;
+  there is at most one on screen.
+- No icons without labels except the collapse chevrons and the theme picker.
+- No shadows. Depth is `bg-raised` on `bg`, that is all.
+
+### Chat dock
+
+Plain message list. User turns right-aligned in `bg-raised`, agent turns unboxed on `bg`.
+Tool calls collapse to one line (`read src/foo.py`) and expand on click. Quoted diff
+selections render as a compact code block with a `path:start-end` header that, when
+clicked, scrolls the diff to that range and flashes it. Streaming text appears in place;
+no typing indicator, no avatars.
+
+### Motion
+
+Two durations, 120ms and 200ms, ease-out. Used for: dock open/close, pill appear, the
+scroll-to flash. Nothing else animates.
+
+### Keyboard
+
+Everything reachable by mouse is reachable by keyboard. Focus ring is `accent`, 2px, offset
+2px, never suppressed.
+
+---
+
+## 10. Open questions
 
 1. ~~**Repo checkout for the agent.**~~ Settled: dedicated clone under `~/.cache/revu`,
    per-PR worktrees, removed on done or merge. See §7b.
