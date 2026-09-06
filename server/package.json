@@ -1,0 +1,26 @@
+{
+  "name": "@revu/server",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "revu": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts diff ../ --dev --no-open",
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "@opencode-ai/sdk": "^1.18.29",
+    "hono": "^4.13.7",
+    "parse-diff": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
