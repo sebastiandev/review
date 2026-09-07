@@ -1,15 +1,15 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { serveStatic } from '@hono/node-server/serve-static'
-import type { ChatSendRequest, PermissionReply, Settings } from '@review/shared'
+import type { ChatSendRequest, DiffSelection, PermissionReply, Settings } from '@review/shared'
 import type { DiffSource } from '../domain/diff.ts'
 import { buildDiffDocument } from '../domain/diff.ts'
-import type { ChatSession } from '../domain/chat.ts'
+import type { ChatHub } from '../domain/chat.ts'
 import { readOpencodeCatalog } from '../infrastructure/opencodeCatalog.ts'
 
 export type AppDeps = {
   source: DiffSource
-  chat: ChatSession
+  chat: ChatHub
   settings: Settings
   opencodeUrl: string
   /** Directory opencode resolves agents and config for. */
@@ -32,9 +32,20 @@ export function createApp(deps: AppDeps) {
     return c.json({ ...catalog, settings: deps.settings })
   })
 
-  app.post('/api/chat', async (c) => {
+  app.get('/api/threads', (c) => c.json(deps.chat.threads()))
+
+  /** Get or create the thread anchored to a line; body is the anchor selection. */
+  app.post('/api/threads/line', async (c) => {
+    const anchor = (await c.req.json()) as DiffSelection
+    const thread = await deps.chat.line(anchor)
+    return c.json(thread.ref)
+  })
+
+  app.post('/api/chat/:thread', async (c) => {
+    const thread = deps.chat.byId(c.req.param('thread'))
+    if (!thread) return c.json({ error: 'unknown thread' }, 404)
     const body = (await c.req.json()) as ChatSendRequest
-    await deps.chat.send({
+    await thread.send({
       text: body.text,
       selections: body.selections ?? [],
       command: body.command,
@@ -45,11 +56,17 @@ export function createApp(deps: AppDeps) {
     return c.body(null, 202)
   })
 
-  app.get('/api/chat/history', async (c) => c.json(await deps.chat.history()))
+  app.get('/api/chat/:thread/history', async (c) => {
+    const thread = deps.chat.byId(c.req.param('thread'))
+    if (!thread) return c.json({ error: 'unknown thread' }, 404)
+    return c.json(await thread.history())
+  })
 
-  app.post('/api/permission/:id', async (c) => {
+  app.post('/api/chat/:thread/permission/:id', async (c) => {
+    const thread = deps.chat.byId(c.req.param('thread'))
+    if (!thread) return c.json({ error: 'unknown thread' }, 404)
     const { response } = (await c.req.json()) as { response: PermissionReply }
-    await deps.chat.respondPermission(c.req.param('id'), response)
+    await thread.respondPermission(c.req.param('id'), response)
     return c.body(null, 204)
   })
 

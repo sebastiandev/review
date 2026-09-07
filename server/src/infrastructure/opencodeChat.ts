@@ -1,39 +1,89 @@
 import { createOpencodeClient, type Event, type Message, type Part } from '@opencode-ai/sdk'
-import type { ChatPart, ServerEvent } from '@review/shared'
-import { composePrompt, type ChatInput, type ChatSession } from '../domain/chat.ts'
+import type { ChatPart, ChatThreadRef, DiffSelection, ServerEvent } from '@review/shared'
+import {
+  composePrompt,
+  lineThreadId,
+  lineThreadPreamble,
+  type ChatHub,
+  type ChatInput,
+  type ChatThread,
+} from '../domain/chat.ts'
 
 export type OpencodeChatOptions = {
   baseUrl: string
   /** Working directory the agent operates in — the repo being diffed, when there is one. */
   directory: string
   title: string
+  /** Sent once, ahead of the first dock message. */
   systemContext: string
   defaultAgent: string | null
 }
 
+type Client = ReturnType<typeof createOpencodeClient>
+
 /**
- * A ChatSession over `opencode serve`. Creates the session lazily on first use, relays the
- * server's SSE stream filtered to that session, and answers permission asks on request.
+ * A ChatHub over `opencode serve`. One root session for the dock, one child session per line
+ * thread, one SSE relay shared by all of them.
  */
-export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatSession> {
+export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatHub> {
   const client = createOpencodeClient({ baseUrl: opts.baseUrl })
   const query = { directory: opts.directory }
 
-  const created = await client.session.create({ body: { title: opts.title }, query })
-  if (!created.data) throw new Error(`opencode: could not create session: ${JSON.stringify(created.error)}`)
-  const sessionID = created.data.id
-
-  const listeners = new Set<(e: ServerEvent) => void>()
+  const rootID = await createSession(client, query, opts.title)
+  const threads = new Map<string, ChatThread>()
+  const threadBySession = new Map<string, string>()
   const roles = new Map<string, Message['role']>()
+  const listeners = new Set<(e: ServerEvent) => void>()
   const emit = (e: ServerEvent) => listeners.forEach((l) => l(e))
 
-  void relayEvents(client, opts.directory, sessionID, roles, emit)
+  const register = (ref: ChatThreadRef, sessionID: string, preamble: string): ChatThread => {
+    const thread = makeThread(client, query, ref, sessionID, preamble, opts.defaultAgent, roles)
+    threads.set(ref.id, thread)
+    threadBySession.set(sessionID, ref.id)
+    return thread
+  }
 
-  let primed = false
+  const dock = register({ id: 'dock', anchor: null }, rootID, opts.systemContext)
+  void relayEvents(client, opts.directory, threadBySession, roles, emit)
 
   return {
+    dock: () => dock,
+    async line(anchor: DiffSelection) {
+      const id = lineThreadId(anchor)
+      const existing = threads.get(id)
+      if (existing) return existing
+      const childID = await createSession(client, query, `${opts.title} · ${id}`, rootID)
+      return register({ id, anchor }, childID, lineThreadPreamble(anchor))
+    },
+    threads: () => [...threads.values()].map((t) => t.ref),
+    byId: (id) => threads.get(id),
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+}
+
+async function createSession(client: Client, query: { directory: string }, title: string, parentID?: string) {
+  const created = await client.session.create({ body: { title, parentID }, query })
+  if (!created.data) throw new Error(`opencode: could not create session: ${JSON.stringify(created.error)}`)
+  return created.data.id
+}
+
+function makeThread(
+  client: Client,
+  query: { directory: string },
+  ref: ChatThreadRef,
+  sessionID: string,
+  preamble: string,
+  defaultAgent: string | null,
+  roles: Map<string, Message['role']>,
+): ChatThread {
+  let primed = false
+  return {
+    ref,
     async send(input: ChatInput) {
-      const agent = input.agent ?? opts.defaultAgent ?? undefined
+      const agent = input.agent ?? defaultAgent ?? undefined
       if (input.command) {
         const res = await client.session.command({
           path: { id: sessionID },
@@ -48,7 +98,7 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatS
         if (res.error) throw new Error(`opencode: command failed: ${JSON.stringify(res.error)}`)
         return
       }
-      const text = primed ? composePrompt(input) : `${opts.systemContext}\n\n---\n\n${composePrompt(input)}`
+      const text = primed ? composePrompt(input) : `${preamble}\n\n---\n\n${composePrompt(input)}`
       primed = true
       // `variant` is accepted by the server but missing from the SDK's body type.
       const body: NonNullable<Parameters<typeof client.session.promptAsync>[0]['body']> & { variant?: string } = {
@@ -71,6 +121,7 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatS
           if (part) out.push(part)
         }
       }
+      if (out.length > 0) primed = true
       return out
     },
 
@@ -81,18 +132,13 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatS
         body: { response: reply },
       })
     },
-
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
   }
 }
 
 async function relayEvents(
-  client: ReturnType<typeof createOpencodeClient>,
+  client: Client,
   directory: string,
-  sessionID: string,
+  threadBySession: Map<string, string>,
   roles: Map<string, Message['role']>,
   emit: (e: ServerEvent) => void,
 ) {
@@ -102,13 +148,15 @@ async function relayEvents(
     switch (event.type) {
       case 'message.updated': {
         const info = event.properties.info
-        if (info.sessionID !== sessionID) break
+        const thread = threadBySession.get(info.sessionID)
+        if (!thread) break
         roles.set(info.id, info.role)
         if (info.role === 'assistant') {
           // `agent`/`variant` are on the wire but not in the SDK's AssistantMessage type.
           const extra = info as { agent?: string; variant?: string }
           emit({
             type: 'chat.turn',
+            thread,
             agent: extra.agent ?? null,
             model: { providerID: info.providerID, modelID: info.modelID },
             variant: extra.variant ?? null,
@@ -118,31 +166,39 @@ async function relayEvents(
       }
       case 'message.part.updated': {
         const part = event.properties.part
-        if (part.sessionID !== sessionID) break
-        const role = roles.get(part.messageID) ?? 'assistant'
-        const mapped = toChatPart(part, role)
-        if (mapped) emit({ type: 'chat.part', part: mapped })
+        const thread = threadBySession.get(part.sessionID)
+        if (!thread) break
+        const mapped = toChatPart(part, roles.get(part.messageID) ?? 'assistant')
+        if (mapped) emit({ type: 'chat.part', thread, part: mapped })
         break
       }
-      case 'session.idle':
-        if (event.properties.sessionID === sessionID) emit({ type: 'chat.idle' })
+      case 'session.idle': {
+        const thread = threadBySession.get(event.properties.sessionID)
+        if (thread) emit({ type: 'chat.idle', thread })
         break
-      case 'session.error':
-        if (event.properties.sessionID === sessionID) {
-          emit({ type: 'chat.error', message: describeError(event.properties.error) })
+      }
+      case 'session.error': {
+        const thread = event.properties.sessionID && threadBySession.get(event.properties.sessionID)
+        if (thread) emit({ type: 'chat.error', thread, message: describeError(event.properties.error) })
+        break
+      }
+      case 'permission.updated': {
+        const p = event.properties
+        const thread = threadBySession.get(p.sessionID)
+        if (thread) {
+          emit({
+            type: 'permission.ask',
+            thread,
+            permission: { id: p.id, sessionID: p.sessionID, title: p.title, pattern: p.pattern },
+          })
         }
         break
-      case 'permission.updated':
-        if (event.properties.sessionID === sessionID) {
-          const p = event.properties
-          emit({ type: 'permission.ask', permission: { id: p.id, sessionID, title: p.title, pattern: p.pattern } })
-        }
+      }
+      case 'permission.replied': {
+        const thread = threadBySession.get(event.properties.sessionID)
+        if (thread) emit({ type: 'permission.done', thread, permissionID: event.properties.permissionID })
         break
-      case 'permission.replied':
-        if (event.properties.sessionID === sessionID) {
-          emit({ type: 'permission.done', permissionID: event.properties.permissionID })
-        }
-        break
+      }
     }
   }
 }

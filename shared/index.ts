@@ -48,6 +48,12 @@ export type ChatSendRequest = TurnSettings & {
   command?: string
 }
 
+/**
+ * A conversation. `dock` is the one for the whole diff; line threads are children of it,
+ * one per anchored line, and inherit its context. Ids are `dock` or `line:<path>:<line>`.
+ */
+export type ChatThreadRef = { id: string; anchor: DiffSelection | null }
+
 export type PermissionReply = 'once' | 'always' | 'reject'
 
 /** What the client renders in the dock. Flattened from opencode parts. */
@@ -63,15 +69,15 @@ export type PermissionAsk = {
   pattern?: string | string[]
 }
 
-/** Events pushed over /api/events. */
+/** Events pushed over /api/events. Chat events carry the thread they belong to. */
 export type ServerEvent =
-  | { type: 'chat.part'; part: ChatPart }
-  | { type: 'chat.idle' }
+  | { type: 'chat.part'; thread: string; part: ChatPart }
+  | { type: 'chat.idle'; thread: string }
   /** What actually produced the assistant turn now in progress. */
-  | { type: 'chat.turn'; agent: string | null; model: ModelRef; variant: string | null }
-  | { type: 'chat.error'; message: string }
-  | { type: 'permission.ask'; permission: PermissionAsk }
-  | { type: 'permission.done'; permissionID: string }
+  | { type: 'chat.turn'; thread: string; agent: string | null; model: ModelRef; variant: string | null }
+  | { type: 'chat.error'; thread: string; message: string }
+  | { type: 'permission.ask'; thread: string; permission: PermissionAsk }
+  | { type: 'permission.done'; thread: string; permissionID: string }
 
 export type AppConfig = {
   agents: { name: string; description?: string }[]
