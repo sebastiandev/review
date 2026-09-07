@@ -56,18 +56,22 @@ export function useDiffSelection(container: RefObject<HTMLElement | null>): Diff
   }, [])
 
   useEffect(() => {
-    const element = container.current
-    if (!element) return
-    const update = () => setState(readSelection(element))
+    // Listen on the document: the container mounts after the diff loads, so an element
+    // listener attached at mount time would bind to nothing.
+    const update = (e: MouseEvent) => {
+      const element = container.current
+      if (!element || !(e.target instanceof Node) || !element.contains(e.target)) return
+      setState(readSelection(element))
+    }
     const onSelectionChange = () => {
       // Only clear here; the full read happens on mouseup so the pill does not chase the drag.
       const selection = document.getSelection()
       if (!selection || selection.isCollapsed) setState(EMPTY)
     }
-    element.addEventListener('mouseup', update)
+    document.addEventListener('mouseup', update)
     document.addEventListener('selectionchange', onSelectionChange)
     return () => {
-      element.removeEventListener('mouseup', update)
+      document.removeEventListener('mouseup', update)
       document.removeEventListener('selectionchange', onSelectionChange)
     }
   }, [container])

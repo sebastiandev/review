@@ -5,6 +5,7 @@ import { App } from './App'
 import './theme/nocturne.css'
 import './theme/themes.css'
 import './app.css'
+import './markdown/markdown.css'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } })
 

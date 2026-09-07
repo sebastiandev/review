@@ -1,8 +1,8 @@
 import { Check } from '@phosphor-icons/react'
 import type { ReactNode, RefObject } from 'react'
 import type { DiffFile } from '@review/shared'
-import { basename, dirname } from '../files/scope'
 import { Segmented } from '../shell/Segmented'
+import { FileHeader } from './FileHeader'
 import { ChatMarker, LineActionButton, type LineRef } from './LineActionButton'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
 import { highlightLine, languageOf } from './highlight'
@@ -39,6 +39,8 @@ type DiffViewProps = {
   onToggleThread: (key: string) => void
   /** Last line the pointer or focus touched; feeds the `y` shortcut. */
   onTouchLine: (ref: LineRef) => void
+  /** Extra header controls placed before the view toggle (the markdown Rich / Raw diff control). */
+  toolbar?: ReactNode
   /** Rendered inside the scrolling body (the Ask pill). */
   children?: ReactNode
 }
@@ -191,6 +193,7 @@ export function DiffView({
   onCopyRef,
   onToggleThread,
   onTouchLine,
+  toolbar,
   children,
 }: DiffViewProps) {
   const slot = { path: file.path, openMenu, threads, onToggleMenu, onAsk, onCopyRef, onToggleThread }
@@ -200,34 +203,27 @@ export function DiffView({
   }
   return (
     <>
-      <div className={`file-header${compact ? ' file-header-compact' : ''}`}>
-        <span className="file-title">
-          <span className="file-dir">{dirname(file.path)}</span>
-          <span className="file-name">{basename(file.path)}</span>
-        </span>
-        <span className="count-add">+{file.additions}</span>
-        <span className="count-del">−{file.deletions}</span>
-        <div className="file-toolbar">
-          <Segmented<DiffMode>
-            label="Diff view"
-            value={mode}
-            options={[
-              { value: 'unified', label: 'Merged' },
-              { value: 'split', label: compact ? 'Split' : 'Side by side' },
-            ]}
-            onChange={onMode}
-          />
-          <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
-            {viewed ? (
-              <>
-                Viewed <Check size={12} weight="bold" />
-              </>
-            ) : (
-              'Mark viewed'
-            )}
-          </button>
-        </div>
-      </div>
+      <FileHeader file={file} compact={compact}>
+        {toolbar}
+        <Segmented<DiffMode>
+          label="Diff view"
+          value={mode}
+          options={[
+            { value: 'unified', label: 'Merged' },
+            { value: 'split', label: compact ? 'Split' : 'Side by side' },
+          ]}
+          onChange={onMode}
+        />
+        <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
+          {viewed ? (
+            <>
+              Viewed <Check size={12} weight="bold" />
+            </>
+          ) : (
+            'Mark viewed'
+          )}
+        </button>
+      </FileHeader>
       <div
         ref={bodyRef}
         className="diff-body"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ChatSendRequest, ChatThreadRef, DiffSelection } from '@review/shared'
-import { fetchConfig, fetchDiff } from './api'
+import { fetchConfig, fetchDiff, fetchFile } from './api'
 import { ChatDock } from './chat/ChatDock'
 import { InlineChat } from './chat/InlineChat'
 import { DOCK_THREAD, useChatThreads } from './chat/useChatThreads'
@@ -15,7 +15,9 @@ import { FileTree } from './files/FileTree'
 import { basename, scopeKind } from './files/scope'
 import { TopPrBar } from './files/TopPrBar'
 import { useViewed } from './files/useViewed'
+import { MarkdownView, type MarkdownThread } from './markdown/MarkdownView'
 import { Rail } from './shell/Rail'
+import { Segmented } from './shell/Segmented'
 import { ShortcutsSheet } from './shell/ShortcutsSheet'
 import { StatusBar } from './shell/StatusBar'
 import { TopBar } from './shell/TopBar'
@@ -44,6 +46,13 @@ function flashLines(body: HTMLElement, path: string, start: number, end: number)
 
 type Overlay = 'shortcuts' | 'theme' | 'scope' | null
 
+/** Rendered markdown, or the file's own diff. */
+type MdMode = 'rich' | 'raw'
+
+function isMarkdownPath(path: string): boolean {
+  return /\.(md|markdown)$/i.test(path)
+}
+
 /** The `lineKey` a thread anchor lands on inside its file. */
 function anchorKey(anchor: DiffSelection): string {
   return lineKey(anchor.side === 'LEFT' ? 'old' : 'new', anchor.startLine)
@@ -61,6 +70,7 @@ export function App() {
   const { toggleDock } = layout
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [mode, setMode] = useState<DiffMode>('unified')
+  const [mdMode, setMdMode] = useState<MdMode>('rich')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   /** Id of the line thread whose card is showing; every other thread is minimized. */
@@ -93,6 +103,32 @@ export function App() {
     for (const ref of fileThreads) byLine[anchorKey(ref.anchor)] = ref.id === chatLine ? 'open' : 'minimized'
     return byLine
   }, [fileThreads, chatLine])
+  const markdownThreads = useMemo<MarkdownThread[]>(
+    () =>
+      fileThreads.map((ref) => ({
+        id: ref.id,
+        startLine: ref.anchor.startLine,
+        endLine: ref.anchor.endLine,
+        text: ref.anchor.text,
+        open: ref.id === chatLine,
+      })),
+    [fileThreads, chatLine],
+  )
+
+  // Rich view needs the whole file; the source cannot provide it for patch files (404), then raw is the only view.
+  const markdownPath = selectedFile && isMarkdownPath(selectedFile.path) ? selectedFile.path : null
+  const fileContent = useQuery({
+    queryKey: ['file', markdownPath],
+    queryFn: () => {
+      if (!markdownPath) throw new Error('not a markdown file')
+      return fetchFile(markdownPath)
+    },
+    enabled: markdownPath !== null,
+    retry: false,
+    staleTime: Infinity,
+  })
+  const richUnavailable = fileContent.isError
+  const showRich = markdownPath !== null && mdMode === 'rich' && !richUnavailable
 
   const toggleOverlay = useCallback((which: Exclude<Overlay, null>) => {
     setOverlay((current) => (current === which ? null : which))
@@ -139,6 +175,10 @@ export function App() {
     },
     [fileThreads],
   )
+
+  const toggleThreadById = useCallback((id: string) => setChatLine((current) => (current === id ? null : id)), [])
+
+  const toggleMdMode = useCallback(() => setMdMode((current) => (current === 'rich' ? 'raw' : 'rich')), [])
 
   const closeThread = useCallback(
     (id: string) => {
@@ -204,6 +244,9 @@ export function App() {
         case 's':
           setMode('split')
           break
+        case 'm':
+          if (markdownPath) toggleMdMode()
+          break
         case 'd':
           toggleDock()
           break
@@ -217,7 +260,19 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [clearSelection, openMenu, chatLine, toggleOverlay, stepFile, toggleDock, selectedFile, toggleViewed, copyRef, askLine])
+  }, [clearSelection, openMenu, chatLine, toggleOverlay, stepFile, toggleDock, selectedFile, toggleViewed, copyRef, askLine, markdownPath, toggleMdMode])
+
+  const mdControl = markdownPath !== null && (
+    <Segmented<MdMode>
+      label="Markdown view"
+      value={showRich ? 'rich' : 'raw'}
+      options={[
+        { value: 'rich', label: 'Rich', disabled: richUnavailable, title: richUnavailable ? 'Not available for patch files' : undefined },
+        { value: 'raw', label: 'Raw diff' },
+      ]}
+      onChange={setMdMode}
+    />
+  )
 
   const pillPosition = (() => {
     if (!selectionRect || !body.current) return null
@@ -269,7 +324,20 @@ export function App() {
                 : '.'}
             </p>
           )}
-          {selectedFile && (
+          {selectedFile && showRich && fileContent.data && (
+            <MarkdownView
+              file={selectedFile}
+              content={fileContent.data.content}
+              compact={layout.compact}
+              centerW={layout.centerW}
+              threads={markdownThreads}
+              toolbar={mdControl}
+              onAsk={openLineChat}
+              onToggleThread={toggleThreadById}
+            />
+          )}
+          {selectedFile && showRich && fileContent.isPending && <p className="notice">Loading {basename(selectedFile.path)}…</p>}
+          {selectedFile && !showRich && (
             <DiffView
               file={selectedFile}
               parsed={parsedByPath.get(selectedFile.path)}
@@ -279,6 +347,7 @@ export function App() {
               openMenu={openMenu}
               threads={threadsByLine}
               bodyRef={body}
+              toolbar={mdControl}
               onMode={setMode}
               onToggleViewed={() => toggleViewed(selectedFile.path)}
               onToggleMenu={setOpenMenu}

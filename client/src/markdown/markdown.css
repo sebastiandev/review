@@ -1,0 +1,268 @@
+/* Rich markdown view (README §3). Nocturne variables only; no motion. */
+
+.md-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 0 60px;
+  font-family: var(--font-body);
+}
+
+.md-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.md-row-stacked {
+  gap: 14px;
+}
+
+/* Right padding leaves room for the margin markers inside the column. */
+.md-doc {
+  flex: 1 1 420px;
+  min-width: 0;
+  max-width: 720px;
+  padding-right: 36px;
+}
+
+.md-hint {
+  margin: 0 0 14px;
+  font-size: 11.5px;
+  color: var(--color-neutral-600);
+}
+
+.md-doc h1 {
+  font-size: 25px;
+  margin: 0 0 6px;
+}
+
+.md-doc h2,
+.md-doc h3 {
+  font-size: 16px;
+  margin: 22px 0 6px;
+}
+
+.md-doc h4,
+.md-doc h5,
+.md-doc h6 {
+  font-size: 14px;
+  margin: 18px 0 6px;
+}
+
+.md-doc p,
+.md-doc li {
+  font-size: 15px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.md-doc p {
+  margin: 0 0 12px;
+}
+
+.md-doc ul,
+.md-doc ol {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.md-doc li > p {
+  margin: 0;
+}
+
+.md-doc blockquote {
+  margin: 0 0 12px;
+  padding: 2px 14px;
+  border-left: 2px solid var(--color-neutral-700);
+  color: var(--color-neutral-400);
+}
+
+.md-doc code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--color-neutral-900);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.md-doc pre {
+  margin: 10px 0;
+  padding: 12px 14px;
+  background: var(--color-neutral-900);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.md-doc pre code {
+  padding: 0;
+  font-size: inherit;
+  background: transparent;
+  border-radius: 0;
+}
+
+.md-doc .table {
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.md-doc hr {
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  margin: 18px 0;
+}
+
+.md-doc a {
+  color: var(--color-accent-300);
+}
+
+.md-doc ::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* Blocks a thread is anchored on */
+
+.md-hit {
+  position: relative;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border-bottom: 1px solid var(--color-accent-600);
+  cursor: pointer;
+}
+
+.md-hit-open {
+  background: color-mix(in srgb, var(--color-accent) 26%, transparent);
+}
+
+.md-marker {
+  position: absolute;
+  top: 0;
+  right: -36px;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-neutral-500);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.md-marker:hover,
+.md-marker-open {
+  border-color: var(--color-accent);
+  color: var(--color-accent-200);
+}
+
+/* Selections aside */
+
+.md-aside {
+  flex: none;
+  width: 224px;
+}
+
+.md-row-stacked .md-aside {
+  flex: 1 1 100%;
+  width: 100%;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.md-aside-title {
+  margin-bottom: 8px;
+}
+
+.md-aside-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-600);
+}
+
+.md-aside-card {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.md-aside-card:hover {
+  border-color: var(--color-neutral-600);
+}
+
+.md-aside-card-open {
+  border-color: var(--color-accent);
+}
+
+.md-aside-ref {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-neutral-500);
+}
+
+.md-aside-text {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.45;
+  color: var(--color-neutral-300);
+}
+
+/* Selection toolbar */
+
+.sel-toolbar {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.sel-toolbar-label {
+  padding-left: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+.sel-action {
+  padding: 5px 9px;
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sel-action:hover:not(:disabled) {
+  background: var(--tint-row-hover);
+}
+
+.sel-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

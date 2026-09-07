@@ -43,12 +43,12 @@ Goal: what exists today looks like the design. No new features.
 
 ## Phase 2 — Markdown rich view  ~1 day
 
-- [ ] `m` toggles rich ↔ raw. Raw = the normal diff. Rich = rendered markdown (react-markdown
+- [x] `m` toggles rich ↔ raw. Raw = the normal diff. Rich = rendered markdown (react-markdown
       or similar; one dependency, justified: rendering GFM correctly is not a weekend job).
-- [ ] Selection toolbar (fixed, 42px above, clamped; `preventDefault` on mousedown):
+- [x] Selection toolbar (fixed, 42px above, clamped; `preventDefault` on mousedown):
       Comment · Ask the agent · Copy reference.
-- [ ] Selection threads: highlight run + margin marker + Selections aside (stacks < 780).
-- [ ] Ask-on-selection reuses the inline chat from phase 1 anchored to a text range.
+- [x] Selection threads: highlight run + margin marker + Selections aside (stacks < 780).
+- [x] Ask-on-selection reuses the inline chat from phase 1 anchored to a text range.
 
 ## Phase 3 — PR mode: fetch, worktrees, comments, submit  ~3 days
 

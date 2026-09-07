@@ -8,6 +8,8 @@ import type {
   PermissionReply,
 } from '@review/shared'
 
+export type FileContent = { path: string; content: string }
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${url} -> ${res.status}`)
@@ -31,6 +33,11 @@ const threadPath = (thread: string) => `/api/chat/${encodeURIComponent(thread)}`
 /** The diff the session is reviewing. */
 export function fetchDiff(): Promise<DiffDocument> {
   return requestJson<DiffDocument>('/api/diff')
+}
+
+/** Full new-side content of one changed file. Rejects with a 404 when the source cannot provide it (patch files). */
+export function fetchFile(path: string): Promise<FileContent> {
+  return requestJson<FileContent>(`/api/file?path=${encodeURIComponent(path)}`)
 }
 
 /** Agents, models and commands opencode offers, plus server settings. */
