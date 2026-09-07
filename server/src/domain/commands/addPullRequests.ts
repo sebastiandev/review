@@ -39,6 +39,23 @@ export async function resolvePullRequest(
 }
 
 /**
+ * Read-only: open PRs of the repo that are not in the inbox yet and where no review was
+ * requested from me — the candidates for the "add PR" picker.
+ * Pre-conditions:
+ * - the repo exists (else `NotFound`)
+ */
+export async function listOpenPreviews(
+  deps: Pick<AddPullRequestsDeps, 'store' | 'providers'>,
+  req: { repoId: number },
+): Promise<PrPreview[]> {
+  const repo = deps.store.repos.get(req.repoId)
+  if (!repo) throw new NotFound('repo', req.repoId)
+  const stored = new Set(deps.store.pullRequests.listByRepo(repo.id, {}).map((p) => p.number))
+  const open = await deps.providers[repo.provider].listOpen(repo)
+  return open.filter((r) => !r.reviewRequested && !stored.has(r.number)).map((r) => toPreview(repo, r, false))
+}
+
+/**
  * Put PRs the user picked into the inbox with their diff and comments.
  * Pre-conditions:
  * - the repo exists and every number resolves remotely (else `NotFound`, nothing written)

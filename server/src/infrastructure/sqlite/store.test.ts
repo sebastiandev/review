@@ -19,11 +19,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001'])
+    expect(versions).toEqual(['0001', '0002'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(1)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(2)
     second.close()
   })
 
@@ -221,6 +221,33 @@ describe('sqliteStore', () => {
       const rows = store.views.inbox(repo.id)
       expect(rows.map((r) => r.number)).toEqual([1])
       expect(rows[0]).toMatchObject({ remoteCommentCount: 1, draftCommentCount: 1, submittedVerdict: null, hasWorktree: false })
+    })
+
+    it('prDetail joins the PR row with its diff, comments, open draft and viewed marks', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr({ number: 7, body: 'Spec: X' }), { specRef: 'X' }, NOW)
+      store.diffs.insert({ prId: pr.id, headSha: pr.headSha, baseSha: pr.baseSha, patch: 'p', files: [], anchors: { 'a.py': [1] }, fetchedAt: NOW })
+      const draft = store.drafts.insert(pr.id, pr.headSha, NOW)
+      const comment = store.drafts.insertComment(
+        { draftId: draft.id, path: 'a.py', line: 1, startLine: null, side: 'RIGHT', body: 'b', agentBody: null, origin: 'human', selected: true, anchorValid: true, inReplyTo: null, findingId: null },
+        NOW,
+      )
+      store.viewed.set(pr.id, 'a.py', pr.headSha)
+
+      const detail = store.views.prDetail(pr.id)!
+
+      expect(detail.pr).toMatchObject({ id: pr.id, number: 7, body: 'Spec: X', specRef: 'X', worktreePath: null, draftCommentCount: 1 })
+      expect(detail.diff).toEqual({ source: { kind: 'pr', repo: 'acme/widgets', number: 7, headSha: pr.headSha }, patch: 'p', files: [], anchors: { 'a.py': [1] } })
+      expect(detail.draft).toEqual({ id: draft.id, headSha: pr.headSha, status: 'open', comments: [expect.objectContaining({ id: comment.id, body: 'b' })] })
+      expect(detail.draft?.comments[0]).not.toHaveProperty('draftId')
+      expect(detail.viewed).toEqual([{ path: 'a.py', headSha: pr.headSha }])
+    })
+
+    it('prDetail is null for an unknown id and has null diff/draft before they exist', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr({ number: 8 }), {}, NOW)
+      expect(store.views.prDetail(999)).toBeNull()
+      expect(store.views.prDetail(pr.id)).toMatchObject({ diff: null, draft: null, comments: [], viewed: [] })
     })
 
     it('repoCounts counts active and review-requested PRs per repo', () => {

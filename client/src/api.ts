@@ -27,17 +27,23 @@ async function postJson(url: string, body: unknown): Promise<void> {
   if (!res.ok) throw new Error(`POST ${url} -> ${res.status}`)
 }
 
-/** Thread ids contain `/` and `:`; they travel as one path segment. */
-const threadPath = (thread: string) => `/api/chat/${encodeURIComponent(thread)}`
+/** The scope diff mode serves. PR mode uses `pr:<id>`. */
+export const LOCAL_SCOPE = 'local'
 
-/** The diff the session is reviewing. */
-export function fetchDiff(): Promise<DiffDocument> {
-  return requestJson<DiffDocument>('/api/diff')
+/** Scope ids contain `:`; they travel as one path segment. */
+const scopePath = (scope: string) => `/api/scopes/${encodeURIComponent(scope)}`
+
+/** Thread ids contain `/` and `:`; they travel as one path segment. */
+const threadPath = (scope: string, thread: string) => `${scopePath(scope)}/chat/${encodeURIComponent(thread)}`
+
+/** The diff the scope is reviewing. */
+export function fetchDiff(scope = LOCAL_SCOPE): Promise<DiffDocument> {
+  return requestJson<DiffDocument>(`${scopePath(scope)}/diff`)
 }
 
 /** Full new-side content of one changed file. Rejects with a 404 when the source cannot provide it (patch files). */
-export function fetchFile(path: string): Promise<FileContent> {
-  return requestJson<FileContent>(`/api/file?path=${encodeURIComponent(path)}`)
+export function fetchFile(path: string, scope = LOCAL_SCOPE): Promise<FileContent> {
+  return requestJson<FileContent>(`${scopePath(scope)}/file?path=${encodeURIComponent(path)}`)
 }
 
 /** Agents, models and commands opencode offers, plus server settings. */
@@ -46,26 +52,26 @@ export function fetchConfig(): Promise<AppConfig> {
 }
 
 /** Every thread the server knows: `dock` plus the line threads created so far. */
-export function fetchThreads(): Promise<ChatThreadRef[]> {
-  return requestJson<ChatThreadRef[]>('/api/threads')
+export function fetchThreads(scope = LOCAL_SCOPE): Promise<ChatThreadRef[]> {
+  return requestJson<ChatThreadRef[]>(`${scopePath(scope)}/threads`)
 }
 
 /** The thread anchored to `anchor`'s start line, created on first use. */
-export function createLineThread(anchor: DiffSelection): Promise<ChatThreadRef> {
-  return requestJson<ChatThreadRef>('/api/threads/line', jsonInit(anchor))
+export function createLineThread(anchor: DiffSelection, scope = LOCAL_SCOPE): Promise<ChatThreadRef> {
+  return requestJson<ChatThreadRef>(`${scopePath(scope)}/threads/line`, jsonInit(anchor))
 }
 
 /** Chat parts already produced in one thread. */
-export function fetchChatHistory(thread: string): Promise<ChatPart[]> {
-  return requestJson<ChatPart[]>(`${threadPath(thread)}/history`)
+export function fetchChatHistory(thread: string, scope = LOCAL_SCOPE): Promise<ChatPart[]> {
+  return requestJson<ChatPart[]>(`${threadPath(scope, thread)}/history`)
 }
 
 /** Sends a user turn to one thread; the reply streams over /api/events. */
-export function sendChat(thread: string, body: ChatSendRequest): Promise<void> {
-  return postJson(threadPath(thread), body)
+export function sendChat(thread: string, body: ChatSendRequest, scope = LOCAL_SCOPE): Promise<void> {
+  return postJson(threadPath(scope, thread), body)
 }
 
 /** Answers a pending permission ask in one thread. */
-export function replyPermission(thread: string, id: string, response: PermissionReply): Promise<void> {
-  return postJson(`${threadPath(thread)}/permission/${encodeURIComponent(id)}`, { response })
+export function replyPermission(thread: string, id: string, response: PermissionReply, scope = LOCAL_SCOPE): Promise<void> {
+  return postJson(`${threadPath(scope, thread)}/permission/${encodeURIComponent(id)}`, { response })
 }

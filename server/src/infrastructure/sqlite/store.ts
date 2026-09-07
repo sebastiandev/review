@@ -1,5 +1,5 @@
 import type { DatabaseSync, SQLInputValue, SQLOutputValue } from 'node:sqlite'
-import type { InboxRow, PastReviewRow, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
+import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from '../../domain/pullRequests.ts'
 import type { DraftComment, ReviewDraft, Submission } from '../../domain/review.ts'
 import type { Store } from '../../domain/store.ts'
@@ -11,7 +11,7 @@ type Row = Record<string, SQLOutputValue>
 export function sqliteStore(db: DatabaseSync): Store {
   const q = (sql: string) => db.prepare(sql)
 
-  return {
+  const store: Store = {
     transaction(fn) {
       if (db.isTransaction) throw new Error('nested transaction')
       db.exec('BEGIN')
@@ -205,21 +205,41 @@ export function sqliteStore(db: DatabaseSync): Store {
 
     views: {
       inbox: (repoId) =>
-        q(
-          `SELECT pr.id, pr.repo_id, pr.number, pr.title, pr.author, pr.url, pr.is_draft, pr.state, pr.additions, pr.deletions,
-                  pr.changed_files, pr.head_sha, pr.review_requested, pr.added_by_user, pr.done_at, pr.worktree_path,
-                  pr.remote_created_at, pr.remote_updated_at,
-                  (SELECT COUNT(*) FROM remote_comment rc WHERE rc.pr_id = pr.id) AS remote_comment_count,
-                  (SELECT COUNT(*) FROM draft_comment dc JOIN review_draft d ON d.id = dc.draft_id
-                    WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha AND d.status = 'open') AS draft_comment_count,
-                  (SELECT s.verdict FROM submission s JOIN review_draft d ON d.id = s.draft_id
-                    WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha ORDER BY s.id DESC LIMIT 1) AS submitted_verdict
-           FROM pull_request pr
-           WHERE pr.repo_id = ? AND pr.done_at IS NULL
-           ORDER BY pr.review_requested DESC, pr.remote_updated_at DESC`,
-        )
+        q(`${INBOX_SELECT} WHERE pr.repo_id = ? AND pr.done_at IS NULL ORDER BY pr.review_requested DESC, pr.remote_updated_at DESC`)
           .all(repoId)
           .map(toInboxRow),
+      prDetail(prId) {
+        const row = q(`${INBOX_SELECT} WHERE pr.id = ?`).get(prId)
+        if (!row) return null
+        const pr = toPullRequest(row)
+        const diff = store.diffs.get(pr.id, pr.headSha)
+        const draft = store.drafts.open(pr.id, pr.headSha)
+        return {
+          pr: {
+            ...toInboxRow(row),
+            body: pr.body,
+            headRef: pr.headRef,
+            baseRef: pr.baseRef,
+            baseSha: pr.baseSha,
+            specRef: pr.specRef,
+            worktreePath: pr.worktreePath,
+          },
+          diff: diff && {
+            source: { kind: 'pr', repo: str(row.repo), number: pr.number, headSha: diff.headSha },
+            patch: diff.patch,
+            files: diff.files,
+            anchors: diff.anchors,
+          },
+          comments: store.comments.list(pr.id),
+          draft: draft && {
+            id: draft.id,
+            headSha: draft.headSha,
+            status: draft.status,
+            comments: store.drafts.comments(draft.id).map(({ draftId: _draftId, ...c }) => c),
+          },
+          viewed: store.viewed.list(pr.id),
+        }
+      },
       repoCounts: () =>
         q(
           `SELECT r.*,
@@ -282,7 +302,17 @@ export function sqliteStore(db: DatabaseSync): Store {
           ),
     },
   }
+  return store
 }
+
+/** `pull_request.*` plus the inbox aggregates; callers append WHERE/ORDER BY. */
+const INBOX_SELECT = `SELECT pr.*, r.owner || '/' || r.name AS repo,
+         (SELECT COUNT(*) FROM remote_comment rc WHERE rc.pr_id = pr.id) AS remote_comment_count,
+         (SELECT COUNT(*) FROM draft_comment dc JOIN review_draft d ON d.id = dc.draft_id
+           WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha AND d.status = 'open') AS draft_comment_count,
+         (SELECT s.verdict FROM submission s JOIN review_draft d ON d.id = s.draft_id
+           WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha ORDER BY s.id DESC LIMIT 1) AS submitted_verdict
+  FROM pull_request pr JOIN repo r ON r.id = pr.repo_id`
 
 // --- row mapping ---------------------------------------------------------------------------
 

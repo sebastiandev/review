@@ -245,12 +245,6 @@ export type AppConfig = {
   agents: { name: string; description?: string }[]
   models: { providerID: string; modelID: string; name: string; variants: string[] }[]
   commands: { name: string; description?: string }[]
-  settings: Settings
-}
-
-export type Settings = {
-  defaultReviewAgent: string
-  defaultModel: ModelRef | null
-  theme: string
-  chatAgent: string | null
+  /** The persisted user settings; same as `GET /api/settings`. */
+  settings: UserSettings
 }

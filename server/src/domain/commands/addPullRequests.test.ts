@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NotFound } from '../errors.ts'
 import type { Store } from '../store.ts'
 import { fakeProvider, fixedClock, GITHUB_REPO, NOW, openTestStore, remotePr, type FakeProvider } from '../testing/fakes.ts'
-import { addPullRequests, resolvePullRequest, type AddPullRequestsDeps } from './addPullRequests.ts'
+import { addPullRequests, listOpenPreviews, resolvePullRequest, type AddPullRequestsDeps } from './addPullRequests.ts'
 
 describe('addPullRequests / resolvePullRequest', () => {
   let store: Store
@@ -74,6 +74,23 @@ describe('addPullRequests / resolvePullRequest', () => {
       store.repos.update(untracked.id, { tracked: true })
       provider.remote.set(3, remotePr({ number: 3 }))
       expect(await resolvePullRequest(deps, { repoId, input: 'octo/cat#3' })).toMatchObject({ repoId: untracked.id, preview: { repo: 'octo/cat', number: 3 } })
+    })
+  })
+
+  describe('listOpenPreviews', () => {
+    it('lists open PRs that are neither review-requested nor already stored', async () => {
+      provider.remote.set(12, remotePr({ number: 12, reviewRequested: true }))
+      provider.remote.set(13, remotePr({ number: 13, reviewRequested: false, state: 'merged' }))
+      await addPullRequests(deps, { repoId, numbers: [11], reviewOnOpen: false })
+
+      const previews = await listOpenPreviews(deps, { repoId })
+
+      expect(previews.map((p) => p.number)).toEqual([10])
+      expect(previews[0]).toMatchObject({ repo: 'acme/widgets', stored: false })
+    })
+
+    it('rejects an unknown repo', async () => {
+      await expect(listOpenPreviews(deps, { repoId: 999 })).rejects.toThrow(NotFound)
     })
   })
 })

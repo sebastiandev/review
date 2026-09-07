@@ -1,4 +1,4 @@
-import type { InboxRow, PastReviewRow, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
+import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from './pullRequests.ts'
 import type { DraftComment, ReviewDraft, Submission } from './review.ts'
 
@@ -65,6 +65,8 @@ export type Store = {
   /** Read models. Aggregation happens in SQL. */
   views: {
     inbox(repoId: number): InboxRow[]
+    /** Everything the PR screen needs, or null for an unknown id. */
+    prDetail(prId: number): PrDetail | null
     repoCounts(): RepoSummary[]
     pastReviews(verdict: Verdict | null): PastReviewRow[]
     /** Size is measured by the worktree adapter, not stored. */

@@ -39,3 +39,10 @@ export class InvalidAnchors extends DomainError {
     super('invalid_anchors', `comments ${ids.join(', ')} are not anchorable`)
   }
 }
+
+/** The PR has no worktree on disk yet; `openPullRequest` has to run first. */
+export class WorktreeMissing extends DomainError {
+  constructor(prId: number) {
+    super('worktree_missing', `pull request ${prId} has no worktree; open it first`)
+  }
+}

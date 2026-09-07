@@ -2,7 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { resolve, relative, isAbsolute } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import type { DiffSourceRef } from '@review/shared'
 import type { DiffSource } from '../domain/diff.ts'
+import type { PrDiff } from '../domain/pullRequests.ts'
 
 const run = promisify(execFile)
 
@@ -37,6 +39,24 @@ export function localRepoSource(path: string, base: string | null): DiffSource {
     async fileContent(file) {
       const full = resolve(path, file)
       const rel = relative(path, full)
+      if (rel.startsWith('..') || isAbsolute(rel)) return null
+      return readFile(full, 'utf8').catch(() => null)
+    },
+  }
+}
+
+/**
+ * A PR's cached diff. `fileContent` reads the checked-out head in `worktreePath`, or yields
+ * null when no worktree exists (or the path escapes it).
+ */
+export function prDiffSource(ref: Extract<DiffSourceRef, { kind: 'pr' }>, diff: PrDiff, worktreePath: string | null): DiffSource {
+  return {
+    ref,
+    read: async () => diff.patch,
+    async fileContent(file) {
+      if (!worktreePath) return null
+      const full = resolve(worktreePath, file)
+      const rel = relative(worktreePath, full)
       if (rel.startsWith('..') || isAbsolute(rel)) return null
       return readFile(full, 'utf8').catch(() => null)
     },

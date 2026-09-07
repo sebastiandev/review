@@ -12,7 +12,7 @@ import type { LineRef } from './diff/LineActionButton'
 import { parsePatch } from './diff/parsePatch'
 import { useDiffSelection } from './diff/useDiffSelection'
 import { FileTree } from './files/FileTree'
-import { basename, scopeKind } from './files/scope'
+import { basename, scopeKind, scopeLabel } from './files/scope'
 import { TopPrBar } from './files/TopPrBar'
 import { useViewed } from './files/useViewed'
 import { MarkdownView, type MarkdownThread } from './markdown/MarkdownView'
@@ -79,7 +79,7 @@ export function App() {
   const touchedLine = useRef<LineRef | null>(null)
   const pendingJump = useRef<{ path: string; start: number; end: number } | null>(null)
 
-  const diff = useQuery({ queryKey: ['diff'], queryFn: fetchDiff })
+  const diff = useQuery({ queryKey: ['diff'], queryFn: () => fetchDiff() })
   const config = useQuery({ queryKey: ['config'], queryFn: fetchConfig, staleTime: Infinity })
   const chat = useChatThreads()
   const turn = useTurnSettings()
@@ -87,7 +87,7 @@ export function App() {
   const { selections, rect: selectionRect, clear: clearSelection } = useDiffSelection(body)
 
   const document = diff.data
-  const scopePath = document?.source.path ?? null
+  const scopePath = document ? scopeLabel(document.source) : null
   const { viewed, toggle: toggleViewed } = useViewed(scopePath)
   const parsedByPath = useMemo(() => new Map(parsePatch(document?.patch ?? '').map((f) => [f.path, f])), [document?.patch])
   const files = document?.files ?? []
@@ -318,7 +318,7 @@ export function App() {
           {diff.isError && <p className="notice">Could not load the diff: {String(diff.error)}</p>}
           {document && files.length === 0 && (
             <p className="notice">
-              No changes in {document.source.path}
+              No changes in {scopeLabel(document.source)}
               {document.source.kind === 'repo' && !document.source.base
                 ? '. The working tree is clean; pass --base <ref> to compare the branch instead.'
                 : '.'}

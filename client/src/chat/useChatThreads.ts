@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChatSendRequest, ChatThreadRef, DiffSelection, PermissionReply, ServerEvent } from '@review/shared'
-import { createLineThread, fetchChatHistory, fetchThreads, replyPermission, sendChat } from '../api'
+import { LOCAL_SCOPE, createLineThread, fetchChatHistory, fetchThreads, replyPermission, sendChat } from '../api'
 import {
   EMPTY_THREAD,
   applyEvent,
@@ -27,60 +27,68 @@ export type ChatThreads = {
   forget: (id: string) => void
 }
 
-/** Every chat thread, fed by one /api/events stream, with histories loaded on mount. */
-export function useChatThreads(): ChatThreads {
+/** Every chat thread of one scope, fed by one /api/events stream, with histories loaded on mount. */
+export function useChatThreads(scope: string = LOCAL_SCOPE): ChatThreads {
   const [threads, setThreads] = useState<ThreadsState>({})
   const [refs, setRefs] = useState<ChatThreadRef[]>([])
 
   const loadHistory = useCallback(async (id: string) => {
     try {
-      const history = await fetchChatHistory(id)
+      const history = await fetchChatHistory(id, scope)
       setThreads((current) => applyHistory(current, id, history))
     } catch (e: unknown) {
       setThreads((current) => markFailed(current, id, String(e)))
     }
-  }, [])
+  }, [scope])
 
   useEffect(() => {
-    fetchThreads()
+    fetchThreads(scope)
       .then((list) => {
         setRefs(list)
         for (const ref of list) void loadHistory(ref.id)
       })
       .catch((e: unknown) => setThreads((current) => markFailed(current, DOCK_THREAD, String(e))))
-  }, [loadHistory])
+  }, [loadHistory, scope])
 
   useEffect(() => {
     const source = new EventSource('/api/events')
     source.onmessage = (message: MessageEvent<string>) => {
       const event = JSON.parse(message.data) as ServerEvent
+      // The bus carries every scope; chat events name theirs.
+      if ('scope' in event && event.scope !== scope) return
       setThreads((current) => applyEvent(current, event))
     }
     return () => source.close()
-  }, [])
+  }, [scope])
 
-  const send = useCallback(async (id: string, request: ChatSendRequest) => {
-    setThreads((current) => markSending(current, id))
-    try {
-      await sendChat(id, request)
-    } catch (e: unknown) {
-      setThreads((current) => markFailed(current, id, String(e)))
-    }
-  }, [])
+  const send = useCallback(
+    async (id: string, request: ChatSendRequest) => {
+      setThreads((current) => markSending(current, id))
+      try {
+        await sendChat(id, request, scope)
+      } catch (e: unknown) {
+        setThreads((current) => markFailed(current, id, String(e)))
+      }
+    },
+    [scope],
+  )
 
-  const respondPermission = useCallback(async (id: string, permissionID: string, reply: PermissionReply) => {
-    await replyPermission(id, permissionID, reply)
-    setThreads((current) => removePermission(current, id, permissionID))
-  }, [])
+  const respondPermission = useCallback(
+    async (id: string, permissionID: string, reply: PermissionReply) => {
+      await replyPermission(id, permissionID, reply, scope)
+      setThreads((current) => removePermission(current, id, permissionID))
+    },
+    [scope],
+  )
 
   const openLineThread = useCallback(
     async (anchor: DiffSelection) => {
-      const ref = await createLineThread(anchor)
+      const ref = await createLineThread(anchor, scope)
       setRefs((current) => (current.some((r) => r.id === ref.id) ? current : [...current, ref]))
       await loadHistory(ref.id)
       return ref
     },
-    [loadHistory],
+    [loadHistory, scope],
   )
 
   const forget = useCallback((id: string) => setRefs((current) => current.filter((r) => r.id !== id)), [])

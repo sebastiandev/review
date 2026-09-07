@@ -6,7 +6,7 @@
     "review": "./src/cli.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/cli.ts diff ../ --dev --no-open",
+    "dev": "tsx watch src/cli.ts --dev --no-open",
     "start": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

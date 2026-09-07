@@ -1,6 +1,6 @@
 import { CaretDown, Check, FolderOpen } from '@phosphor-icons/react'
 import type { DiffDocument, DiffFile } from '@review/shared'
-import { basename, scopeKind } from './scope'
+import { basename, scopeKind, scopeLabel } from './scope'
 
 type FileTreeProps = {
   document: DiffDocument
@@ -35,6 +35,7 @@ export function FileTree({
 }: FileTreeProps) {
   const { source, files } = document
   const kind = scopeKind(source)
+  const label = scopeLabel(source)
   const viewedCount = files.filter((f) => viewed.has(f.path)).length
   const meta = [source.kind === 'repo' && source.base ? `vs ${source.base}` : null, `${files.length} changed files`]
     .filter(Boolean)
@@ -51,13 +52,13 @@ export function FileTree({
           onClick={onToggleScopeMenu}
         >
           <FolderOpen size={14} className="selector-glyph" />
-          <span className="selector-path">{source.path}</span>
+          <span className="selector-path">{label}</span>
           <CaretDown size={12} className="selector-glyph" />
         </button>
         {scopeMenuOpen && (
           <div className="menu sidebar-menu" role="menu">
             <button type="button" role="menuitem" className="menu-row menu-row-current" onClick={onToggleScopeMenu}>
-              <span className="menu-row-label mono">{source.path}</span>
+              <span className="menu-row-label mono">{label}</span>
               <span className="menu-row-note">{kind}</span>
             </button>
             <button type="button" role="menuitem" className="menu-footer-row" disabled title="coming soon">
@@ -65,7 +66,7 @@ export function FileTree({
             </button>
           </div>
         )}
-        <div className="sidebar-title">{basename(source.path)}</div>
+        <div className="sidebar-title">{basename(label)}</div>
         <div className="sidebar-meta">{meta}</div>
       </div>
       <div className="overline-row">

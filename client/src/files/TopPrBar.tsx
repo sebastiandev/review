@@ -1,5 +1,5 @@
 import type { DiffDocument } from '@review/shared'
-import { basename } from './scope'
+import { basename, scopeLabel } from './scope'
 
 type TopPrBarProps = {
   document: DiffDocument
@@ -11,7 +11,7 @@ type TopPrBarProps = {
 export function TopPrBar({ document, selectedPath, onSelect }: TopPrBarProps) {
   return (
     <div className="toppr">
-      <span className="toppr-scope">{document.source.path}</span>
+      <span className="toppr-scope">{scopeLabel(document.source)}</span>
       <div className="toppr-chips">
         {document.files.map((file) => (
           <button

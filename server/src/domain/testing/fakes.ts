@@ -1,7 +1,8 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ServerEvent, WorktreeStage } from '@review/shared'
+import type { ChatEvent, ChatThreadRef, ServerEvent, WorktreeStage } from '@review/shared'
+import { lineThreadId, type ChatHub, type ChatInput, type ChatThread } from '../chat.ts'
 import type { Clock, Events } from '../ports.ts'
 import type {
   PullRequestProvider,
@@ -186,6 +187,49 @@ export async function openTestStore(): Promise<{ store: Store; path: string; clo
     async close() {
       db.close()
       await rm(dir, { recursive: true, force: true })
+    },
+  }
+}
+
+export type FakeChatHub = ChatHub & {
+  /** Every `send` across threads, as `[threadId, input]`. */
+  sent: [string, ChatInput][]
+  /** Push an event to the hub's subscribers, as opencode would. */
+  emit(e: ChatEvent): void
+}
+
+/** In-memory `ChatHub`: a dock thread, line threads created on demand, no agent behind them. */
+export function fakeChatHub(): FakeChatHub {
+  const sent: FakeChatHub['sent'] = []
+  const listeners = new Set<(e: ChatEvent) => void>()
+  const threads = new Map<string, ChatThread>()
+  const register = (ref: ChatThreadRef): ChatThread => {
+    const thread: ChatThread = {
+      ref,
+      async send(input) {
+        sent.push([ref.id, input])
+      },
+      async history() {
+        return []
+      },
+      async respondPermission() {},
+    }
+    threads.set(ref.id, thread)
+    return thread
+  }
+  const dock = register({ id: 'dock', anchor: null })
+  return {
+    sent,
+    emit: (e) => listeners.forEach((l) => l(e)),
+    dock: () => dock,
+    async line(anchor) {
+      return threads.get(lineThreadId(anchor)) ?? register({ id: lineThreadId(anchor), anchor })
+    },
+    threads: () => [...threads.values()].map((t) => t.ref),
+    byId: (id) => threads.get(id),
+    subscribe(l) {
+      listeners.add(l)
+      return () => listeners.delete(l)
     },
   }
 }

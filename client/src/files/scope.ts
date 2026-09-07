@@ -1,10 +1,22 @@
 import type { DiffSourceRef } from '@review/shared'
 
-export type ScopeKind = 'working tree' | 'folder' | 'patch file'
+export type ScopeKind = 'working tree' | 'folder' | 'patch file' | 'pull request'
 
 /** Kind label for the scope selector. A repo source is a working tree; the server does not distinguish sub-folders. */
 export function scopeKind(source: DiffSourceRef): ScopeKind {
-  return source.kind === 'patch' ? 'patch file' : 'working tree'
+  switch (source.kind) {
+    case 'patch':
+      return 'patch file'
+    case 'repo':
+      return 'working tree'
+    case 'pr':
+      return 'pull request'
+  }
+}
+
+/** What identifies the scope to the user: the path on disk, or `owner/name#n` for a PR. */
+export function scopeLabel(source: DiffSourceRef): string {
+  return source.kind === 'pr' ? `${source.repo}#${source.number}` : source.path
 }
 
 /** Last path segment. */
