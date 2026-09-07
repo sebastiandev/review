@@ -62,7 +62,7 @@ describe('syncRepo', () => {
     const result = await syncRepo(deps, { repoId })
 
     expect(result).toEqual({ added: 0, updated: 1, released: 0 })
-    expect(provider.calls).toEqual(['listOpen'])
+    expect(provider.calls).toEqual(['listReviewRequested'])
   })
 
   it('caches a new diff when the head moved, keeping the old one', async () => {
@@ -75,7 +75,7 @@ describe('syncRepo', () => {
 
     const pr = store.pullRequests.find(repoId, 1)!
     expect(pr.headSha).toBe('sha-b')
-    expect(provider.calls).toEqual(['listOpen', 'diff:1', 'comments:1'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'diff:1', 'comments:1'])
     expect(store.diffs.get(pr.id, 'sha-a')).not.toBeNull()
     expect(store.diffs.get(pr.id, 'sha-b')).not.toBeNull()
   })
@@ -109,7 +109,7 @@ describe('syncRepo', () => {
   })
 
   it('records the provider error on the repo and rethrows', async () => {
-    provider.listOpen = async () => {
+    provider.listReviewRequested = async () => {
       throw new Error('rate limited')
     }
 

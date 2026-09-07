@@ -85,6 +85,10 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     calls,
     submitted,
     cloneUrl: (repo) => `https://github.com/${repo.owner}/${repo.name}.git`,
+    async listReviewRequested() {
+      calls.push('listReviewRequested')
+      return [...remote.values()].filter((p) => p.state === 'open' && p.reviewRequested)
+    },
     async listOpen() {
       calls.push('listOpen')
       return [...remote.values()].filter((p) => p.state === 'open')

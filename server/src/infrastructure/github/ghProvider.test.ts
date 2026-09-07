@@ -25,17 +25,30 @@ function fakeRunner(respond: (call: Call) => string | Error): { run: Runner; cal
 }
 
 describe('ghProvider', () => {
-  it('listOpen paginates GraphQL and maps every node against the viewer', async () => {
-    const { run, calls } = fakeRunner(() => fixture('graphql_list_open.json'))
+  it('listOpen fetches one page and maps every node against the viewer', async () => {
+    const { run, calls } = fakeRunner(() => JSON.stringify(JSON.parse(fixture('graphql_list_open.json'))[0]))
     const prs = await ghProvider(run).listOpen(repo)
     expect(prs.map((p) => [p.number, p.reviewRequested])).toEqual([
       [415, true],
       [416, false],
     ])
     expect(calls[0].cmd).toBe('gh')
-    expect(calls[0].args.slice(0, 4)).toEqual(['api', 'graphql', '--paginate', '--slurp'])
+    expect(calls[0].args.slice(0, 2)).toEqual(['api', 'graphql'])
+    expect(calls[0].args).not.toContain('--paginate')
     expect(calls[0].args).toContain('owner=acme')
-    expect(calls[0].args).toContain('name=widgets')
+  })
+
+  it('listReviewRequested searches with review-requested:@me and marks every result requested', async () => {
+    const page = JSON.parse(fixture('graphql_list_open.json'))[0]
+    const search = { data: { viewer: page.data.viewer, search: { nodes: page.data.repository.pullRequests.nodes } } }
+    const { run, calls } = fakeRunner(() => JSON.stringify([search]))
+    const prs = await ghProvider(run).listReviewRequested(repo)
+    expect(prs.map((p) => [p.number, p.reviewRequested])).toEqual([
+      [415, true],
+      [416, true],
+    ])
+    expect(calls[0].args).toContain('--paginate')
+    expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open review-requested:@me')
   })
 
   it('get maps the node and passes the number as a variable', async () => {

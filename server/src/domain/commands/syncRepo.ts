@@ -39,8 +39,8 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
     const local = store.pullRequests.listByRepo(repo.id, {})
     const localByNumber = new Map(local.map((p) => [p.number, p]))
 
-    const listed = await provider.listOpen(repo)
-    const wanted = listed.filter((r) => r.reviewRequested || localByNumber.has(r.number))
+    const listed = await provider.listReviewRequested(repo)
+    const wanted = listed
     const listedNumbers = new Set(listed.map((r) => r.number))
     const vanished = local.filter((p) => p.state === 'open' && !listedNumbers.has(p.number))
     const refreshed = (await Promise.all(vanished.map((p) => provider.get(repo, p.number)))).filter(

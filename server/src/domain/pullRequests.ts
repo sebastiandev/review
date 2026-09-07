@@ -85,6 +85,9 @@ export type PullRequestProvider = {
   kind: ProviderKind
   cloneUrl(repo: RepoRef): string
   /** Open PRs; `reviewRequested` marks the ones assigned to me. One request per repo. */
+  /** Open PRs whose review is requested from me, directly or via a team. One request per repo. */
+  listReviewRequested(repo: RepoRef): Promise<RemotePullRequest[]>
+  /** Most recently updated open PRs (one page), for picking ones not assigned to me. */
   listOpen(repo: RepoRef): Promise<RemotePullRequest[]>
   get(repo: RepoRef, number: number): Promise<RemotePullRequest | null>
   diff(repo: RepoRef, number: number): Promise<string>

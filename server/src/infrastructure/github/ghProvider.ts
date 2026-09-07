@@ -3,13 +3,22 @@ import type { Runner } from '../process.ts'
 import { mapComment, mapPullRequest, parseReference, PR_FIELDS, type GraphqlPullRequest, type RestReviewComment } from './mapping.ts'
 
 const LIST_OPEN = `
-query($owner: String!, $name: String!, $endCursor: String) {
+query($owner: String!, $name: String!) {
   viewer { login }
   repository(owner: $owner, name: $name) {
-    pullRequests(states: OPEN, first: 100, after: $endCursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
-      pageInfo { hasNextPage endCursor }
+    pullRequests(states: OPEN, first: 100, orderBy: { field: UPDATED_AT, direction: DESC }) {
       nodes { ${PR_FIELDS} }
     }
+  }
+}`
+
+// GitHub's search resolves team review requests server-side; the repository connection does not.
+const LIST_REVIEW_REQUESTED = `
+query($q: String!, $endCursor: String) {
+  viewer { login }
+  search(query: $q, type: ISSUE, first: 100, after: $endCursor) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ... on PullRequest { ${PR_FIELDS} } }
   }
 }`
 
@@ -20,6 +29,7 @@ query($owner: String!, $name: String!, $number: Int!) {
 }`
 
 type ListPage = { data: { viewer: { login: string }; repository: { pullRequests: { nodes: GraphqlPullRequest[] } } } }
+type SearchPage = { data: { viewer: { login: string }; search: { nodes: GraphqlPullRequest[] } } }
 type GetPage = { data: { viewer: { login: string }; repository: { pullRequest: GraphqlPullRequest | null } } }
 
 /**
@@ -35,13 +45,19 @@ export function ghProvider(run: Runner): PullRequestProvider {
     cloneUrl: (repo) => `https://github.com/${slug(repo)}.git`,
     parseReference,
 
+    async listReviewRequested(repo) {
+      const q = `repo:${slug(repo)} is:pr is:open review-requested:@me`
+      const out = await run('gh', ['api', 'graphql', '--paginate', '--slurp', '-F', `q=${q}`, '-f', `query=${LIST_REVIEW_REQUESTED}`])
+      const pages = JSON.parse(out) as SearchPage[]
+      return pages.flatMap((page) =>
+        page.data.search.nodes.map((n) => ({ ...mapPullRequest(n, page.data.viewer.login), reviewRequested: true })),
+      )
+    },
+
     async listOpen(repo) {
-      const out = await run('gh', [
-        'api', 'graphql', '--paginate', '--slurp',
-        '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-f', `query=${LIST_OPEN}`,
-      ])
-      const pages = JSON.parse(out) as ListPage[]
-      return pages.flatMap((page) => page.data.repository.pullRequests.nodes.map((n) => mapPullRequest(n, page.data.viewer.login)))
+      const out = await run('gh', ['api', 'graphql', '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-f', `query=${LIST_OPEN}`])
+      const page = JSON.parse(out) as ListPage
+      return page.data.repository.pullRequests.nodes.map((n) => mapPullRequest(n, page.data.viewer.login))
     },
 
     async get(repo, number) {
