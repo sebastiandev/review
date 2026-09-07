@@ -5,6 +5,7 @@ import { basename, dirname } from '../files/scope'
 import { Segmented } from '../shell/Segmented'
 import { LineActionButton, type LineRef } from './LineActionButton'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
+import { highlightLine, languageOf } from './highlight'
 
 export type DiffMode = 'unified' | 'split'
 
@@ -56,13 +57,13 @@ function ActionSlot({ path, line, side, openMenu, onToggleMenu, onCopyRef }: Lin
   )
 }
 
-function Code({ line, marker }: { line: DiffLine; marker: string }) {
+function Code({ line, marker, language }: { line: DiffLine; marker: string; language: string | null }) {
   return (
     <span className="diff-code">
       <span className="diff-marker" aria-hidden>
         {marker}
       </span>
-      <span className="diff-text">{line.text}</span>
+      <span className="diff-text">{highlightLine(line.text, language)}</span>
     </span>
   )
 }
@@ -70,6 +71,7 @@ function Code({ line, marker }: { line: DiffLine; marker: string }) {
 type HunkProps = Omit<LineProps, 'line' | 'side'> & { hunk: DiffHunk }
 
 function UnifiedHunk({ path, hunk, ...menu }: HunkProps) {
+  const language = languageOf(path)
   return (
     <>
       <div className="drow drow-hunk">
@@ -91,7 +93,7 @@ function UnifiedHunk({ path, hunk, ...menu }: HunkProps) {
             <span className="gutter">{line.oldLine}</span>
             <span className="gutter">{line.newLine}</span>
             <ActionSlot path={path} line={line} side={side} {...menu} />
-            <Code line={line} marker={MARKER[line.kind]} />
+            <Code line={line} marker={MARKER[line.kind]} language={language} />
           </div>
         )
       })}
@@ -100,6 +102,7 @@ function UnifiedHunk({ path, hunk, ...menu }: HunkProps) {
 }
 
 function SplitHunk({ path, hunk, ...menu }: HunkProps) {
+  const language = languageOf(path)
   return (
     <>
       <div className="srow">
@@ -120,7 +123,7 @@ function SplitHunk({ path, hunk, ...menu }: HunkProps) {
             data-line={left?.oldLine ?? undefined}
           >
             <span className="gutter">{left?.oldLine}</span>
-            {left && <Code line={left} marker="  " />}
+            {left && <Code line={left} marker="  " language={language} />}
           </div>
           <div
             className={`side${right ? ` side-${right.kind}` : ''}`}
@@ -130,7 +133,7 @@ function SplitHunk({ path, hunk, ...menu }: HunkProps) {
           >
             <span className="gutter">{right?.newLine}</span>
             {right ? <ActionSlot path={path} line={right} side="new" {...menu} /> : <span className="line-action-spacer" />}
-            {right && <Code line={right} marker="  " />}
+            {right && <Code line={right} marker="  " language={language} />}
           </div>
         </div>
       ))}

@@ -1281,3 +1281,31 @@ button {
   font-size: 12.5px;
   color: var(--color-neutral-300);
 }
+
+/* Syntax highlighting — muted, from the ramps, so it never fights the add/remove tints.
+   Base line colour stays the diff-theme fg; tokens shift hue, not weight. */
+.tok.keyword,
+.tok.builtin,
+.tok.boolean,
+.tok.important { color: var(--color-accent-300); }
+.tok.string,
+.tok.char,
+.tok.attr-value,
+.tok.regex { color: color-mix(in srgb, var(--color-accent-200) 55%, var(--color-neutral-300)); }
+.tok.comment,
+.tok.prolog,
+.tok.doctype,
+.tok.cdata { color: var(--color-neutral-600); font-style: italic; }
+.tok.number,
+.tok.constant,
+.tok.symbol { color: color-mix(in srgb, var(--color-accent-400) 60%, var(--color-neutral-200)); }
+.tok.function,
+.tok.class-name,
+.tok.tag,
+.tok.selector { color: var(--color-neutral-100); }
+.tok.decorator,
+.tok.annotation,
+.tok.attr-name,
+.tok.property { color: var(--color-accent-400); }
+.tok.punctuation,
+.tok.operator { color: var(--color-neutral-500); }
