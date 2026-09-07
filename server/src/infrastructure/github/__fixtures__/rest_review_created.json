@@ -1,0 +1,11 @@
+{
+  "id": 3100,
+  "node_id": "PRR_kwDOAbCdEi",
+  "user": { "login": "seba", "id": 1 },
+  "body": "Looks good overall.",
+  "state": "COMMENTED",
+  "html_url": "https://github.com/acme/widgets/pull/415#pullrequestreview-3100",
+  "pull_request_url": "https://api.github.com/repos/acme/widgets/pulls/415",
+  "submitted_at": "2026-09-07T10:00:00Z",
+  "commit_id": "9f2c1c3e6b0a4d5e8f7a6b5c4d3e2f1a0b9c8d7e"
+}

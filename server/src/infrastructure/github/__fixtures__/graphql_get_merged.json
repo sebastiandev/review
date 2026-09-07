@@ -1,0 +1,26 @@
+{
+  "data": {
+    "viewer": { "login": "seba" },
+    "repository": {
+      "pullRequest": {
+        "number": 400,
+        "title": "Fix flaky test",
+        "author": { "login": "carol" },
+        "url": "https://github.com/acme/widgets/pull/400",
+        "body": "Retries the sqlite open.",
+        "headRefName": "fix/flaky",
+        "baseRefName": "main",
+        "headRefOid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "baseRefOid": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+        "isDraft": false,
+        "state": "MERGED",
+        "additions": 12,
+        "deletions": 4,
+        "changedFiles": 2,
+        "createdAt": "2026-08-20T10:00:00Z",
+        "updatedAt": "2026-08-22T15:30:00Z",
+        "reviewRequests": { "nodes": [] }
+      }
+    }
+  }
+}

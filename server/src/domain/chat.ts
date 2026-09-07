@@ -1,4 +1,4 @@
-import type { ChatPart, ChatThreadRef, DiffSelection, PermissionReply, ServerEvent, TurnSettings } from '@review/shared'
+import type { ChatEvent, ChatPart, ChatThreadRef, DiffSelection, PermissionReply, TurnSettings } from '@review/shared'
 
 /** One agent conversation. Implemented in infrastructure over opencode. */
 export type ChatThread = {
@@ -19,7 +19,7 @@ export type ChatHub = {
   threads(): ChatThreadRef[]
   byId(id: string): ChatThread | undefined
   /** Push events for every thread; the returned function unsubscribes. */
-  subscribe(listener: (event: ServerEvent) => void): () => void
+  subscribe(listener: (event: ChatEvent) => void): () => void
 }
 
 export type ChatInput = TurnSettings & {

@@ -55,7 +55,9 @@ async function diffContext(source: Awaited<ReturnType<typeof localRepoSource>>):
   const where =
     source.ref.kind === 'repo'
       ? `the working tree at ${source.ref.path}${source.ref.base ? ` compared against ${source.ref.base}` : ' (uncommitted changes)'}`
-      : `the patch file ${source.ref.path}`
+      : source.ref.kind === 'patch'
+        ? `the patch file ${source.ref.path}`
+        : `pull request ${source.ref.repo}#${source.ref.number}`
   return [
     `You are helping a human read a diff from ${where}. They will select ranges of it and ask questions.`,
     `Ranges are given as path:start-end on the new side unless marked LEFT. Read surrounding files when it helps.`,

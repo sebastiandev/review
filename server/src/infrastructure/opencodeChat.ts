@@ -1,5 +1,5 @@
 import { createOpencodeClient, type Event, type Message, type Part } from '@opencode-ai/sdk'
-import type { ChatPart, ChatThreadRef, DiffSelection, ServerEvent } from '@review/shared'
+import type { ChatEvent, ChatPart, ChatThreadRef, DiffSelection } from '@review/shared'
 import {
   composePrompt,
   lineThreadId,
@@ -33,8 +33,8 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatH
   const threads = new Map<string, ChatThread>()
   const threadBySession = new Map<string, string>()
   const roles = new Map<string, Message['role']>()
-  const listeners = new Set<(e: ServerEvent) => void>()
-  const emit = (e: ServerEvent) => listeners.forEach((l) => l(e))
+  const listeners = new Set<(e: ChatEvent) => void>()
+  const emit = (e: ChatEvent) => listeners.forEach((l) => l(e))
 
   const register = (ref: ChatThreadRef, sessionID: string, preamble: string): ChatThread => {
     const thread = makeThread(client, query, ref, sessionID, preamble, opts.defaultAgent, roles)
@@ -140,7 +140,7 @@ async function relayEvents(
   directory: string,
   threadBySession: Map<string, string>,
   roles: Map<string, Message['role']>,
-  emit: (e: ServerEvent) => void,
+  emit: (e: ChatEvent) => void,
 ) {
   const sse = await client.event.subscribe({ query: { directory } })
   for await (const raw of sse.stream) {

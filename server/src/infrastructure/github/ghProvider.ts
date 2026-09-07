@@ -1,0 +1,114 @@
+import type { PullRequestProvider, RepoRef, ReviewPayload } from '../../domain/pullRequests.ts'
+import type { Runner } from '../process.ts'
+import { mapComment, mapPullRequest, parseReference, PR_FIELDS, type GraphqlPullRequest, type RestReviewComment } from './mapping.ts'
+
+const LIST_OPEN = `
+query($owner: String!, $name: String!, $endCursor: String) {
+  viewer { login }
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: OPEN, first: 100, after: $endCursor, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { ${PR_FIELDS} }
+    }
+  }
+}`
+
+const GET_ONE = `
+query($owner: String!, $name: String!, $number: Int!) {
+  viewer { login }
+  repository(owner: $owner, name: $name) { pullRequest(number: $number) { ${PR_FIELDS} } }
+}`
+
+type ListPage = { data: { viewer: { login: string }; repository: { pullRequests: { nodes: GraphqlPullRequest[] } } } }
+type GetPage = { data: { viewer: { login: string }; repository: { pullRequest: GraphqlPullRequest | null } } }
+
+/**
+ * GitHub over the `gh` CLI. GraphQL for PR data (one request per repo gives counts and review
+ * requests the REST list lacks), REST for review comments (their ids are what `in_reply_to`
+ * takes), `gh pr diff` for the patch.
+ */
+export function ghProvider(run: Runner): PullRequestProvider {
+  const slug = (repo: RepoRef) => `${repo.owner}/${repo.name}`
+
+  return {
+    kind: 'github',
+    cloneUrl: (repo) => `https://github.com/${slug(repo)}.git`,
+    parseReference,
+
+    async listOpen(repo) {
+      const out = await run('gh', [
+        'api', 'graphql', '--paginate', '--slurp',
+        '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-f', `query=${LIST_OPEN}`,
+      ])
+      const pages = JSON.parse(out) as ListPage[]
+      return pages.flatMap((page) => page.data.repository.pullRequests.nodes.map((n) => mapPullRequest(n, page.data.viewer.login)))
+    },
+
+    async get(repo, number) {
+      let out: string
+      try {
+        out = await run('gh', [
+          'api', 'graphql',
+          '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-F', `number=${number}`, '-f', `query=${GET_ONE}`,
+        ])
+      } catch (e) {
+        // GraphQL reports a missing PR as an error, which gh turns into a non-zero exit.
+        if (e instanceof Error && /Could not resolve to a PullRequest/.test(e.message)) return null
+        throw e
+      }
+      const page = JSON.parse(out) as GetPage
+      const node = page.data.repository.pullRequest
+      return node ? mapPullRequest(node, page.data.viewer.login) : null
+    },
+
+    diff: (repo, number) => run('gh', ['pr', 'diff', String(number), '--repo', slug(repo)]),
+
+    async comments(repo, number) {
+      const out = await run('gh', ['api', '--paginate', '--slurp', `repos/${slug(repo)}/pulls/${number}/comments?per_page=100`])
+      const pages = JSON.parse(out) as RestReviewComment[][]
+      return pages.flat().map(mapComment)
+    },
+
+    async submitReview(repo, number, payload) {
+      const { review, replies } = splitReplies(payload)
+      const out = await run('gh', ['api', '-X', 'POST', `repos/${slug(repo)}/pulls/${number}/reviews`, '--input', '-'], {
+        input: JSON.stringify(review),
+      })
+      const { id } = JSON.parse(out) as { id: number }
+      // The reviews endpoint has no `in_reply_to`; replies are posted as standalone comments.
+      for (const reply of replies) {
+        await run('gh', ['api', '-X', 'POST', `repos/${slug(repo)}/pulls/${number}/comments`, '--input', '-'], {
+          input: JSON.stringify(reply),
+        })
+      }
+      return { remoteReviewId: String(id) }
+    },
+  }
+}
+
+type RestReview = {
+  event: ReviewPayload['verdict']
+  body: string
+  comments: { path: string; line: number; side: 'LEFT' | 'RIGHT'; start_line?: number; start_side?: 'LEFT' | 'RIGHT'; body: string }[]
+}
+type RestReply = { body: string; in_reply_to: number }
+
+/** Shape a payload for the REST reviews endpoint; replies go to the comments endpoint. */
+export function splitReplies(payload: ReviewPayload): { review: RestReview; replies: RestReply[] } {
+  const review: RestReview = { event: payload.verdict, body: payload.body, comments: [] }
+  const replies: RestReply[] = []
+  for (const c of payload.comments) {
+    if (c.inReplyTo !== null) {
+      replies.push({ body: c.body, in_reply_to: Number(c.inReplyTo) })
+      continue
+    }
+    review.comments.push({
+      path: c.path,
+      line: c.line,
+      side: c.side,
+      body: c.body,
+      ...(c.startLine !== null && c.startLine !== c.line ? { start_line: c.startLine, start_side: c.side } : {}),
+    })
+  }
+  return { review, replies }
+}

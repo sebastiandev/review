@@ -1,0 +1,57 @@
+[
+  {
+    "data": {
+      "viewer": { "login": "seba" },
+      "repository": {
+        "pullRequests": {
+          "pageInfo": { "hasNextPage": false, "endCursor": "Y3Vyc29yOnYyOpHOAQ==" },
+          "nodes": [
+            {
+              "number": 415,
+              "title": "Add PR mode store",
+              "author": { "login": "alice" },
+              "url": "https://github.com/acme/widgets/pull/415",
+              "body": "Implements the store.\n\nSpec: docs/pr-mode-design.md\n",
+              "headRefName": "feat/store",
+              "baseRefName": "main",
+              "headRefOid": "9f2c1c3e6b0a4d5e8f7a6b5c4d3e2f1a0b9c8d7e",
+              "baseRefOid": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+              "isDraft": false,
+              "state": "OPEN",
+              "additions": 412,
+              "deletions": 37,
+              "changedFiles": 9,
+              "createdAt": "2026-09-01T09:12:00Z",
+              "updatedAt": "2026-09-06T17:45:10Z",
+              "reviewRequests": {
+                "nodes": [
+                  { "requestedReviewer": { "__typename": "User", "login": "seba" } },
+                  { "requestedReviewer": { "__typename": "Team", "slug": "platform" } }
+                ]
+              }
+            },
+            {
+              "number": 416,
+              "title": "WIP: rename things",
+              "author": null,
+              "url": "https://github.com/acme/widgets/pull/416",
+              "body": "",
+              "headRefName": "chore/rename",
+              "baseRefName": "main",
+              "headRefOid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "baseRefOid": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+              "isDraft": true,
+              "state": "OPEN",
+              "additions": 3,
+              "deletions": 3,
+              "changedFiles": 1,
+              "createdAt": "2026-09-05T08:00:00Z",
+              "updatedAt": "2026-09-05T08:00:00Z",
+              "reviewRequests": { "nodes": [{ "requestedReviewer": { "__typename": "Team", "slug": "platform" } }] }
+            }
+          ]
+        }
+      }
+    }
+  }
+]
