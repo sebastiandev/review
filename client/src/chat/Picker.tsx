@@ -101,7 +101,11 @@ export function Picker({ items, currentId, onPick, onClose, filter, keySource }:
               {item.id === currentId ? '•' : ''}
             </span>
             <span className="picker-label">{item.label}</span>
-            {item.hint && <span className="picker-hint">{item.hint}</span>}
+            {item.hint && (
+              <span className="picker-hint" title={item.hint}>
+                {item.hint}
+              </span>
+            )}
           </button>
         ))}
         {visible.length === 0 && <span className="picker-empty">No matches</span>}

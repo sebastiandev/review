@@ -604,12 +604,13 @@ button:disabled {
 }
 
 .picker-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
 }
 
 .picker-hint {
-  margin-left: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: right;
   color: var(--fg-muted);
   font-size: 12px;
   overflow: hidden;
