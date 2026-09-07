@@ -37,8 +37,10 @@ export function createApp(deps: AppDeps) {
     await deps.chat.send({
       text: body.text,
       selections: body.selections ?? [],
+      command: body.command,
       agent: body.agent,
       model: body.model,
+      variant: body.variant,
     })
     return c.body(null, 202)
   })

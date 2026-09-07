@@ -31,11 +31,21 @@ export type DiffSelection = {
   text: string
 }
 
-export type ChatSendRequest = {
+export type ModelRef = { providerID: string; modelID: string }
+
+/** Who answers the next turn. Absent fields fall back to opencode's own defaults. */
+export type TurnSettings = {
+  agent?: string
+  model?: ModelRef
+  /** Reasoning-effort variant, one of `models[].variants`. */
+  variant?: string
+}
+
+export type ChatSendRequest = TurnSettings & {
   text: string
   selections?: DiffSelection[]
-  agent?: string
-  model?: { providerID: string; modelID: string }
+  /** A server-side command name (from `AppConfig.commands`); `text` is then its arguments. */
+  command?: string
 }
 
 export type PermissionReply = 'once' | 'always' | 'reject'
@@ -57,19 +67,22 @@ export type PermissionAsk = {
 export type ServerEvent =
   | { type: 'chat.part'; part: ChatPart }
   | { type: 'chat.idle' }
+  /** What actually produced the assistant turn now in progress. */
+  | { type: 'chat.turn'; agent: string | null; model: ModelRef; variant: string | null }
   | { type: 'chat.error'; message: string }
   | { type: 'permission.ask'; permission: PermissionAsk }
   | { type: 'permission.done'; permissionID: string }
 
 export type AppConfig = {
   agents: { name: string; description?: string }[]
-  models: { providerID: string; modelID: string; name: string }[]
+  models: { providerID: string; modelID: string; name: string; variants: string[] }[]
+  commands: { name: string; description?: string }[]
   settings: Settings
 }
 
 export type Settings = {
   defaultReviewAgent: string
-  defaultModel: { providerID: string; modelID: string } | null
+  defaultModel: ModelRef | null
   theme: string
   chatAgent: string | null
 }

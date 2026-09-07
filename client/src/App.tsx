@@ -140,7 +140,15 @@ export function App() {
         <main ref={pane} className="diff-pane">
           {diff.isPending && <p className="notice">Loading diff…</p>}
           {diff.isError && <p className="notice">Could not load the diff: {String(diff.error)}</p>}
-          {diff.data && <DiffView document={diff.data} />}
+          {diff.data && diff.data.files.length === 0 && (
+            <p className="notice">
+              No changes in {diff.data.source.path}
+              {diff.data.source.kind === 'repo' && !diff.data.source.base
+                ? '. The working tree is clean; pass --base <ref> to compare the branch instead.'
+                : '.'}
+            </p>
+          )}
+          {diff.data && diff.data.files.length > 0 && <DiffView document={diff.data} />}
           {pillPosition && selections.length > 0 && (
             <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={onAsk} />
           )}

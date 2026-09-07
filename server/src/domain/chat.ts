@@ -1,4 +1,4 @@
-import type { ChatPart, DiffSelection, PermissionReply, ServerEvent } from '@revu/shared'
+import type { ChatPart, DiffSelection, PermissionReply, ServerEvent, TurnSettings } from '@revu/shared'
 
 /** An agent conversation bound to one diff. Implemented in infrastructure over opencode. */
 export type ChatSession = {
@@ -9,11 +9,10 @@ export type ChatSession = {
   subscribe(listener: (event: ServerEvent) => void): () => void
 }
 
-export type ChatInput = {
+export type ChatInput = TurnSettings & {
   text: string
   selections: DiffSelection[]
-  agent?: string
-  model?: { providerID: string; modelID: string }
+  command?: string
 }
 
 /**

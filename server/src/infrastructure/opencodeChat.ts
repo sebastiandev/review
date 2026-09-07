@@ -33,17 +33,31 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatS
 
   return {
     async send(input: ChatInput) {
+      const agent = input.agent ?? opts.defaultAgent ?? undefined
+      if (input.command) {
+        const res = await client.session.command({
+          path: { id: sessionID },
+          query,
+          body: {
+            command: input.command,
+            arguments: composePrompt(input),
+            agent,
+            model: input.model ? `${input.model.providerID}/${input.model.modelID}` : undefined,
+          },
+        })
+        if (res.error) throw new Error(`opencode: command failed: ${JSON.stringify(res.error)}`)
+        return
+      }
       const text = primed ? composePrompt(input) : `${opts.systemContext}\n\n---\n\n${composePrompt(input)}`
       primed = true
-      const res = await client.session.promptAsync({
-        path: { id: sessionID },
-        query,
-        body: {
-          agent: input.agent ?? opts.defaultAgent ?? undefined,
-          model: input.model,
-          parts: [{ type: 'text', text }],
-        },
-      })
+      // `variant` is accepted by the server but missing from the SDK's body type.
+      const body: NonNullable<Parameters<typeof client.session.promptAsync>[0]['body']> & { variant?: string } = {
+        agent,
+        model: input.model,
+        variant: input.variant,
+        parts: [{ type: 'text', text }],
+      }
+      const res = await client.session.promptAsync({ path: { id: sessionID }, query, body })
       if (res.error) throw new Error(`opencode: prompt failed: ${JSON.stringify(res.error)}`)
     },
 
@@ -86,11 +100,22 @@ async function relayEvents(
   for await (const raw of sse.stream) {
     const event = raw as Event
     switch (event.type) {
-      case 'message.updated':
-        if (event.properties.info.sessionID === sessionID) {
-          roles.set(event.properties.info.id, event.properties.info.role)
+      case 'message.updated': {
+        const info = event.properties.info
+        if (info.sessionID !== sessionID) break
+        roles.set(info.id, info.role)
+        if (info.role === 'assistant') {
+          // `agent`/`variant` are on the wire but not in the SDK's AssistantMessage type.
+          const extra = info as { agent?: string; variant?: string }
+          emit({
+            type: 'chat.turn',
+            agent: extra.agent ?? null,
+            model: { providerID: info.providerID, modelID: info.modelID },
+            variant: extra.variant ?? null,
+          })
         }
         break
+      }
       case 'message.part.updated': {
         const part = event.properties.part
         if (part.sessionID !== sessionID) break
