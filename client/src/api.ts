@@ -195,3 +195,25 @@ export type Submission = { id: number; draftId: number; remoteReviewId: string; 
 export function submitReview(prId: number, body: { verdict: Verdict; body: string; confirmApprove: boolean }): Promise<Submission> {
   return requestJson<Submission>(`/api/prs/${prId}/submit`, jsonInit('POST', body))
 }
+
+// ── Agent review ─────────────────────────────────────────────────────────
+
+/** Starts an agent run with the settings defaults; `busy` while another run is in progress. Progress arrives as `review.*` events. */
+export function runReview(prId: number): Promise<{ status: 'queued' | 'busy' }> {
+  return requestJson<{ status: 'queued' | 'busy' }>(`/api/prs/${prId}/review`, { method: 'POST' })
+}
+
+/** Copies one finding into the draft; idempotent. 409 `draft_stale` when the run is for an older head. */
+export function keepFinding(prId: number, findingId: number): Promise<DraftCommentRow> {
+  return requestJson<DraftCommentRow>(`/api/prs/${prId}/findings/${findingId}/keep`, { method: 'POST' })
+}
+
+/** Drops the draft comment kept from a finding; the finding stays. */
+export function unkeepFinding(prId: number, findingId: number): Promise<void> {
+  return requestVoid(`/api/prs/${prId}/findings/${findingId}/keep`, { method: 'DELETE' })
+}
+
+/** Copies every finding of one run into the draft. */
+export function keepAllFindings(prId: number, agentReviewId: number): Promise<DraftCommentRow[]> {
+  return requestJson<DraftCommentRow[]>(`/api/prs/${prId}/reviews/${agentReviewId}/keep-all`, { method: 'POST' })
+}

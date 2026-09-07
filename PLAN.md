@@ -71,14 +71,14 @@ Server first, then UI.
 
 ## Phase 4 — Automatic review  ~1½ days
 
-- [ ] `RunReview` Command: queue depth 1, agent+model+variant per run from settings or override,
+- [x] `RunReview` Command: queue depth 1, agent+model+variant per run from settings or override,
       linked-spec resolution (SPEC §6), payload ingest into `review_draft` + `draft_comment`,
       failure surfaced on the draft.
-- [ ] Inline agent findings with Keep in review / Dismiss / Discuss; review panel with suggested
+- [x] Inline agent findings with Keep in review / Dismiss / Discuss; review panel with suggested
       conclusion and Accept all / Keep selected / Re-run; `r` key; `Agent review · n` header button;
       `agent reviewing…` / `agent: request changes` in PR rows.
-- [ ] Setting "run on newly fetched commits", default off, per repo.
-- [ ] Submit dialog hints ("Agent agreed on 2 of 4 findings") computed from kept vs dismissed.
+- [x] Setting "run on newly fetched commits", default off, per repo.
+- [x] Submit dialog hints ("Agent agreed on 2 of 4 findings") computed from kept vs dismissed.
 
 ## Phase 5 — Past reviews, worktree management, settings polish  ~1 day
 

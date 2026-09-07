@@ -58,6 +58,9 @@ function anchorOf(ref: LineRef): DiffSelection {
   return { path: ref.path, startLine: ref.line, endLine: ref.line, side: ref.side === 'old' ? 'LEFT' : 'RIGHT', text: ref.text }
 }
 
+/** Selects a file and scrolls to (and flashes) a line range in it. */
+export type JumpTo = (path: string, start: number, end: number) => void
+
 type WorkspaceProps = {
   scope: string
   document: DiffDocument
@@ -74,6 +77,10 @@ type WorkspaceProps = {
   topBarLead: ReactNode
   /** Present in PR mode: comments and their mutations. */
   pr?: PrWorkspaceData
+  /** File-header controls after the view toggle (the `Agent review` button). */
+  headerActions?: ReactNode
+  /** Overlay over the center pane (the review panel); receives the jump-to so a card can land on its line. */
+  centerOverlay?: (jumpTo: JumpTo) => ReactNode
 }
 
 /** File tree, one file's diff or rendered markdown, inline chats and the chat dock, for one scope. Both modes render this. */
@@ -89,6 +96,8 @@ export function Workspace({
   sidebarFooter,
   topBarLead,
   pr,
+  headerActions,
+  centerOverlay,
 }: WorkspaceProps) {
   const [mode, setMode] = useState<DiffMode>(defaultDiffMode)
   const [mdMode, setMdMode] = useState<MdMode>('rich')
@@ -96,6 +105,8 @@ export function Workspace({
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   /** Id of the line thread whose card is showing; every other thread is minimized. */
   const [chatLine, setChatLine] = useState<string | null>(null)
+  /** Text placed in the inline chat input when a finding is discussed. */
+  const [chatSeed, setChatSeed] = useState<string | undefined>(undefined)
   /** Line whose comment composer is open (PR mode). */
   const [composer, setComposer] = useState<LineRef | null>(null)
   /** Markdown selection being commented on (PR mode). */
@@ -176,7 +187,21 @@ export function Workspace({
     [chat.openLineThread, clearSelection],
   )
 
-  const askLine = useCallback((ref: LineRef) => openLineChat(anchorOf(ref)), [openLineChat])
+  const askLine = useCallback(
+    (ref: LineRef) => {
+      setChatSeed(undefined)
+      openLineChat(anchorOf(ref))
+    },
+    [openLineChat],
+  )
+
+  const discussLine = useCallback(
+    (ref: LineRef, seed: string) => {
+      setChatSeed(seed)
+      openLineChat(anchorOf(ref))
+    },
+    [openLineChat],
+  )
 
   const askSelection = useCallback(
     (selections: DiffSelection[]) => {
@@ -223,8 +248,8 @@ export function Workspace({
     setOpenMenu(null)
   }, [])
 
-  const onJumpTo = useCallback(
-    (path: string, start: number, end: number) => {
+  const onJumpTo = useCallback<JumpTo>(
+    (path, start, end) => {
       pendingJump.current = { path, start, end }
       selectFile(path)
     },
@@ -238,6 +263,7 @@ export function Workspace({
     now: pr?.now ?? 0,
     onCloseComposer: closeComposer,
     onAsk: askLine,
+    onDiscuss: discussLine,
   })
 
   // The jump target may belong to a file that was not rendered yet; flash once the body shows it.
@@ -310,6 +336,9 @@ export function Workspace({
     toggleMdMode,
   ])
 
+  const reviewAgent = pr?.agentReview?.review.agent
+  const dockProvenance = reviewAgent ? `opencode · ${reviewAgent} · worktree attached` : undefined
+
   const mdControl = markdownPath !== null && (
     <Segmented<MdMode>
       label="Markdown view"
@@ -369,7 +398,12 @@ export function Workspace({
             compact={layout.compact}
             centerW={layout.centerW}
             threads={markdownThreads}
-            toolbar={mdControl}
+            toolbar={
+              <>
+                {mdControl}
+                {headerActions}
+              </>
+            }
             onAsk={openLineChat}
             onComment={pr ? setSelectionComposer : undefined}
             onToggleThread={toggleThreadById}
@@ -388,6 +422,7 @@ export function Workspace({
             artifacts={artifacts}
             bodyRef={body}
             toolbar={mdControl}
+            headerActions={headerActions}
             onMode={setMode}
             onToggleViewed={() => viewed.toggle(selectedFile.path)}
             onToggleMenu={setOpenMenu}
@@ -409,6 +444,7 @@ export function Workspace({
             key={openThread.id}
             thread={openThread}
             state={chat.thread(openThread.id)}
+            seed={chatSeed}
             onSend={(text) => chat.send(openThread.id, { text, ...turn.settings })}
             onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
             onMinimize={() => setChatLine(null)}
@@ -436,6 +472,7 @@ export function Workspace({
             }}
           />
         )}
+        {centerOverlay?.(onJumpTo)}
       </main>
       <ChatDock
         open={layout.dockOpen}
@@ -448,6 +485,7 @@ export function Workspace({
         error={dock.error}
         config={config.data}
         notice={chatEnabled ? undefined : chatNotice}
+        provenance={dockProvenance}
         turn={turn}
         lastTurn={dock.lastTurn}
         onSend={onSend}

@@ -11,11 +11,22 @@ type PendingCommentProps = {
   onSelect: (id: number, selected: boolean) => Promise<void>
 }
 
-/** Your pending comment on a line: accent-bordered card with inline edit, delete and the "include" checkbox. */
+/** `You` for your own comments, `agent` for ones kept from a finding. */
+function authorLabel(comment: DraftCommentRow): string {
+  const who = comment.origin === 'agent' ? 'agent' : 'You'
+  return comment.anchorValid ? `${who} · pending in this review` : `${who} · no longer anchored to the diff`
+}
+
+/**
+ * Your pending comment on a line: accent-bordered card with inline edit, delete and the "include" checkbox.
+ * A comment kept from an agent finding offers `reset` once its body differs from the finding's.
+ */
 export function PendingComment({ comment, reference, onEdit, onDelete, onSelect }: PendingCommentProps) {
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const invalid = !comment.anchorValid
+  const agentBody = comment.agentBody
+  const edited = agentBody !== null && comment.body !== agentBody
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true)
@@ -54,8 +65,19 @@ export function PendingComment({ comment, reference, onEdit, onDelete, onSelect 
         >
           {comment.selected && !invalid && <Check size={10} weight="bold" />}
         </button>
-        <span>{invalid ? 'You · no longer anchored to the diff' : 'You · pending in this review'}</span>
+        <span>{authorLabel(comment)}</span>
         <span className="artifact-push mine-actions">
+          {edited && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              disabled={busy}
+              title="Restore the agent's wording"
+              onClick={() => void run(() => onEdit(comment.id, agentBody))}
+            >
+              reset
+            </button>
+          )}
           <button type="button" className="btn btn-ghost btn-xs" disabled={busy} onClick={() => setEditing(true)}>
             Edit
           </button>

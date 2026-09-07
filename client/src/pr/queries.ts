@@ -38,7 +38,10 @@ export function usePrDetail(prId: number | null) {
   })
 }
 
-/** Refetches inbox and repo counts when a sync ends, and the open PR when its review lands. */
+/**
+ * Refetches inbox and repo counts when a sync ends, the open PR when its review lands, and the PR plus
+ * every inbox on each agent-run event (the event names the PR, not its repo).
+ */
 export function useSyncInvalidation(): void {
   const client = useQueryClient()
   useServerEvent((event) => {
@@ -52,6 +55,13 @@ export function useSyncInvalidation(): void {
         break
       case 'review.submitted':
         void client.invalidateQueries({ queryKey: keys.pr(event.prId) })
+        break
+      case 'review.queued':
+      case 'review.running':
+      case 'review.ready':
+      case 'review.failed':
+        void client.invalidateQueries({ queryKey: keys.pr(event.prId) })
+        void client.invalidateQueries({ queryKey: ['inbox'] })
         break
     }
   })

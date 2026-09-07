@@ -1,4 +1,5 @@
 import type { InboxRow } from '@review/shared'
+import { AgentStatus } from './AgentStatus'
 import { relativeTime } from './inboxRows'
 import { StatePill } from './StatePill'
 
@@ -49,6 +50,7 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
               <span>{pr.remoteCommentCount} comments</span>
               {pr.draftCommentCount > 0 && <span>{pr.draftCommentCount} pending</span>}
               {pr.addedByUser && <span className="added-pill">added by you</span>}
+              <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} />
             </div>
             {pr.specRef && (
               <div className="inbox-card-spec">

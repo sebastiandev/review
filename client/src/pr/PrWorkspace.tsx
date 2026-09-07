@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { DraftCommentRow, InboxRow, PrDetail, Verdict } from '@review/shared'
-import { ApiError, createComment, deleteComment, openPr, patchComment, prScope, submitReview, type NewComment } from '../api'
+import type { AgentFinding, DraftCommentRow, InboxRow, PrDetail, Verdict } from '@review/shared'
+import {
+  ApiError,
+  createComment,
+  deleteComment,
+  keepAllFindings,
+  keepFinding,
+  openPr,
+  patchComment,
+  prScope,
+  runReview,
+  submitReview,
+  unkeepFinding,
+  type NewComment,
+} from '../api'
 import type { DiffMode } from '../diff/DiffView'
 import { useNow } from '../inbox/useNow'
 import type { LayoutState } from '../shell/useLayout'
 import { Workspace, isEditing } from '../workspace/Workspace'
+import { isActive, labelFor, submitHints } from './agentReview'
+import { AgentReviewPanel } from './AgentReviewPanel'
 import { countByPath, groupThreads } from './comments'
+import { useDismissedFindings } from './dismissedFindings'
 import { PrTreeFooter, PrTreeHeader } from './PrTreeChrome'
 import { keys, usePrDetail } from './queries'
 import { SubmitModal, verdictLabel } from './SubmitModal'
@@ -43,7 +59,13 @@ function submitErrorMessage(e: unknown): string {
 }
 
 function statusText(pr: PrDetail['pr'], worktree: WorktreeState): string {
+  if (isActive(pr.agentStatus)) return `agent reviewing #${pr.number}…`
   return `PR mode · ${worktreeLabel(worktree)} · ${pr.headRef}`
+}
+
+function keepErrorMessage(e: unknown): string {
+  if (e instanceof ApiError && e.code === 'draft_stale') return 'PR moved to a new commit; re-run the review.'
+  return `Could not keep: ${e instanceof Error ? e.message : String(e)}`
 }
 
 /** Marks comments the server rejected as unanchored, on top of what the detail says. */
@@ -62,6 +84,9 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [invalidIds, setInvalidIds] = useState<ReadonlySet<number>>(new Set())
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [panelError, setPanelError] = useState<string | null>(null)
+  const dismissed = useDismissedFindings()
 
   useEffect(() => {
     openPr(prId).catch((e: unknown) => onFlash(`could not open PR: ${e instanceof Error ? e.message : String(e)}`))
@@ -85,9 +110,46 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
       edit: (id, body) => patchComment(prId, id, { body }).then(refetchDetail),
       remove: (id) => deleteComment(prId, id).then(refetchDetail),
       select: (id, selected) => patchComment(prId, id, { selected }).then(refetchDetail),
+      keep: (findingId) => keepFinding(prId, findingId).then(refetchDetail),
+      unkeep: (findingId) => unkeepFinding(prId, findingId).then(refetchDetail),
     }),
     [prId, refetchDetail],
   )
+
+  const agentReview = detail.data?.agentReview ?? null
+  const review = agentReview?.review ?? null
+  const findings = useMemo<AgentFinding[]>(() => (review?.status === 'ready' ? agentReview?.findings ?? [] : []), [agentReview, review])
+
+  const run = useMutation({
+    mutationFn: () => runReview(prId),
+    onSuccess: ({ status }) => {
+      setPanelOpen(false)
+      if (status === 'busy') onFlash('another review is running')
+    },
+    onError: (e) => onFlash(`could not start the review: ${e instanceof Error ? e.message : String(e)}`),
+  })
+
+  const keepMany = useMutation({
+    mutationFn: async (findingIds: number[] | 'all') => {
+      if (findingIds === 'all') {
+        if (review) await keepAllFindings(prId, review.id)
+        return
+      }
+      for (const id of findingIds) await keepFinding(prId, id)
+    },
+    onSuccess: () => {
+      setPanelError(null)
+      setPanelOpen(false)
+      void refetchDetail()
+    },
+    onError: (e) => setPanelError(keepErrorMessage(e)),
+  })
+
+  const button = labelFor(review, findings.length)
+  const onReviewButton = useCallback(() => {
+    if (button.action === 'run') run.mutate()
+    else setPanelOpen(true)
+  }, [button.action, run])
 
   const submit = useMutation({
     mutationFn: ({ verdict, body }: { verdict: Verdict; body: string }) =>
@@ -106,26 +168,35 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
     },
   })
 
-  // Capture phase: when the submit dialog is open, `esc` closes it and must not reach the workspace's own layers.
+  // Capture phase: when a dialog is open, `esc` closes it and must not reach the workspace's own layers.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && submitOpen) {
         e.stopPropagation()
         setSubmitOpen(false)
         setSubmitError(null)
+      } else if (e.key === 'Escape' && panelOpen) {
+        e.stopPropagation()
+        setPanelOpen(false)
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isEditing(e.target)) {
         e.preventDefault()
         setSubmitOpen(true)
+      } else if (e.key === 'r' && !isEditing(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey && !submitOpen) {
+        if (!button.disabled) onReviewButton()
       }
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [submitOpen])
+  }, [submitOpen, panelOpen, button.disabled, onReviewButton])
 
   const drafts = useMemo(() => withInvalid(detail.data?.draft?.comments ?? [], invalidIds), [detail.data?.draft?.comments, invalidIds])
   const threads = useMemo(() => groupThreads(detail.data?.comments ?? []), [detail.data?.comments])
   const badges = useMemo(() => countByPath([...(detail.data?.comments ?? []), ...drafts]), [detail.data?.comments, drafts])
-  const prData = useMemo<PrWorkspaceData>(() => ({ threads, drafts, badges, now, actions }), [threads, drafts, badges, now, actions])
+  const prData = useMemo<PrWorkspaceData>(
+    () => ({ threads, drafts, badges, now, agentReview, findings, dismissed, actions }),
+    [threads, drafts, badges, now, agentReview, findings, dismissed, actions],
+  )
+  const hints = useMemo(() => submitHints({ agentReview, drafts }), [agentReview, drafts])
 
   if (!detail.data || !pr) {
     return (
@@ -181,11 +252,36 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
           </>
         }
         pr={prData}
+        headerActions={
+          <button type="button" className="btn btn-secondary toolbar-btn" disabled={button.disabled || run.isPending} onClick={onReviewButton}>
+            {button.label}
+          </button>
+        }
+        centerOverlay={(jumpTo) =>
+          panelOpen &&
+          agentReview && (
+            <AgentReviewPanel
+              detail={agentReview}
+              now={now}
+              busy={keepMany.isPending || run.isPending}
+              error={panelError}
+              onClose={() => setPanelOpen(false)}
+              onJump={(finding) => {
+                setPanelOpen(false)
+                jumpTo(finding.path, finding.startLine ?? finding.line, finding.line)
+              }}
+              onKeepAll={() => keepMany.mutate('all')}
+              onKeepSelected={(ids) => keepMany.mutate(ids)}
+              onRerun={() => run.mutate()}
+            />
+          )
+        }
       />
       {submitOpen && (
         <SubmitModal
           prNumber={pr.number}
           pendingCount={pendingCount}
+          hints={hints}
           busy={submit.isPending}
           error={submitError}
           onSubmit={(verdict, body) => submit.mutate({ verdict, body })}

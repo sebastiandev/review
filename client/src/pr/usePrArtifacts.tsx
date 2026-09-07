@@ -1,10 +1,13 @@
 import { useMemo, type ReactNode } from 'react'
-import type { DraftCommentRow } from '@review/shared'
+import type { AgentFinding, AgentReviewDetail, DraftCommentRow } from '@review/shared'
 import type { NewComment } from '../api'
 import { lineKey } from '../diff/DiffView'
 import type { LineRef } from '../diff/LineActionButton'
+import { AgentFindingCard } from './AgentFindingCard'
+import { findingsByLine, keptByFinding, quoteForDiscussion } from './agentReview'
 import { CommentComposer } from './CommentComposer'
 import { draftRepliesByRoot, draftsByLine, threadsByLine, type RemoteThread } from './comments'
+import type { DismissedFindings } from './dismissedFindings'
 import { PendingComment } from './PendingComment'
 import { RemoteThreadCard } from './RemoteThreadCard'
 
@@ -13,9 +16,13 @@ export type PrCommentActions = {
   edit: (id: number, body: string) => Promise<void>
   remove: (id: number) => Promise<void>
   select: (id: number, selected: boolean) => Promise<void>
+  /** Copies a finding into the draft. */
+  keep: (findingId: number) => Promise<void>
+  /** Drops the draft comment kept from a finding. */
+  unkeep: (findingId: number) => Promise<void>
 }
 
-/** What the workspace needs from a PR to render comments: threads, pending drafts and the mutations. */
+/** What the workspace needs from a PR to render comments and findings: threads, pending drafts, the run, and the mutations. */
 export type PrWorkspaceData = {
   threads: RemoteThread[]
   drafts: DraftCommentRow[]
@@ -23,6 +30,11 @@ export type PrWorkspaceData = {
   badges: Record<string, number>
   /** Clock for relative timestamps, refreshed by the caller. */
   now: number
+  /** Latest agent run for the head, any status. */
+  agentReview: AgentReviewDetail | null
+  /** Findings of that run when it is ready; empty otherwise. */
+  findings: AgentFinding[]
+  dismissed: DismissedFindings
   actions: PrCommentActions
 }
 
@@ -34,19 +46,36 @@ type ArtifactsInput = {
   now: number
   onCloseComposer: () => void
   onAsk: (ref: LineRef) => void
+  /** Opens the inline chat on the finding's line with `seed` in the input. */
+  onDiscuss: (ref: LineRef, seed: string) => void
 }
 
 const sideOf = (ref: LineRef): 'LEFT' | 'RIGHT' => (ref.side === 'old' ? 'LEFT' : 'RIGHT')
 
-/** Line-anchored artifacts of one file keyed by `lineKey`: others' threads, your pending comments, the open composer. */
-export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk }: ArtifactsInput): Record<string, ReactNode> {
+function lineRefOf(finding: AgentFinding): LineRef {
+  return { path: finding.path, line: finding.line, side: finding.side === 'LEFT' ? 'old' : 'new', text: '' }
+}
+
+/**
+ * Line-anchored artifacts of one file keyed by `lineKey`: agent findings, others' threads, your pending
+ * comments, the open composer — in that order.
+ */
+export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk, onDiscuss }: ArtifactsInput): Record<string, ReactNode> {
   return useMemo(() => {
     if (!pr || !path) return {}
+    const findings = findingsByLine(pr.findings, path)
     const remote = threadsByLine(pr.threads, path)
     const mine = draftsByLine(pr.drafts, path)
     const replies = draftRepliesByRoot(pr.drafts)
+    const kept = keptByFinding(pr.drafts)
+    const agent = pr.agentReview?.review.agent ?? 'agent'
     const composerKey = composer && composer.path === path ? lineKey(composer.side, composer.line) : null
-    const keys = new Set([...Object.keys(remote), ...Object.keys(mine), ...(composerKey ? [composerKey] : [])])
+    const keys = new Set([
+      ...Object.keys(findings),
+      ...Object.keys(remote),
+      ...Object.keys(mine),
+      ...(composerKey ? [composerKey] : []),
+    ])
 
     const artifacts: Record<string, ReactNode> = {}
     for (const key of keys) {
@@ -54,6 +83,24 @@ export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk
       const first = threads[0]
       artifacts[key] = (
         <>
+          {(findings[key] ?? []).map((finding) => {
+            const isKept = finding.id in kept
+            return (
+              <AgentFindingCard
+                key={finding.id}
+                finding={finding}
+                agent={agent}
+                kept={isKept}
+                dismissed={pr.dismissed.ids.has(finding.id)}
+                onKeep={() => pr.actions.keep(finding.id)}
+                onDismiss={async () => {
+                  if (isKept) await pr.actions.unkeep(finding.id)
+                  else pr.dismissed.set(finding.id, true)
+                }}
+                onDiscuss={() => onDiscuss(lineRefOf(finding), quoteForDiscussion(finding.body))}
+              />
+            )
+          })}
           {first && (
             <RemoteThreadCard
               threads={threads}
@@ -102,5 +149,5 @@ export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk
       )
     }
     return artifacts
-  }, [pr, path, composer, now, onCloseComposer, onAsk])
+  }, [pr, path, composer, now, onCloseComposer, onAsk, onDiscuss])
 }

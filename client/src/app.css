@@ -2136,3 +2136,183 @@ button {
 }
 .inbox-card-spec-path { color: var(--color-accent-300); }
 .inbox-card-spec-note { color: var(--color-neutral-600); font-family: var(--font-body); font-size: 11.5px; }
+
+/* ── Agent review (README §2 "Agent finding", §4) ──────────────────────── */
+
+.agent-status {
+  margin-left: auto;
+}
+.agent-status-running { color: var(--color-neutral-400); }
+.agent-status-ready { color: var(--color-accent-300); }
+.agent-status-failed { color: var(--count-del); }
+
+.inline-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+}
+
+.finding {
+  padding: 9px 12px;
+  border-left: 2px solid var(--color-accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--color-accent-900);
+}
+
+.finding-head {
+  gap: 8px;
+}
+
+.finding-agent {
+  color: var(--color-accent-200);
+}
+
+.finding-severity {
+  color: var(--color-neutral-600);
+}
+
+.finding-kept {
+  color: var(--color-accent-300);
+}
+
+.finding-dismissed {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border: 1px solid var(--color-neutral-800);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-neutral-600);
+}
+
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 28px 20px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+}
+
+.panel {
+  width: 100%;
+  max-width: 720px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 20px 22px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.panel .sheet-head {
+  gap: 10px;
+}
+
+.panel .sheet-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-running {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 16px 0 0;
+  color: var(--color-neutral-300);
+}
+
+.dot-pulse {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.panel-error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--count-del);
+  border-radius: var(--radius-md);
+  color: var(--count-del);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.conclusion {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-accent-700);
+  border-radius: var(--radius-md);
+}
+
+.conclusion-overline {
+  color: var(--color-accent-300);
+}
+
+.conclusion-verdict {
+  margin-top: 4px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 17px;
+}
+
+.conclusion-summary {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-neutral-300);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.panel-count {
+  margin: 16px 0 8px;
+}
+
+.panel-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-finding {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.panel-finding:hover {
+  border-color: var(--color-neutral-600);
+}
+
+.panel-finding .checkbox {
+  margin-top: 1px;
+}
+
+.panel-finding-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-finding-ref {
+  color: var(--color-accent-300);
+}

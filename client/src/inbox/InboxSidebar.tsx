@@ -1,5 +1,6 @@
 import { CaretDown } from '@phosphor-icons/react'
 import type { InboxRow, RepoSummary } from '@review/shared'
+import { AgentStatus } from './AgentStatus'
 import { fetchLine, relativeTime } from './inboxRows'
 import { StatePill } from './StatePill'
 
@@ -121,6 +122,7 @@ export function InboxSidebar({
               <span className="count-add">+{pr.additions}</span>
               <span className="count-del">−{pr.deletions}</span>
               {pr.addedByUser && <span className="added-pill">added by you</span>}
+              <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} />
             </div>
           </div>
         ))}

@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import type { Verdict } from '@review/shared'
 import { Modal } from '../shell/Modal'
+import { VERDICT_TEXT } from './agentReview'
 
 type SubmitModalProps = {
   prNumber: number
   pendingCount: number
+  /** Hint under each verdict, from `submitHints`. */
+  hints: Record<Verdict, string>
   busy: boolean
   /** Server-side rejection to show under the verdicts. */
   error: string | null
@@ -12,20 +15,15 @@ type SubmitModalProps = {
   onClose: () => void
 }
 
-/** Phase-4 fills the Approve / Request changes hints from the agent run. */
-const VERDICTS: { verdict: Verdict; label: string; hint: string }[] = [
-  { verdict: 'COMMENT', label: 'Comment', hint: 'Submit notes without a verdict' },
-  { verdict: 'APPROVE', label: 'Approve', hint: 'Agent not run' },
-  { verdict: 'REQUEST_CHANGES', label: 'Request changes', hint: '' },
-]
+const VERDICTS: Verdict[] = ['COMMENT', 'APPROVE', 'REQUEST_CHANGES']
 
 /** Human label for a verdict in status text. */
 export function verdictLabel(verdict: Verdict): string {
-  return VERDICTS.find((v) => v.verdict === verdict)?.label.toLowerCase() ?? verdict
+  return VERDICT_TEXT[verdict].toLowerCase()
 }
 
 /** "Submit review": three verdict buttons, overall feedback, the merge note, Submit / Cancel. */
-export function SubmitModal({ prNumber, pendingCount, busy, error, onSubmit, onClose }: SubmitModalProps) {
+export function SubmitModal({ prNumber, pendingCount, hints, busy, error, onSubmit, onClose }: SubmitModalProps) {
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [body, setBody] = useState('')
 
@@ -40,15 +38,15 @@ export function SubmitModal({ prNumber, pendingCount, busy, error, onSubmit, onC
       <div className="verdicts" role="radiogroup" aria-label="Verdict">
         {VERDICTS.map((v) => (
           <button
-            key={v.verdict}
+            key={v}
             type="button"
             role="radio"
-            aria-checked={verdict === v.verdict}
-            className={`verdict${verdict === v.verdict ? ' verdict-on' : ''}`}
-            onClick={() => setVerdict(v.verdict)}
+            aria-checked={verdict === v}
+            className={`verdict${verdict === v ? ' verdict-on' : ''}`}
+            onClick={() => setVerdict(v)}
           >
-            <span className="verdict-label">{v.label}</span>
-            {v.hint && <span className="verdict-hint">{v.hint}</span>}
+            <span className="verdict-label">{VERDICT_TEXT[v]}</span>
+            {hints[v] && <span className="verdict-hint">{hints[v]}</span>}
           </button>
         ))}
       </div>

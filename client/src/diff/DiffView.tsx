@@ -45,6 +45,8 @@ type DiffViewProps = {
   artifacts?: Record<string, ReactNode>
   /** Extra header controls placed before the view toggle (the markdown Rich / Raw diff control). */
   toolbar?: ReactNode
+  /** Header controls placed after the view toggle (the `Agent review` button). */
+  headerActions?: ReactNode
   /** Rendered inside the scrolling body (the Ask pill). */
   children?: ReactNode
 }
@@ -221,6 +223,7 @@ export function DiffView({
   onTouchLine,
   artifacts = NO_ARTIFACTS,
   toolbar,
+  headerActions,
   children,
 }: DiffViewProps) {
   const slot = { path: file.path, openMenu, threads, artifacts, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }
@@ -241,6 +244,7 @@ export function DiffView({
           ]}
           onChange={onMode}
         />
+        {headerActions}
         <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
           {viewed ? (
             <>

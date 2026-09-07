@@ -22,6 +22,8 @@ type ChatDockProps = {
   config: AppConfig | undefined
   /** Replaces messages and composer with one line while the scope cannot chat yet (no worktree, inbox). */
   notice?: string
+  /** Footer provenance line; defaults to `opencode · {agent} · {scope}`. */
+  provenance?: string
   turn: TurnSettingsState
   lastTurn: ChatTurn | null
   /** Text, selections and command only; the caller attaches the turn settings. */
@@ -299,6 +301,7 @@ export function ChatDock({
   error,
   config,
   notice,
+  provenance,
   turn,
   lastTurn,
   onSend,
@@ -356,10 +359,7 @@ export function ChatDock({
           <div className="dock-footer">
             <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
             <Composer idle={idle} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
-            <div className="dock-provenance">
-              opencode · {shownAgent ?? 'default agent'}
-              {scope ? ` · ${scope}` : ''}
-            </div>
+            <div className="dock-provenance">{provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}</div>
           </div>
         </>
       )}

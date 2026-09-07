@@ -6,6 +6,8 @@ import type { ThreadState } from './threadStore'
 type InlineChatProps = {
   thread: ChatThreadRef
   state: ThreadState
+  /** Text placed in the input when it changes (a finding being discussed). */
+  seed?: string
   /** Plain text only; the caller attaches the turn settings. */
   onSend: (text: string) => void
   onPermission: (permissionID: string, reply: PermissionReply) => void
@@ -62,9 +64,13 @@ function refLabel(thread: ChatThreadRef): string {
 }
 
 /** Pane-level card for one line thread: header with the line reference, turns, and a one-line composer. */
-export function InlineChat({ thread, state, onSend, onPermission, onMinimize, onClose }: InlineChatProps) {
-  const [draft, setDraft] = useState('')
+export function InlineChat({ thread, state, seed, onSend, onPermission, onMinimize, onClose }: InlineChatProps) {
+  const [draft, setDraft] = useState(seed ?? '')
   const list = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (seed !== undefined) setDraft(seed)
+  }, [seed])
 
   useEffect(() => {
     const element = list.current
