@@ -15,6 +15,8 @@ function row(over: Partial<InboxRow> & Pick<InboxRow, 'id' | 'updatedAt'>): Inbo
     deletions: 0,
     changedFiles: 0,
     headSha: '',
+    headRef: '',
+    specRef: null,
     reviewRequested: true,
     addedByUser: false,
     doneAt: null,

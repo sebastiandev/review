@@ -144,6 +144,9 @@ export type InboxRow = {
   deletions: number
   changedFiles: number
   headSha: string
+  headRef: string
+  /** Spec path referenced in the PR description, if any. */
+  specRef: string | null
   reviewRequested: boolean
   addedByUser: boolean
   doneAt: string | null

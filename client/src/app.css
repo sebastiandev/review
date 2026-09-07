@@ -2121,3 +2121,18 @@ button {
   line-height: 1.5;
   color: var(--color-neutral-500);
 }
+
+/* Inbox card spec footer (README §1). */
+.inbox-card-spec {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--color-divider);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.inbox-card-spec-path { color: var(--color-accent-300); }
+.inbox-card-spec-note { color: var(--color-neutral-600); font-family: var(--font-body); font-size: 11.5px; }

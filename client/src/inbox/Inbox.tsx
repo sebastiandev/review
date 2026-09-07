@@ -42,7 +42,7 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
             </div>
             <div className="inbox-card-title">{pr.title}</div>
             <div className="inbox-card-stats">
-              <span>{pr.author}</span>
+              <span className="mono">{pr.headRef}</span>
               <span>{pr.changedFiles} files</span>
               <span className="count-add">+{pr.additions}</span>
               <span className="count-del">−{pr.deletions}</span>
@@ -50,6 +50,12 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
               {pr.draftCommentCount > 0 && <span>{pr.draftCommentCount} pending</span>}
               {pr.addedByUser && <span className="added-pill">added by you</span>}
             </div>
+            {pr.specRef && (
+              <div className="inbox-card-spec">
+                <span className="inbox-card-spec-path">{pr.specRef}</span>
+                <span className="inbox-card-spec-note">spec referenced in the description</span>
+              </div>
+            )}
           </div>
         ))}
         {rows.length === 0 && <p className="inbox-subtitle">Nothing to review here.</p>}

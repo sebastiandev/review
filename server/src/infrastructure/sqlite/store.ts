@@ -468,6 +468,8 @@ function toInboxRow(r: Row): InboxRow {
     deletions: num(r.deletions),
     changedFiles: num(r.changed_files),
     headSha: str(r.head_sha),
+    headRef: str(r.head_ref),
+    specRef: (r.spec_ref as string | null) ?? null,
     reviewRequested: bool(r.review_requested),
     addedByUser: bool(r.added_by_user),
     doneAt: (r.done_at as string | null) ?? null,
