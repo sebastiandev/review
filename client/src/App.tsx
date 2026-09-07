@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { DiffSelection, DiffSourceRef } from '@revu/shared'
-import { fetchDiff } from './api'
+import type { ChatSendRequest, DiffSelection, DiffSourceRef } from '@revu/shared'
+import { fetchConfig, fetchDiff } from './api'
 import { ChatDock, type QuoteRequest } from './chat/ChatDock'
 import { useChat } from './chat/useChat'
+import { useTurnSettings } from './chat/useTurnSettings'
 import { AskPill } from './diff/AskPill'
 import { DiffView } from './diff/DiffView'
 import { useDiffSelection } from './diff/useDiffSelection'
@@ -67,7 +68,9 @@ export function App() {
   const [quoteRequest, setQuoteRequest] = useState<QuoteRequest | null>(null)
   const pane = useRef<HTMLDivElement>(null)
   const diff = useQuery({ queryKey: ['diff'], queryFn: fetchDiff })
+  const config = useQuery({ queryKey: ['config'], queryFn: fetchConfig, staleTime: Infinity })
   const chat = useChat()
+  const turn = useTurnSettings()
   const { selections, rect: selectionRect, clear: clearSelection } = useDiffSelection(pane)
 
   const onAsk = useCallback(
@@ -77,6 +80,11 @@ export function App() {
       clearSelection()
     },
     [clearSelection],
+  )
+
+  const onSend = useCallback(
+    (request: ChatSendRequest) => chat.send({ ...request, ...turn.settings }),
+    [chat.send, turn.settings],
   )
 
   const onJumpTo = useCallback((path: string, start: number, end: number) => {
@@ -160,7 +168,10 @@ export function App() {
           permissions={chat.permissions}
           error={chat.error}
           quoteRequest={quoteRequest}
-          onSend={chat.send}
+          config={config.data}
+          turn={turn}
+          lastTurn={chat.lastTurn}
+          onSend={onSend}
           onPermission={chat.answerPermission}
           onJumpTo={onJumpTo}
         />

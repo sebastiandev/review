@@ -1,4 +1,4 @@
-import type { ChatPart, ChatSendRequest, DiffDocument, PermissionReply } from '@revu/shared'
+import type { AppConfig, ChatPart, ChatSendRequest, DiffDocument, PermissionReply } from '@revu/shared'
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -18,6 +18,11 @@ async function postJson(url: string, body: unknown): Promise<void> {
 /** The diff the session is reviewing. */
 export function fetchDiff(): Promise<DiffDocument> {
   return requestJson<DiffDocument>('/api/diff')
+}
+
+/** Agents, models and commands opencode offers, plus server settings. */
+export function fetchConfig(): Promise<AppConfig> {
+  return requestJson<AppConfig>('/api/config')
 }
 
 /** Chat parts already produced in this session. */

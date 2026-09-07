@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ChatPart, DiffSelection, PermissionAsk, PermissionReply, ServerEvent } from '@revu/shared'
+import type { ChatPart, ChatSendRequest, PermissionAsk, PermissionReply, ServerEvent } from '@revu/shared'
 import { fetchChatHistory, replyPermission, sendChat } from '../api'
+
+/** What actually answered the latest assistant turn, from the `chat.turn` event. */
+export type ChatTurn = Extract<ServerEvent, { type: 'chat.turn' }>
 
 export type ChatState = {
   parts: ChatPart[]
   idle: boolean
   permissions: PermissionAsk[]
   error: string | null
-  send: (text: string, selections: DiffSelection[]) => Promise<void>
+  lastTurn: ChatTurn | null
+  send: (request: ChatSendRequest) => Promise<void>
   answerPermission: (id: string, response: PermissionReply) => Promise<void>
 }
 
@@ -25,6 +29,7 @@ export function useChat(): ChatState {
   const [idle, setIdle] = useState(true)
   const [permissions, setPermissions] = useState<PermissionAsk[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [lastTurn, setLastTurn] = useState<ChatTurn | null>(null)
 
   useEffect(() => {
     fetchChatHistory()
@@ -43,6 +48,9 @@ export function useChat(): ChatState {
         case 'chat.idle':
           setIdle(true)
           break
+        case 'chat.turn':
+          setLastTurn(event)
+          break
         case 'chat.error':
           setError(event.message)
           setIdle(true)
@@ -53,16 +61,19 @@ export function useChat(): ChatState {
         case 'permission.done':
           setPermissions((current) => current.filter((p) => p.id !== event.permissionID))
           break
+        default:
+          // Newer servers may emit event types this client does not know yet.
+          break
       }
     }
     return () => source.close()
   }, [])
 
-  const send = useCallback(async (text: string, selections: DiffSelection[]) => {
+  const send = useCallback(async (request: ChatSendRequest) => {
     setError(null)
     setIdle(false)
     try {
-      await sendChat({ text, selections: selections.length ? selections : undefined })
+      await sendChat(request)
     } catch (e: unknown) {
       setError(String(e))
       setIdle(true)
@@ -74,5 +85,5 @@ export function useChat(): ChatState {
     setPermissions((current) => current.filter((p) => p.id !== id))
   }, [])
 
-  return { parts, idle, permissions, error, send, answerPermission }
+  return { parts, idle, permissions, error, lastTurn, send, answerPermission }
 }

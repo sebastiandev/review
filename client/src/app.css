@@ -512,6 +512,117 @@ button:disabled {
   color: var(--diff-del-fg);
 }
 
+/* Footer: status row + composer; pickers pop up above it. */
+
+.dock-footer {
+  position: relative;
+  flex: none;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 12px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-item {
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  color: inherit;
+  font-size: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-sep {
+  color: var(--fg-faint);
+}
+
+.picker {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  animation: pill-in var(--fast);
+}
+
+.picker-filter {
+  height: 28px;
+  padding: 0 8px;
+  font: 13px/20px var(--font-sans);
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 4px 4px 0 0;
+}
+
+.picker-filter::placeholder {
+  color: var(--fg-faint);
+}
+
+.picker-list {
+  /* 8 rows of 24px. */
+  max-height: 192px;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.picker-item-active {
+  background: var(--bg-sunken);
+}
+
+.picker-mark {
+  width: 8px;
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-hint {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-empty {
+  display: block;
+  height: 24px;
+  padding: 0 8px;
+  color: var(--fg-faint);
+}
+
 .composer {
   flex: none;
   border-top: 1px solid var(--border);
