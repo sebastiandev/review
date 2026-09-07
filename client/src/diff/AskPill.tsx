@@ -1,4 +1,4 @@
-import type { DiffSelection } from '@revu/shared'
+import type { DiffSelection } from '@review/shared'
 
 type AskPillProps = {
   selections: DiffSelection[]

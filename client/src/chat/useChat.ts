@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ChatPart, ChatSendRequest, PermissionAsk, PermissionReply, ServerEvent } from '@revu/shared'
+import type { ChatPart, ChatSendRequest, PermissionAsk, PermissionReply, ServerEvent } from '@review/shared'
 import { fetchChatHistory, replyPermission, sendChat } from '../api'
 
 /** What actually answered the latest assistant turn, from the `chat.turn` event. */

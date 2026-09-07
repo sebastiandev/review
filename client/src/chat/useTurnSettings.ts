@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ModelRef, TurnSettings } from '@revu/shared'
+import type { ModelRef, TurnSettings } from '@review/shared'
 
-const STORAGE_KEY = 'revu.turnSettings'
+const STORAGE_KEY = 'review.turnSettings'
 
 export type TurnSettingsState = {
   settings: TurnSettings

@@ -4,8 +4,8 @@ import { exec } from 'node:child_process'
 import { startDiffMode } from './application/main.ts'
 
 const USAGE = `usage:
-  revu diff <patch-file>                 view a patch file
-  revu diff <repo-dir> [--base <ref>]    view uncommitted changes, or branch vs base
+  review diff <patch-file>                 view a patch file
+  review diff <repo-dir> [--base <ref>]    view uncommitted changes, or branch vs base
 
 options:
   --port <n>          server port (default 5178)
@@ -41,5 +41,5 @@ await startDiffMode({
 })
 
 const url = values.dev ? 'http://localhost:5177' : `http://localhost:${port}`
-console.log(`revu: ${url}`)
+console.log(`review: ${url}`)
 if (!values['no-open']) exec(`open ${url}`)

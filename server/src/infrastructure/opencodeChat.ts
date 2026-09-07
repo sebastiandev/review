@@ -1,5 +1,5 @@
 import { createOpencodeClient, type Event, type Message, type Part } from '@opencode-ai/sdk'
-import type { ChatPart, ServerEvent } from '@revu/shared'
+import type { ChatPart, ServerEvent } from '@review/shared'
 import { composePrompt, type ChatInput, type ChatSession } from '../domain/chat.ts'
 
 export type OpencodeChatOptions = {

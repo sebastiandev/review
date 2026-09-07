@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
-import type { AppConfig, ChatPart, ChatSendRequest, DiffSelection, ModelRef, PermissionAsk, PermissionReply } from '@revu/shared'
+import type { AppConfig, ChatPart, ChatSendRequest, DiffSelection, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { Picker, type PickerItem } from './Picker'
 import { quoteSelection, splitQuotes, type Quote } from './quotes'
 import { LOCAL_COMMANDS, parseSlashCommand, slashPrefix, type LocalCommand } from './slashCommand'

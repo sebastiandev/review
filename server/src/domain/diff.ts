@@ -1,5 +1,5 @@
 import parseDiff from 'parse-diff'
-import type { DiffDocument, DiffFile, DiffSourceRef } from '@revu/shared'
+import type { DiffDocument, DiffFile, DiffSourceRef } from '@review/shared'
 
 /** Anything that can produce a unified diff. Implemented in infrastructure. */
 export type DiffSource = {

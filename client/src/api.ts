@@ -1,4 +1,4 @@
-import type { AppConfig, ChatPart, ChatSendRequest, DiffDocument, PermissionReply } from '@revu/shared'
+import type { AppConfig, ChatPart, ChatSendRequest, DiffDocument, PermissionReply } from '@review/shared'
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)

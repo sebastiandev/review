@@ -7,8 +7,8 @@ export type UiTheme = (typeof UI_THEMES)[number]
 export type DiffTheme = (typeof DIFF_THEMES)[number]
 
 // Keys and attribute names are mirrored by the inline script in index.html that applies them before first paint.
-const UI_KEY = 'revu.theme'
-const DIFF_KEY = 'revu.diffTheme'
+const UI_KEY = 'review.theme'
+const DIFF_KEY = 'review.diffTheme'
 
 function stored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   const value = localStorage.getItem(key)

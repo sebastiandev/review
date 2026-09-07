@@ -105,5 +105,5 @@ Server first, then UI.
 
 ## Rename
 
-Product name is **Review**. Folder `revu` → `review` at the end of phase 0, together with
+Product name is **Review**. Folder `review` → `review` at the end of phase 0, together with
 package names (`@review/*`), the CLI binary (`review diff <path>`), and `~/.cache/review`.

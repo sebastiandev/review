@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type PointerEvent } from 'react'
 import { clampSidebarWidth, computeLayout, SIDEBAR_DEFAULT, SIDEBAR_MIN, type Layout } from './layout'
 
-const SIDEBAR_KEY = 'revu.sidebarWidth'
+const SIDEBAR_KEY = 'review.sidebarWidth'
 
 function storedSidebarWidth(): number {
   const stored = Number(localStorage.getItem(SIDEBAR_KEY))

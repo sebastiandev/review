@@ -1,5 +1,5 @@
 import { createOpencodeClient } from '@opencode-ai/sdk'
-import type { AppConfig } from '@revu/shared'
+import type { AppConfig } from '@review/shared'
 
 /** What the opencode server can run: agents and models, for the pickers. */
 export async function readOpencodeCatalog(baseUrl: string, directory: string): Promise<Pick<AppConfig, 'agents' | 'models' | 'commands'>> {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react'
-import type { DiffSelection } from '@revu/shared'
+import type { DiffSelection } from '@review/shared'
 import { groupSelectedRows, type SelectedRow } from './groupSelectedRows'
 
 export type DiffSelectionState = {

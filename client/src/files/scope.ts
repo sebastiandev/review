@@ -1,4 +1,4 @@
-import type { DiffSourceRef } from '@revu/shared'
+import type { DiffSourceRef } from '@review/shared'
 
 export type ScopeKind = 'working tree' | 'folder' | 'patch file'
 

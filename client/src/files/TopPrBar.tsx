@@ -1,4 +1,4 @@
-import type { DiffDocument } from '@revu/shared'
+import type { DiffDocument } from '@review/shared'
 import { basename } from './scope'
 
 type TopPrBarProps = {

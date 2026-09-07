@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server'
 import { stat } from 'node:fs/promises'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Settings } from '@revu/shared'
+import type { Settings } from '@review/shared'
 import { createApp } from './app.ts'
 import { localRepoSource, patchFileSource } from '../infrastructure/diffSources.ts'
 import { openOpencodeChat } from '../infrastructure/opencodeChat.ts'
@@ -32,7 +32,7 @@ export async function startDiffMode(opts: DiffModeOptions) {
   const chat = await openOpencodeChat({
     baseUrl: opts.opencodeUrl,
     directory,
-    title: `revu: ${target}`,
+    title: `review: ${target}`,
     systemContext: await diffContext(source),
     defaultAgent: DEFAULT_SETTINGS.chatAgent,
   })

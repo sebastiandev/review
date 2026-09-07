@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { serveStatic } from '@hono/node-server/serve-static'
-import type { ChatSendRequest, PermissionReply, Settings } from '@revu/shared'
+import type { ChatSendRequest, PermissionReply, Settings } from '@review/shared'
 import type { DiffSource } from '../domain/diff.ts'
 import { buildDiffDocument } from '../domain/diff.ts'
 import type { ChatSession } from '../domain/chat.ts'

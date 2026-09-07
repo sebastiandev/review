@@ -17,8 +17,8 @@
           return allowed.indexOf(stored) >= 0 ? stored : fallback
         }
         var root = document.documentElement
-        root.setAttribute('data-theme', pick('revu.theme', ['nocturne', 'ember', 'slate'], 'nocturne'))
-        root.setAttribute('data-diff-theme', pick('revu.diffTheme', ['nocturne', 'muted', 'vivid', 'paper'], 'nocturne'))
+        root.setAttribute('data-theme', pick('review.theme', ['nocturne', 'ember', 'slate'], 'nocturne'))
+        root.setAttribute('data-diff-theme', pick('review.diffTheme', ['nocturne', 'muted', 'vivid', 'paper'], 'nocturne'))
       })()
     </script>
   </head>

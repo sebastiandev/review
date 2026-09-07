@@ -1,4 +1,4 @@
-import type { ChatPart, DiffSelection, PermissionReply, ServerEvent, TurnSettings } from '@revu/shared'
+import type { ChatPart, DiffSelection, PermissionReply, ServerEvent, TurnSettings } from '@review/shared'
 
 /** An agent conversation bound to one diff. Implemented in infrastructure over opencode. */
 export type ChatSession = {

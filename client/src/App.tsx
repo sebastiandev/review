@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ChatSendRequest, DiffSelection } from '@revu/shared'
+import type { ChatSendRequest, DiffSelection } from '@review/shared'
 import { fetchConfig, fetchDiff } from './api'
 import { ChatDock, type QuoteRequest } from './chat/ChatDock'
 import { useChat } from './chat/useChat'

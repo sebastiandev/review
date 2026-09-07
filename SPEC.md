@@ -1,4 +1,4 @@
-# revu — spec
+# review — spec
 
 A local review desk: the PRs waiting on me, an agent review already drafted against each
 one, and the ability to curate it and submit.
@@ -93,7 +93,7 @@ for this.
 
 ```
                      ┌────────────────────────────┐
- fetch (30 min) ───► │  revu server (Bun/Hono) │
+ fetch (30 min) ───► │  review server (Bun/Hono) │
                      │                            │
    browser ◄───SSE───┤  • GitHub sync             ├──► gh / Octokit
    :5173             │  • review orchestration    │
@@ -446,9 +446,9 @@ way to produce that; it is not the only one. So the app runs in a second mode wh
 no PR, no draft, no submit — just a diff and an agent to talk to about it.
 
 ```
-revu diff path/to/change.patch     # a diff file
-revu diff ~/src/shiphero/Foo       # a repo: uncommitted changes vs HEAD
-revu diff ~/src/foo --base main    # a repo: current branch vs a base
+review diff path/to/change.patch     # a diff file
+review diff ~/src/shiphero/Foo       # a repo: uncommitted changes vs HEAD
+review diff ~/src/foo --base main    # a repo: current branch vs a base
 ```
 
 Opens the browser on a session whose center pane is the diff and whose right dock is the
@@ -502,10 +502,10 @@ Scheduled review may come back later. It is out of scope until the manual loop i
 The agent reads surrounding code to find canonical helpers, so a review wants a checkout at
 the PR's head. It must never be the user's own working tree.
 
-- One dedicated clone at `~/.cache/revu/repos/<repo>`, seeded once. The Shiphero-API tracked
+- One dedicated clone at `~/.cache/review/repos/<repo>`, seeded once. The Shiphero-API tracked
   tree is 170MB, so this is cheap; the 10GB figure is `.venv`s and caches, not git.
 - A worktree per PR, created lazily the first time that PR is reviewed, at
-  `~/.cache/revu/worktrees/<repo>/<number>`.
+  `~/.cache/review/worktrees/<repo>/<number>`.
 - `worktree_path` is recorded on `pull_request`.
 
 Removal happens on exactly two events:
@@ -611,7 +611,7 @@ Everything reachable by mouse is reachable by keyboard. Focus ring is `accent`, 
 
 ## 10. Open questions
 
-1. ~~**Repo checkout for the agent.**~~ Settled: dedicated clone under `~/.cache/revu`,
+1. ~~**Repo checkout for the agent.**~~ Settled: dedicated clone under `~/.cache/review`,
    per-PR worktrees, removed on done or merge. See §7b.
 2. **Multi-repo.** Schema is repo-aware; the agent needs a path per repo. Configure a
    `repo -> localPath` map?

@@ -1,5 +1,5 @@
 {
-  "name": "revu",
+  "name": "review",
   "private": true,
   "type": "module",
   "workspaces": ["server", "client", "shared"],

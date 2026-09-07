@@ -1,4 +1,4 @@
-import type { DiffSelection } from '@revu/shared'
+import type { DiffSelection } from '@review/shared'
 
 /** A quoted diff range inside a user turn. */
 export type Quote = { path: string; startLine: number; endLine: number; text: string }

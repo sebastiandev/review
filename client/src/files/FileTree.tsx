@@ -1,5 +1,5 @@
 import { CaretDown, Check, FolderOpen } from '@phosphor-icons/react'
-import type { DiffDocument, DiffFile } from '@revu/shared'
+import type { DiffDocument, DiffFile } from '@review/shared'
 import { basename, scopeKind } from './scope'
 
 type FileTreeProps = {

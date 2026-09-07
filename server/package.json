@@ -1,9 +1,9 @@
 {
-  "name": "@revu/server",
+  "name": "@review/server",
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "revu": "./src/cli.ts"
+    "review": "./src/cli.ts"
   },
   "scripts": {
     "dev": "tsx watch src/cli.ts diff ../ --dev --no-open",

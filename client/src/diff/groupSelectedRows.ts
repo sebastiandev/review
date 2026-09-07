@@ -1,4 +1,4 @@
-import type { DiffSelection } from '@revu/shared'
+import type { DiffSelection } from '@review/shared'
 
 /** One rendered diff row touched by the DOM selection, in document order. */
 export type SelectedRow = {

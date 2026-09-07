@@ -1,6 +1,6 @@
 import { Check } from '@phosphor-icons/react'
 import type { ReactNode, RefObject } from 'react'
-import type { DiffFile } from '@revu/shared'
+import type { DiffFile } from '@review/shared'
 import { basename, dirname } from '../files/scope'
 import { Segmented } from '../shell/Segmented'
 import { LineActionButton, type LineRef } from './LineActionButton'

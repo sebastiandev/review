@@ -1,1 +1,1 @@
-{ "name": "@revu/shared", "version": "0.0.0", "type": "module", "main": "index.ts", "types": "index.ts" }
+{ "name": "@review/shared", "version": "0.0.0", "type": "module", "main": "index.ts", "types": "index.ts" }

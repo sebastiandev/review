@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const KEY_PREFIX = 'revu.viewed:'
+const KEY_PREFIX = 'review.viewed:'
 
 function storedViewed(scope: string): Set<string> {
   const raw = localStorage.getItem(KEY_PREFIX + scope)
