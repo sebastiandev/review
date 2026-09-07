@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="_ds/nocturne-6975616d-a227-4ef0-8369-0ec513f170f2/styles.css">
+<script src="_ds/nocturne-6975616d-a227-4ef0-8369-0ec513f170f2/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html, body { height: 100%; overflow: hidden; }
+body { font-size: 14px; }
+a { color: var(--color-accent-300); }
+a:hover { color: var(--color-accent-200); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+</style>
+</helmet>
+<div style="height: 100vh; display: flex; flex-direction: column; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); overflow: hidden; {{ themeVars }}">
+
+  <div style="display: flex; align-items: center; gap: 14px; padding: 0 14px; height: 46px; flex: none; border-bottom: 1px solid var(--color-divider); background: var(--color-bg);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: -0.02em; color: var(--color-accent);">&lt;/&gt;</div>
+      <span style="font-family: var(--font-heading); font-weight: 500; letter-spacing: -0.01em;">Review</span>
+    </div>
+    <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+      <button onClick="{{ setModePr }}" style="{{ modePrStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">PR mode</button>
+      <button onClick="{{ setModeDiff }}" style="{{ modeDiffStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 7%, transparent);">Diff mode</button>
+    </div>
+    <div style="flex: 1; max-width: 340px; display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 30px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); color: var(--color-neutral-500); font-size: 13px;">
+      <span style="font-size: 12px;">⌕</span><span>Search PRs, files, comments</span>
+      <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-600);">⌘K</span>
+    </div>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+      <button onClick="{{ toggleShortcuts }}" class="btn btn-secondary" style="height: 30px; font-size: 13px;" title="Keyboard shortcuts">?</button>
+      <button onClick="{{ toggleDock }}" class="btn btn-secondary" style="height: 30px; font-size: 13px;">Dock</button>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+
+    <div style="width: 48px; flex: none; border-right: 1px solid var(--color-divider); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0;">
+      <button onClick="{{ goInbox }}" style="{{ navInboxStyle }}" title="Inbox">◧</button>
+      <button onClick="{{ goPast }}" style="{{ navPastStyle }}" title="Past reviews">◷</button>
+      <button onClick="{{ goSettings }}" style="{{ navSettingsStyle }}" title="Settings">⚙</button>
+      <div style="margin-top: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--color-accent-800); border: 1px solid var(--color-accent-700); font-size: 11px; display: flex; align-items: center; justify-content: center; color: var(--color-accent-200);">SD</div>
+    </div>
+
+    <sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ true }}">
+      <div style="{{ sidebarStyle }}">
+
+        <sc-if value="{{ sidebarIsPrList }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; min-height: 0; height: 100%;">
+            <div style="padding: 10px 12px 8px; position: relative;">
+              <button onClick="{{ toggleRepoMenu }}" style="{{ repoBtnStyle }}" style-hover="border-color: var(--color-neutral-600);">
+                <span style="width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--color-accent);"></span>
+                <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">{{ currentRepo }}</span>
+                <span style="flex: none; color: var(--color-neutral-500);">▾</span>
+              </button>
+              <sc-if value="{{ repoMenuOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; left: 12px; right: 12px; top: 44px; z-index: 30; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 4px;">
+                  <sc-for list="{{ repos }}" as="r" hint-placeholder-count="3">
+                    <button onClick="{{ r.onSelect }}" style="{{ r.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">
+                      <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;">{{ r.name }}</span>
+                      <span style="flex: none; font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ r.count }}</span>
+                    </button>
+                  </sc-for>
+                  <button onClick="{{ goRepoSettings }}" style="display: flex; width: 100%; padding: 7px 9px; font-size: 12.5px; background: transparent; border: 0; border-top: 1px solid var(--color-divider); margin-top: 4px; color: var(--color-accent-300); cursor: pointer; border-radius: var(--radius-sm);" style-hover="background: color-mix(in srgb, var(--color-accent) 10%, transparent);">Manage repositories…</button>
+                </div>
+              </sc-if>
+            </div>
+            <div style="padding: 2px 14px 10px; display: flex; align-items: baseline; gap: 8px;">
+              <span style="font-family: var(--font-heading); font-size: 15px;">Assigned to you</span>
+              <span style="font-size: 12px; color: var(--color-neutral-500);">{{ prCount }}</span>
+              <button onClick="{{ openAdd }}" class="btn btn-ghost" style="margin-left: auto; font-size: 12px;" title="Review a PR that isn't assigned to you">Add PR</button>
+              <button onClick="{{ refreshPrs }}" class="btn btn-ghost" style="font-size: 12px;">Refresh</button>
+            </div>
+            <div style="padding: 0 14px 8px; font-size: 11px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">{{ lastFetch }}</div>
+            <div style="overflow-y: auto; min-height: 0; flex: 1;">
+              <sc-for list="{{ prs }}" as="pr" hint-placeholder-count="4">
+                <div onClick="{{ pr.onSelect }}" style="{{ pr.rowStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">
+                  <div style="display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500);">
+                    <span>#{{ pr.id }}</span>
+                    <span style="{{ pr.stateStyle }}">{{ pr.stateLabel }}</span>
+                    <span style="margin-left: auto;">{{ pr.updated }}</span>
+                  </div>
+                  <div style="margin-top: 5px; font-size: 13.5px; line-height: 1.35; text-wrap: pretty;">{{ pr.title }}</div>
+                  <div style="margin-top: 7px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">
+                    <span style="flex: none; white-space: nowrap;">{{ pr.fileCount }} files</span>
+                    <span style="flex: none; white-space: nowrap; color: #6faa7e;">+{{ pr.add }}</span>
+                    <span style="flex: none; white-space: nowrap; color: #c47b7b;">−{{ pr.del }}</span>
+                    <sc-if value="{{ pr.isAdded }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex: none; white-space: nowrap; padding: 0 5px; border-radius: 8px; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-400); font-size: 10px;">added by you</span>
+                    </sc-if>
+                    <sc-if value="{{ pr.hasAgent }}" hint-placeholder-val="{{ true }}">
+                      <span style="{{ pr.agentStyle }}">{{ pr.agentLabel }}</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ sidebarIsFiles }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; min-height: 0; height: 100%;">
+            <div style="padding: 10px 12px; border-bottom: 1px solid var(--color-divider); position: relative;">
+              <sc-if value="{{ isDiffMode }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <button onClick="{{ toggleScopeMenu }}" style="{{ repoBtnStyle }}" style-hover="border-color: var(--color-neutral-600);">
+                    <span style="flex: none; color: var(--color-neutral-500);">◨</span>
+                    <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;">{{ currentScope }}</span>
+                    <span style="flex: none; color: var(--color-neutral-500);">▾</span>
+                  </button>
+                  <sc-if value="{{ scopeMenuOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; left: 12px; right: 12px; top: 46px; z-index: 30; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 4px;">
+                      <sc-for list="{{ scopes }}" as="sc" hint-placeholder-count="4">
+                        <button onClick="{{ sc.onSelect }}" style="{{ sc.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">
+                          <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;">{{ sc.label }}</span>
+                          <span style="flex: none; font-size: 10.5px; color: var(--color-neutral-500);">{{ sc.kind }}</span>
+                        </button>
+                      </sc-for>
+                      <button style="display: flex; width: 100%; padding: 7px 9px; font-size: 12.5px; background: transparent; border: 0; border-top: 1px solid var(--color-divider); margin-top: 4px; color: var(--color-accent-300); cursor: pointer; border-radius: var(--radius-sm);" style-hover="background: color-mix(in srgb, var(--color-accent) 10%, transparent);">Open folder or .diff…</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ isPrMode }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ backToList }}" class="btn btn-ghost" style="font-size: 12px; padding-left: 0;">← {{ backLabel }}</button>
+              </sc-if>
+              <div style="margin-top: 4px; font-size: 13px; line-height: 1.35; text-wrap: pretty;">{{ currentTitle }}</div>
+              <div style="margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ currentBranch }}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600);">
+              <span>Files</span>
+              <span style="margin-left: auto; text-transform: none; letter-spacing: 0; font-family: 'JetBrains Mono', monospace;">{{ viewedLabel }}</span>
+            </div>
+            <div style="overflow-y: auto; min-height: 0; flex: 1; padding-bottom: 10px;">
+              <sc-for list="{{ files }}" as="f" hint-placeholder-count="6">
+                <div onClick="{{ f.onSelect }}" style="{{ f.rowStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">
+                  <span style="{{ f.dotStyle }}" title="{{ f.statusLabel }}"></span>
+                  <span style="{{ f.nameStyle }}">{{ f.name }}</span>
+                  <sc-if value="{{ f.hasComments }}" hint-placeholder-val="{{ true }}">
+                    <span style="flex: none; font-size: 10px; padding: 1px 5px; border-radius: 8px; background: var(--color-accent-900); color: var(--color-accent-200); font-family: 'JetBrains Mono', monospace;">{{ f.comments }}</span>
+                  </sc-if>
+                  <span onClick="{{ f.onToggleViewed }}" style="{{ f.viewedStyle }}" title="Mark viewed">{{ f.viewedMark }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ isPrMode }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top: 1px solid var(--color-divider); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ worktreeLabel }}</div>
+                <button onClick="{{ openReview }}" class="btn btn-primary btn-block" style="margin-top: 0;">Submit review · {{ pendingCount }}</button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ sidebarIsSettings }}" hint-placeholder-val="{{ true }}">
+          <div style="padding: 12px 10px;">
+            <div style="padding: 0 4px 10px; font-family: var(--font-heading); font-size: 15px;">Settings</div>
+            <sc-for list="{{ settingsNav }}" as="s" hint-placeholder-count="6">
+              <div onClick="{{ s.onSelect }}" style="{{ s.rowStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">{{ s.label }}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ sidebarIsPast }}" hint-placeholder-val="{{ true }}">
+          <div style="padding: 12px 10px;">
+            <div style="padding: 0 4px 10px; font-family: var(--font-heading); font-size: 15px;">Past reviews</div>
+            <sc-for list="{{ pastFilters }}" as="s" hint-placeholder-count="4">
+              <div onClick="{{ s.onSelect }}" style="{{ s.rowStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">{{ s.label }}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div onMouseDown="{{ startResize }}" style="{{ resizerStyle }}" style-hover="background: color-mix(in srgb, var(--color-accent) 45%, transparent);" title="Drag to resize"></div>
+      </div>
+    </sc-if>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; position: relative;">
+
+      <sc-if value="{{ showTopPrBar }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: none; border-bottom: 1px solid var(--color-divider); padding: 8px 14px; display: flex; align-items: center; gap: 12px; overflow-x: auto;">
+          <sc-if value="{{ isPrMode }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; gap: 8px; flex: none;">
+              <button onClick="{{ backToList }}" class="btn btn-secondary" style="flex: none; font-size: 12px;" title="All PRs">←</button>
+              <button onClick="{{ cyclePr }}" class="btn btn-secondary" style="flex: none; font-size: 12px; font-family: 'JetBrains Mono', monospace;">#{{ currentId }} ▾</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isDiffMode }}" hint-placeholder-val="{{ false }}">
+            <span style="flex: none; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--color-neutral-400);">{{ repoScope }}</span>
+          </sc-if>
+          <span style="flex: none; font-size: 13px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ currentTitle }}</span>
+          <div style="display: flex; gap: 6px; margin-left: 8px;">
+            <sc-for list="{{ files }}" as="f" hint-placeholder-count="5">
+              <button onClick="{{ f.onSelect }}" style="{{ f.chipStyle }}" style-hover="border-color: var(--color-neutral-600);">{{ f.name }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showInbox }}" hint-placeholder-val="{{ true }}">
+        <div style="overflow-y: auto; padding: 22px 26px 40px; min-height: 0;">
+          <div style="max-width: 760px;">
+            <h4 style="margin: 0 0 2px;">Pending review</h4>
+            <div style="font-size: 13px; color: var(--color-neutral-500); margin-bottom: 18px;">{{ inboxSubtitle }}</div>
+            <sc-for list="{{ prs }}" as="pr" hint-placeholder-count="4">
+              <div onClick="{{ pr.onSelect }}" style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; cursor: pointer; background: var(--color-surface);" style-hover="border-color: var(--color-neutral-700);">
+                <div style="display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500);">
+                  <span>{{ pr.repo }} · #{{ pr.id }}</span>
+                  <span style="{{ pr.stateStyle }}">{{ pr.stateLabel }}</span>
+                  <span style="margin-left: auto;">{{ pr.updated }}</span>
+                </div>
+                <div style="margin-top: 7px; font-size: 16px; font-family: var(--font-heading); text-wrap: pretty;">{{ pr.title }}</div>
+                <div style="margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">
+                  <span style="flex: none; white-space: nowrap;">{{ pr.branch }}</span>
+                  <span style="flex: none; white-space: nowrap;">{{ pr.fileCount }} files</span>
+                  <span style="flex: none; white-space: nowrap; color: #6faa7e;">+{{ pr.add }}</span>
+                  <span style="flex: none; white-space: nowrap; color: #c47b7b;">−{{ pr.del }}</span>
+                  <span style="flex: none; white-space: nowrap;">{{ pr.commentLabel }}</span>
+                  <sc-if value="{{ pr.isAdded }}" hint-placeholder-val="{{ false }}">
+                    <span style="flex: none; white-space: nowrap; padding: 0 6px; border-radius: 8px; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-400); font-size: 10.5px;">added by you</span>
+                  </sc-if>
+                  <sc-if value="{{ pr.hasAgent }}" hint-placeholder-val="{{ true }}">
+                    <span style="{{ pr.agentStyle }}">{{ pr.agentLabel }}</span>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ pr.hasSpec }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--color-divider); font-size: 12px; color: var(--color-neutral-400); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;">
+                    <span style="flex: none; white-space: nowrap; font-family: 'JetBrains Mono', monospace; color: var(--color-accent-300);">{{ pr.spec }}</span>
+                    <span style="flex: none; color: var(--color-neutral-600);">spec referenced in the description · introduced in #{{ pr.specPr }}</span>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showDiff }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; flex: 1; position: relative;">
+          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; border-bottom: 1px solid var(--color-divider); min-width: 0;">
+            <span style="flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--color-neutral-600);">{{ activeDir }}</span>
+            <span style="flex: none; margin-left: -6px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">{{ activeName }}</span>
+            <span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6faa7e;">+{{ activeAdd }}</span>
+            <span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #c47b7b;">−{{ activeDel }}</span>
+            <div style="{{ diffToolbarStyle }}">
+              <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+                <button onClick="{{ setUnified }}" style="{{ unifiedStyle }}">{{ mergedLabel }}</button>
+                <button onClick="{{ setSplit }}" style="{{ splitStyle }}">{{ splitLabel }}</button>
+              </div>
+              <sc-if value="{{ hasAgentReview }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ toggleAgentPanel }}" class="btn btn-secondary" style="height: 28px; font-size: 12px;">Agent review · 4</button>
+              </sc-if>
+              <sc-if value="{{ isPrMode }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ toggleViewedActive }}" class="btn btn-secondary" style="height: 28px; font-size: 12px;">{{ activeViewedLabel }}</button>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="overflow: auto; min-height: 0; flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.65;">
+
+            <sc-if value="{{ isUnified }}" hint-placeholder-val="{{ true }}">
+              <div style="min-width: 620px;">
+                <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="18">
+                  <div style="position: relative;">
+                    <div style="display: flex; align-items: flex-start; background: {{ ln.bg }};">
+                      <div style="flex: none; width: 46px; text-align: right; padding-right: 8px; color: var(--color-neutral-700); user-select: none;">{{ ln.leftNum }}</div>
+                      <div style="flex: none; width: 46px; text-align: right; padding-right: 8px; color: var(--color-neutral-700); user-select: none;">{{ ln.rightNum }}</div>
+                      <button onClick="{{ ln.onMenu }}" style="{{ ln.plusStyle }}" style-hover="color: var(--color-accent-200); border-color: var(--color-accent);"><svg width="11" height="11" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><circle cx="128" cy="128" r="14"></circle><circle cx="60" cy="128" r="14"></circle><circle cx="196" cy="128" r="14"></circle></svg></button>
+                      <sc-if value="{{ ln.hasChat }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ ln.onToggleChat }}" style="{{ ln.chatIconStyle }}" style-hover="border-color: var(--color-accent);" title="{{ ln.chatIconTitle }}">
+                          <svg width="11" height="11" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216 48H40a16 16 0 0 0-16 16v160a8 8 0 0 0 13 6.2L82 192h134a16 16 0 0 0 16-16V64a16 16 0 0 0-16-16Zm0 128H80a8 8 0 0 0-5 1.8L40 207V64h176Z"></path></svg>
+                        </button>
+                      </sc-if>
+                      <div style="flex: 1; min-width: 0; padding: 0 12px 0 6px; white-space: pre-wrap; word-break: break-word; color: {{ ln.fg }};">{{ ln.text }}</div>
+                    </div>
+                    <sc-if value="{{ ln.menuOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="position: absolute; left: 108px; top: 22px; z-index: 30; width: 244px; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 4px; font-family: var(--font-body);">
+                        <sc-if value="{{ isPrMode }}" hint-placeholder-val="{{ true }}">
+                          <button onClick="{{ ln.onComment }}" style="display: block; width: 100%; text-align: left; padding: 7px 9px; font-size: 13px; background: transparent; border: 0; color: var(--color-text); border-radius: var(--radius-sm); cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Add review comment</button>
+                        </sc-if>
+                        <button onClick="{{ ln.onAsk }}" style="display: block; width: 100%; text-align: left; padding: 7px 9px; font-size: 13px; background: transparent; border: 0; color: var(--color-text); border-radius: var(--radius-sm); cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Ask the agent here</button>
+                        <button onClick="{{ ln.onCopy }}" style="display: block; width: 100%; text-align: left; padding: 7px 9px; font-size: 13px; background: transparent; border: 0; color: var(--color-text); border-radius: var(--radius-sm); cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Copy line reference</button>
+                        <div style="padding: 6px 9px 4px; font-size: 11px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">{{ ln.ref }}</div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ ln.hasAgentNote }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin: 6px 0 6px 92px; max-width: 720px; border-left: 2px solid var(--color-accent); background: var(--color-accent-900); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 9px 12px; font-family: var(--font-body); font-size: 13px;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--color-accent-200); font-family: 'JetBrains Mono', monospace;">
+                          <span>review-agent · opencode</span><span style="color: var(--color-neutral-600);">{{ ln.agentSeverity }}</span>
+                        </div>
+                        <div style="margin-top: 5px; line-height: 1.5; text-wrap: pretty;">{{ ln.agentNote }}</div>
+                        <div style="margin-top: 8px; display: flex; gap: 6px;">
+                          <button class="btn btn-primary" style="font-size: 12px; padding: 3px 9px;">Keep in review</button>
+                          <button class="btn btn-secondary" style="font-size: 12px; padding: 3px 9px;">Dismiss</button>
+                          <button onClick="{{ ln.onAsk }}" class="btn btn-ghost" style="font-size: 12px;">Discuss</button>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ ln.hasOthers }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin: 6px 0 6px 92px; max-width: 720px; font-family: var(--font-body);">
+                        <button onClick="{{ ln.onToggleOthers }}" style="display: flex; align-items: center; gap: 8px; font-size: 12px; background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 4px 10px; color: var(--color-neutral-400); cursor: pointer;" style-hover="border-color: var(--color-neutral-600);">{{ ln.othersLabel }}</button>
+                        <sc-if value="{{ ln.othersOpen }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top: 6px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 10px 12px;">
+                            <sc-for list="{{ ln.others }}" as="c" hint-placeholder-count="2">
+                              <div style="padding: 6px 0; border-top: 1px solid var(--color-divider);">
+                                <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ c.author }} · {{ c.when }}</div>
+                                <div style="margin-top: 3px; font-size: 13px; line-height: 1.5; text-wrap: pretty;">{{ c.body }}</div>
+                              </div>
+                            </sc-for>
+                            <div style="display: flex; gap: 6px; margin-top: 8px;">
+                              <div class="input" style="flex: 1; min-height: 30px; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600);">Reply in thread…</div>
+                              <button class="btn btn-secondary" style="font-size: 12px;">Reply</button>
+                            </div>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ ln.hasMine }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin: 6px 0 8px 92px; max-width: 720px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md); padding: 10px 12px; font-family: var(--font-body);">
+                        <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">You · pending in this review</div>
+                        <div style="margin-top: 4px; font-size: 13px; line-height: 1.5; text-wrap: pretty;">{{ ln.mineBody }}</div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ ln.composerOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin: 6px 0 8px 92px; max-width: 720px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 10px 12px; font-family: var(--font-body); background: var(--color-surface);">
+                        <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px;">{{ ln.ref }}</div>
+                        <textarea class="input" placeholder="Leave a comment on this line" style="min-height: 64px; font-size: 13px;"></textarea>
+                        <div style="display: flex; gap: 6px; margin-top: 8px; align-items: center;">
+                          <button onClick="{{ ln.onSaveComment }}" class="btn btn-primary" style="font-size: 12px;">Add to review</button>
+                          <button onClick="{{ ln.onCancelComment }}" class="btn btn-secondary" style="font-size: 12px;">Cancel</button>
+                          <button onClick="{{ ln.onAsk }}" class="btn btn-ghost" style="font-size: 12px; margin-left: auto;">Ask agent instead</button>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isSplit }}" hint-placeholder-val="{{ false }}">
+              <div style="min-width: 860px;">
+                <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="18">
+                  <div style="display: flex; align-items: stretch;">
+                    <div style="flex: 1; min-width: 0; display: flex; background: {{ ln.leftBg }}; border-right: 1px solid var(--color-divider);">
+                      <div style="flex: none; width: 46px; text-align: right; padding-right: 8px; color: var(--color-neutral-700); user-select: none;">{{ ln.leftNum }}</div>
+                      <div style="flex: 1; min-width: 0; padding: 0 10px; white-space: pre-wrap; word-break: break-word; color: {{ ln.leftFg }};">{{ ln.leftText }}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 0; display: flex; background: {{ ln.rightBg }};">
+                      <div style="flex: none; width: 46px; text-align: right; padding-right: 8px; color: var(--color-neutral-700); user-select: none;">{{ ln.rightNum }}</div>
+                      <button onClick="{{ ln.onMenu }}" style="{{ ln.plusStyle }}" style-hover="color: var(--color-accent-200); border-color: var(--color-accent);"><svg width="11" height="11" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><circle cx="128" cy="128" r="14"></circle><circle cx="60" cy="128" r="14"></circle><circle cx="196" cy="128" r="14"></circle></svg></button>
+                      <div style="flex: 1; min-width: 0; padding: 0 10px 0 6px; white-space: pre-wrap; word-break: break-word; color: {{ ln.rightFg }};">{{ ln.rightText }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ chatCardStyle }}">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--color-divider);">
+                <span style="width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--color-accent);"></span>
+                <span style="flex: none; font-size: 12px;">Inline chat</span>
+                <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">{{ chatRef }}</span>
+                <button onClick="{{ chatMinimize }}" style="flex: none; background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; font-size: 14px;" title="Minimize">–</button>
+                <button onClick="{{ chatClose }}" style="flex: none; background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; font-size: 13px;" title="Close">×</button>
+              </div>
+              <div style="padding: 10px; display: flex; flex-direction: column; gap: 9px; max-height: 240px; overflow-y: auto;">
+                <div style="font-size: 12px; padding: 7px 9px; border-radius: var(--radius-sm); background: var(--color-accent-900); color: var(--color-accent-100); align-self: flex-end; max-width: 88%;">Why clamp here instead of at the settings boundary?</div>
+                <div style="font-size: 12.5px; line-height: 1.55; text-wrap: pretty;">Clamping in the constructor protects every caller, including tests that construct the poller directly. The settings route validates too, so this is defence in depth — but the range constants now live in two places. Want me to move them into <span style="font-family: 'JetBrains Mono', monospace; color: var(--color-accent-300);">domain/settings</span> and import from both?</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Show me the diff</button>
+                  <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Turn into comment</button>
+                </div>
+              </div>
+              <div style="padding: 8px 10px; border-top: 1px solid var(--color-divider); display: flex; gap: 6px;">
+                <div class="input" style="flex: 1; min-width: 0; min-height: 30px; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600);">Ask about this line…</div>
+                <button class="btn btn-primary" style="flex: none; font-size: 12px;">Send</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ agentPanelOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; inset: 0; z-index: 40; background: color-mix(in srgb, var(--color-bg) 82%, transparent); display: flex; justify-content: center; align-items: flex-start; padding: 34px 24px; overflow-y: auto;">
+              <div style="width: 100%; max-width: 720px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 20px 22px;">
+                <div style="display: flex; align-items: baseline; gap: 10px;">
+                  <h4 style="margin: 0;">Automatic review</h4>
+                  <span style="font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">opencode · reviewer.md · effort high · 3m 12s ago</span>
+                  <button onClick="{{ toggleAgentPanel }}" style="margin-left: auto; background: transparent; border: 0; color: var(--color-neutral-400); font-size: 16px; cursor: pointer;">×</button>
+                </div>
+                <div style="margin-top: 14px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md); padding: 12px 14px;">
+                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent-300);">Suggested conclusion</div>
+                  <div style="margin-top: 6px; font-family: var(--font-heading); font-size: 17px;">Request changes</div>
+                  <div style="margin-top: 6px; font-size: 13px; line-height: 1.55; color: var(--color-neutral-300); text-wrap: pretty;">The clamp is correct but the range constants are duplicated between the poller and the settings route, and the new interval is never re-read after a settings save — the running poller keeps the boot value until the backend restarts. Tests cover the clamp, not the reload.</div>
+                </div>
+                <div style="margin-top: 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600);">4 comments</div>
+                <sc-for list="{{ agentFindings }}" as="a" hint-placeholder-count="4">
+                  <div onClick="{{ a.onJump }}" style="margin-top: 8px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer;" style-hover="border-color: var(--color-neutral-600);">
+                    <div style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500);">
+                      <span style="color: var(--color-accent-300);">{{ a.ref }}</span>
+                      <span>{{ a.severity }}</span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 13px; line-height: 1.5; text-wrap: pretty;">{{ a.body }}</div>
+                  </div>
+                </sc-for>
+                <div style="display: flex; gap: 8px; margin-top: 18px;">
+                  <button class="btn btn-primary">Accept all into my review</button>
+                  <button class="btn btn-secondary">Keep 2 selected</button>
+                  <button onClick="{{ rerunAgent }}" class="btn btn-ghost">Re-run</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showMd }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; flex: 1;">
+          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; border-bottom: 1px solid var(--color-divider); min-width: 0;">
+            <span style="flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--color-neutral-600);">{{ activeDir }}</span>
+            <span style="flex: none; margin-left: -6px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">{{ activeName }}</span>
+            <sc-if value="{{ isSpecFile }}" hint-placeholder-val="{{ true }}">
+              <span style="font-size: 11.5px; color: var(--color-neutral-500);">spec · introduced in <a href="#">#398</a></span>
+            </sc-if>
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+                <button onClick="{{ setRich }}" style="{{ richStyle }}">Rich</button>
+                <button onClick="{{ setRaw }}" style="{{ rawStyle }}">Raw diff</button>
+              </div>
+              <sc-if value="{{ hasMdSelection }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11.5px; color: var(--color-accent-300); font-family: 'JetBrains Mono', monospace;">2 selections · merged per line on submit</span>
+              </sc-if>
+            </div>
+          </div>
+
+          <sc-if value="{{ isRich }}" hint-placeholder-val="{{ true }}">
+            <div style="overflow-y: auto; min-height: 0; flex: 1; padding: 26px 0 60px;">
+              <div style="{{ mdRowStyle }}">
+                <div id="md-doc" style="flex: 1 1 420px; min-width: 0; max-width: 720px;">
+                  <div style="margin-bottom: 14px; font-size: 11.5px; color: var(--color-neutral-600);">Select any text — a line, a phrase, a whole section — to comment or ask the agent about it.</div>
+                  <h3 style="margin: 0 0 6px;">Agent hooks — reacting to what an agent does</h3>
+                  <p style="color: var(--color-neutral-400); font-size: 13.5px;"><strong style="color: var(--color-text);">Status:</strong> phase 1 in progress; phase 2 scoped, deliberately not started.</p>
+
+                  <div style="display: flex; gap: 10px; margin-top: 22px;">
+                    <div style="flex: 1; min-width: 0;">
+                      <h5 style="margin: 0 0 6px;">2. The rule</h5>
+                      <p style="line-height: 1.65; text-wrap: pretty;"><strong>If the runtime can observe it, observe it. Never ask the model.</strong></p>
+                      <p style="line-height: 1.65; text-wrap: pretty;"><span style="{{ sel1Style }}">A model can forget to announce an edit, describe it differently on a second run, or announce one it did not make.</span> Where the runtime already knows, a declared marker adds a second source of truth that can disagree with the first, and no way to tell which is right.</p>
+                    </div>
+                    <button onClick="{{ toggleSel1 }}" style="{{ marker1Style }}" style-hover="border-color: var(--color-accent); color: var(--color-accent-200);">{{ marker1Label }}</button>
+                  </div>
+
+                  <sc-if value="{{ sel1Open }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin: 10px 0 14px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md); background: var(--color-surface); padding: 12px 14px;">
+                      <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">Selection · lines 22–24 · docs/spec-agent-hooks.md</div>
+                      <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button onClick="{{ setSelTabComment }}" style="{{ selTabCommentStyle }}">Propose a change</button>
+                        <button onClick="{{ setSelTabAgent }}" style="{{ selTabAgentStyle }}">Ask the agent</button>
+                      </div>
+                      <sc-if value="{{ selTabIsComment }}" hint-placeholder-val="{{ true }}">
+                        <div style="margin-top: 10px;">
+                          <textarea class="input" placeholder="Suggest replacement text or leave a note" style="min-height: 64px; font-size: 13px;"></textarea>
+                          <div style="display: flex; gap: 6px; margin-top: 8px;">
+                            <button class="btn btn-primary" style="font-size: 12px;">Add to review</button>
+                            <button onClick="{{ toggleSel1 }}" class="btn btn-secondary" style="font-size: 12px;">Cancel</button>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ selTabIsAgent }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 9px;">
+                          <div style="font-size: 12px; padding: 7px 9px; border-radius: var(--radius-sm); background: var(--color-accent-900); color: var(--color-accent-100); align-self: flex-end; max-width: 88%;">Does this rule contradict §4's declared hooks?</div>
+                          <div style="font-size: 12.5px; line-height: 1.55; text-wrap: pretty;">No — §4 scopes declared markers to judgements the runtime cannot observe. The tension is only in wording: "never ask the model" reads absolute. Suggested edit: "Never ask the model for what the runtime already knows."</div>
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Use as proposed change</button>
+                            <button onClick="{{ minimizeSel1 }}" class="btn btn-ghost" style="font-size: 11.5px;">Minimize</button>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <div style="flex: 1; min-width: 0;">
+                      <h5 style="margin: 0 0 6px;">3. Phase 1 — file modification (observed)</h5>
+                      <p style="line-height: 1.65; text-wrap: pretty;">Nothing needs to be invented. <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: var(--color-neutral-900); padding: 1px 5px; border-radius: 4px;">domain/agents/events.py:60</span> already canonicalises every provider's tools to one shape, so the edit concepts carry a path directly:</p>
+                      <pre style="margin: 10px 0; background: var(--color-neutral-900); border-radius: var(--radius-md); padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; overflow-x: auto;">Edit       path, old_text, new_text
+MultiEdit  path, edits[]
+Write      path, content</pre>
+                      <p style="line-height: 1.65; text-wrap: pretty;"><span style="{{ sel2Style }}">Fire on <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">tool_result</span>, not <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px;">tool_call</span></span> — and read the path from the result. The call is emitted when the agent asks; the bytes land when the tool returns, so refreshing on the call reads the file before the write.</p>
+                    </div>
+                    <button onClick="{{ toggleSel2 }}" style="{{ marker2Style }}" style-hover="border-color: var(--color-accent); color: var(--color-accent-200);">{{ marker2Label }}</button>
+                  </div>
+
+                  <sc-if value="{{ sel2Open }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin: 10px 0 14px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md); background: var(--color-surface); padding: 12px 14px;">
+                      <div style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">Selection · line 47 · thread with 1 reply</div>
+                      <div style="margin-top: 8px; font-size: 13px; line-height: 1.55; text-wrap: pretty;">Worth stating the ACP case here rather than two paragraphs down — it is the reason the rule exists.</div>
+                      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--color-divider); font-size: 12.5px; color: var(--color-neutral-400);"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">sebastiandev · 1h</span> — agreed, moving it up.</div>
+                      <div style="display: flex; gap: 6px; margin-top: 10px;">
+                        <div class="input" style="flex: 1; min-height: 30px; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600);">Reply…</div>
+                        <button class="btn btn-secondary" style="font-size: 12px;">Reply</button>
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <div style="margin-top: 20px;">
+                    <h5 style="margin: 0 0 8px;">Hooks</h5>
+                    <table class="table" style="width: 100%; font-size: 13px;">
+                      <thead><tr><th>Hook</th><th>Mechanism</th><th>Phase</th></tr></thead>
+                      <tbody>
+                        <tr><td>A file was modified</td><td>Observed: <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">tool_call</span> / <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">tool_result</span></td><td>1</td></tr>
+                        <tr><td>Loop goal, brief, review checks</td><td>Declared: structured output contract</td><td>2</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div style="{{ mdAsideStyle }}">
+                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600); margin-bottom: 8px;">Selections</div>
+                  <div onClick="{{ toggleSel1 }}" style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 9px 10px; margin-bottom: 8px; cursor: pointer; font-size: 12px;" style-hover="border-color: var(--color-neutral-600);">
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--color-neutral-500);">lines 22–24 · draft</div>
+                    <div style="margin-top: 4px; line-height: 1.45; color: var(--color-neutral-300);">Proposed rewording of the rule</div>
+                  </div>
+                  <div onClick="{{ toggleSel2 }}" style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 9px 10px; cursor: pointer; font-size: 12px;" style-hover="border-color: var(--color-neutral-600);">
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--color-neutral-500);">line 47 · 1 reply</div>
+                    <div style="margin-top: 4px; line-height: 1.45; color: var(--color-neutral-300);">Move the ACP case up</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ selBarOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ selBarStyle }}">
+              <span style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace; padding-left: 4px;">{{ selRefLabel }}</span>
+              <button onMouseDown="{{ keepSel }}" onClick="{{ selComment }}" style="{{ selActionStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Comment</button>
+              <button onMouseDown="{{ keepSel }}" onClick="{{ selAsk }}" style="{{ selActionStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Ask the agent</button>
+              <button onMouseDown="{{ keepSel }}" onClick="{{ selCopy }}" style="{{ selActionStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">Copy reference</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ selCardOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ selCardStyle }}">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--color-divider);">
+                <span style="flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent);"></span>
+                <span style="flex: none; font-size: 12px;">{{ selCardTitle }}</span>
+                <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">{{ selRefLabel }}</span>
+                <button onClick="{{ selCardClose }}" style="flex: none; background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; font-size: 13px;" title="Close">×</button>
+              </div>
+              <div style="padding: 10px; font-size: 12px; color: var(--color-neutral-400); border-bottom: 1px solid var(--color-divider); font-style: italic; line-height: 1.5;">“{{ selQuote }}”</div>
+              <sc-if value="{{ selCardIsComment }}" hint-placeholder-val="{{ true }}">
+                <div style="padding: 10px;">
+                  <textarea class="input" placeholder="Propose a change or leave a note" style="min-height: 62px; font-size: 13px;"></textarea>
+                  <div style="display: flex; gap: 6px; margin-top: 8px;">
+                    <button onClick="{{ selCardClose }}" class="btn btn-primary" style="font-size: 12px;">Add to review</button>
+                    <button onClick="{{ selAsk }}" class="btn btn-ghost" style="font-size: 12px; margin-left: auto;">Ask agent instead</button>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ selCardIsAgent }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 10px; display: flex; flex-direction: column; gap: 9px;">
+                  <div style="font-size: 12.5px; line-height: 1.55; text-wrap: pretty;">Reading the selection against <span style="font-family: 'JetBrains Mono', monospace; color: var(--color-accent-300);">domain/agents/events.py</span>: the claim holds for Edit/MultiEdit/Write, but ACP edits carry the path only on the result — worth naming here rather than two paragraphs down.</div>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Use as proposed change</button>
+                    <button onClick="{{ selComment }}" class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Turn into comment</button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <div class="input" style="flex: 1; min-width: 0; min-height: 30px; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600);">Ask about this selection…</div>
+                    <button class="btn btn-primary" style="flex: none; font-size: 12px;">Send</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isRaw }}" hint-placeholder-val="{{ false }}">
+            <div style="overflow: auto; min-height: 0; flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.65;">
+              <sc-for list="{{ mdLines }}" as="ln" hint-placeholder-count="14">
+                <div style="display: flex; background: {{ ln.bg }};">
+                  <div style="flex: none; width: 52px; text-align: right; padding-right: 10px; color: var(--color-neutral-700); user-select: none;">{{ ln.leftNum }}</div>
+                  <button onClick="{{ ln.onMenu }}" style="{{ ln.plusStyle }}" style-hover="color: var(--color-accent-200); border-color: var(--color-accent);"><svg width="11" height="11" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><circle cx="128" cy="128" r="14"></circle><circle cx="60" cy="128" r="14"></circle><circle cx="196" cy="128" r="14"></circle></svg></button>
+                  <div style="flex: 1; min-width: 0; padding: 0 12px 0 6px; white-space: pre-wrap; word-break: break-word; color: {{ ln.fg }};">{{ ln.text }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showPast }}" hint-placeholder-val="{{ false }}">
+        <div style="overflow-y: auto; min-height: 0; padding: 22px 26px 40px;">
+          <div style="max-width: 860px;">
+            <h4 style="margin: 0 0 2px;">Past reviews</h4>
+            <div style="font-size: 13px; color: var(--color-neutral-500); margin-bottom: 18px;">Closed and merged PRs you reviewed · worktrees kept until you remove them</div>
+            <table class="table" style="width: 100%; font-size: 13px;">
+              <thead><tr><th>PR</th><th>Title</th><th>Your verdict</th><th>Agent</th><th>Worktree</th><th></th></tr></thead>
+              <tbody>
+                <sc-for list="{{ pastReviews }}" as="p" hint-placeholder-count="5">
+                  <tr>
+                    <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-neutral-400);">#{{ p.id }}</td>
+                    <td>{{ p.title }}</td>
+                    <td><span style="{{ p.verdictStyle }}">{{ p.verdict }}</span></td>
+                    <td style="font-size: 12px; color: var(--color-neutral-500);">{{ p.agent }}</td>
+                    <td style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--color-neutral-500);">{{ p.worktree }}</td>
+                    <td style="text-align: right;"><button class="btn btn-ghost" style="font-size: 12px;">{{ p.action }}</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            <div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+              <button onClick="{{ goWorktrees }}" class="btn btn-secondary">Manage worktrees</button>
+              <span style="font-size: 12px; color: var(--color-neutral-600);">5 worktrees · 1.2 GB on disk</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="overflow-y: auto; min-height: 0; padding: 22px 26px 50px;">
+          <div style="max-width: 660px; display: flex; flex-direction: column; gap: 26px;">
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Accounts</h5>
+              <p style="font-size: 12.5px; color: var(--color-neutral-500);">OAuth tokens are stored in your OS keychain.</p>
+              <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden;">
+                <sc-for list="{{ accounts }}" as="acc" hint-placeholder-count="2">
+                  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 11px 13px; border-top: 1px solid var(--color-divider);">
+                    <span style="{{ acc.dotStyle }}"></span>
+                    <div style="flex: 1; min-width: 140px;">
+                      <div style="font-size: 13.5px;">{{ acc.name }}</div>
+                      <div style="font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ acc.meta }}</div>
+                    </div>
+                    <button onClick="{{ acc.onAction }}" style="{{ acc.btnClassStyle }}" class="{{ acc.btnClass }}">{{ acc.action }}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Tracked repositories</h5>
+              <p style="font-size: 12.5px; color: var(--color-neutral-500);">Each repository is fetched separately; you review one at a time from the rail's selector.</p>
+              <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden;">
+                <sc-for list="{{ repoSettings }}" as="r" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; gap: 12px; padding: 10px 13px; border-top: 1px solid var(--color-divider);">
+                    <span onClick="{{ r.onToggle }}" style="{{ r.boxStyle }}">{{ r.mark }}</span>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.name }}</div>
+                      <div style="font-size: 11.5px; color: var(--color-neutral-500);">{{ r.host }} · {{ r.count }} assigned · {{ r.auto }}</div>
+                    </div>
+                    <button class="btn btn-ghost" style="font-size: 12px;">Remove</button>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button onClick="{{ openTrack }}" class="btn btn-primary" style="flex: none;">Track a repository…</button>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Review agent</h5>
+              <p style="font-size: 12.5px; color: var(--color-neutral-500);">Runs on demand and, optionally, on every fetch.</p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="field"><label>Provider</label><div class="input" style="display: flex; align-items: center;">opencode</div></div>
+                <div class="field"><label>Agent file</label>
+                  <div style="display: flex; gap: 6px;">
+                    <div class="input" style="flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                      <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ agentFile }}</span>
+                    </div>
+                    <button onClick="{{ openFilePicker }}" class="btn btn-secondary" style="flex: none; font-size: 12px;">Browse…</button>
+                  </div>
+                </div>
+                <div class="field" style="position: relative;"><label>Model</label>
+                  <button onClick="{{ toggleModelMenu }}" style="{{ repoBtnStyle }}" style-hover="border-color: var(--color-neutral-600);">
+                    <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{ model }}</span>
+                    <span style="flex: none; color: var(--color-neutral-500);">▾</span>
+                  </button>
+                  <sc-if value="{{ modelMenuOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; left: 0; right: 0; top: 62px; z-index: 30; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 4px; max-height: 240px; overflow-y: auto;">
+                      <div style="padding: 6px 9px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600);">from opencode · 3 providers</div>
+                      <sc-for list="{{ models }}" as="m" hint-placeholder-count="5">
+                        <button onClick="{{ m.onSelect }}" style="{{ m.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">
+                          <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{ m.id }}</span>
+                          <span style="flex: none; font-size: 10.5px; color: var(--color-neutral-500);">{{ m.note }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <div class="field"><label>Effort / variant</label>
+                  <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+                    <button onClick="{{ setEffortLow }}" style="{{ effortLowStyle }}">low</button>
+                    <button onClick="{{ setEffortMed }}" style="{{ effortMedStyle }}">medium</button>
+                    <button onClick="{{ setEffortHigh }}" style="{{ effortHighStyle }}">high</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Fetching</h5>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
+                <div class="field"><label>Poll interval</label>
+                  <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+                    <button onClick="{{ setPoll1 }}" style="{{ poll1Style }}">1 min</button>
+                    <button onClick="{{ setPoll5 }}" style="{{ poll5Style }}">5 min</button>
+                    <button onClick="{{ setPoll15 }}" style="{{ poll15Style }}">15 min</button>
+                    <button onClick="{{ setPollOff }}" style="{{ pollOffStyle }}">manual</button>
+                  </div>
+                </div>
+                <label style="display: flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer;">
+                  <span onClick="{{ toggleAutoOnFetch }}" style="{{ autoFetchBoxStyle }}">{{ autoFetchMark }}</span>
+                  <span>Run the automatic review on newly fetched commits</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Appearance</h5>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="field"><label>Default diff view</label>
+                  <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+                    <button onClick="{{ setUnified }}" style="{{ unifiedStyle }}">Merged</button>
+                    <button onClick="{{ setSplit }}" style="{{ splitStyle }}">Side by side</button>
+                  </div>
+                </div>
+                <div class="field"><label>Theme</label>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <sc-for list="{{ uiThemes }}" as="t" hint-placeholder-count="3">
+                      <button onClick="{{ t.onSelect }}" style="{{ t.style }}">
+                        <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px;">
+                          <span>{{ t.label }}</span>
+                          <span style="font-size: 10.5px; color: var(--color-neutral-500);">{{ t.note }}</span>
+                        </span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div class="field" style="grid-column: 1 / -1;"><label>Diff theme</label>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <sc-for list="{{ diffThemes }}" as="t" hint-placeholder-count="4">
+                      <button onClick="{{ t.onSelect }}" style="{{ t.style }}">
+                        <span style="display: flex; gap: 3px;">
+                          <span style="width: 12px; height: 12px; border-radius: 3px; background: {{ t.add }};"></span>
+                          <span style="width: 12px; height: 12px; border-radius: 3px; background: {{ t.del }};"></span>
+                        </span>
+                        <span>{{ t.label }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="margin: 0 0 3px;">Worktrees</h5>
+              <p style="font-size: 12.5px; color: var(--color-neutral-500);">Created when you open a PR for review; safe to remove once the PR is closed.</p>
+              <div style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden;">
+                <sc-for list="{{ worktrees }}" as="w" hint-placeholder-count="4">
+                  <div style="display: flex; align-items: center; gap: 12px; padding: 10px 13px; border-top: 1px solid var(--color-divider);">
+                    <span onClick="{{ w.onToggle }}" style="{{ w.boxStyle }}">{{ w.mark }}</span>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ w.path }}</div>
+                      <div style="font-size: 11.5px; color: var(--color-neutral-500);">#{{ w.pr }} · {{ w.state }} · {{ w.size }}</div>
+                    </div>
+                    <button class="btn btn-ghost" style="font-size: 12px;">Remove</button>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-secondary">Remove selected · {{ wtSelected }}</button>
+                <button class="btn btn-ghost">Remove all for merged PRs</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ dockOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="width: 344px; flex: none; border-left: 1px solid var(--color-divider); display: flex; flex-direction: column; min-height: 0;">
+        <div style="flex: none; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--color-divider);">
+          <span style="font-family: var(--font-heading); font-size: 13.5px;">Chat</span>
+          <span style="font-size: 11px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ dockScope }}</span>
+          <button onClick="{{ toggleDock }}" style="margin-left: auto; background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; font-size: 14px;" title="Collapse">›</button>
+        </div>
+        <div style="flex: none; display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;">
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--color-neutral-900); color: var(--color-neutral-300); font-family: 'JetBrains Mono', monospace;">{{ dockContext }}</span>
+          <span style="font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--color-neutral-900); color: var(--color-neutral-300); font-family: 'JetBrains Mono', monospace;">6 files</span>
+        </div>
+        <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 12.5px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-accent-900); color: var(--color-accent-100); align-self: flex-end; max-width: 90%;">Summarize what this PR changes and what to watch for.</div>
+          <div style="font-size: 13px; line-height: 1.6; text-wrap: pretty;">
+            It makes the PR-status poll interval user-configurable. Three parts:
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; gap: 8px;"><span style="color: var(--color-accent-300); font-family: 'JetBrains Mono', monospace; font-size: 11.5px;">01</span><span>a clamp in <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">pr_status_poller</span> keeping the interval between 60s and 1h</span></div>
+              <div style="display: flex; gap: 8px;"><span style="color: var(--color-accent-300); font-family: 'JetBrains Mono', monospace; font-size: 11.5px;">02</span><span>a settings route persisting it</span></div>
+              <div style="display: flex; gap: 8px;"><span style="color: var(--color-accent-300); font-family: 'JetBrains Mono', monospace; font-size: 11.5px;">03</span><span>the settings view exposing it</span></div>
+            </div>
+            <div style="margin-top: 10px;">The running poller never re-reads the value, so a save only takes effect after a restart. That is the one thing I would push back on.</div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Where is it read?</button>
+            <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Draft that comment</button>
+            <button class="btn btn-secondary" style="font-size: 11.5px; padding: 3px 8px;">Compare to the spec</button>
+          </div>
+        </div>
+        <div style="flex: none; padding: 9px 12px; border-top: 1px solid var(--color-divider);">
+          <div style="display: flex; gap: 6px;">
+            <div class="input" style="flex: 1; min-height: 32px; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600);">Ask about this PR…</div>
+            <button class="btn btn-primary" style="font-size: 12px;">Send</button>
+          </div>
+          <div style="margin-top: 6px; font-size: 10.5px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">opencode · reviewer.md · worktree attached</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ dockClosed }}" hint-placeholder-val="{{ false }}">
+      <div style="width: 44px; flex: none; border-left: 1px solid var(--color-divider); display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 10px;">
+        <button onClick="{{ toggleDock }}" style="background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); width: 28px; height: 28px; color: var(--color-accent-300); cursor: pointer;" style-hover="border-color: var(--color-accent);">‹</button>
+        <div style="writing-mode: vertical-rl; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-neutral-600);">Chat</div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="flex: none; height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 14px; border-top: 1px solid var(--color-divider); font-size: 11px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">
+    <span>{{ statusMode }}</span>
+    <span>{{ statusWorktree }}</span>
+    <span style="margin-left: auto;">{{ statusHint }}</span>
+  </div>
+
+  <sc-if value="{{ shortcutsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ toggleShortcuts }}" style="position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 560px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 20px 22px;">
+        <div style="display: flex; align-items: baseline;">
+          <h4 style="margin: 0;">Keyboard</h4>
+          <span style="margin-left: auto; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">? to close</span>
+        </div>
+        <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px;">
+          <sc-for list="{{ shortcuts }}" as="s" hint-placeholder-count="10">
+            <div style="display: flex; align-items: baseline; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--color-divider);">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--color-accent-300); min-width: 54px;">{{ s.key }}</span>
+              <span style="font-size: 12.5px; color: var(--color-neutral-300);">{{ s.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ addOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 520px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 18px 20px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h4 style="margin: 0;">Review a PR</h4>
+          <span style="margin-left: auto; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">{{ currentRepo }}</span>
+          <button onClick="{{ closeAdd }}" style="background: transparent; border: 0; color: var(--color-neutral-400); font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        <p style="margin-top: 8px; font-size: 12.5px; color: var(--color-neutral-500);">Anything you paste here is added to your list even if it is not assigned to you.</p>
+        <div class="field"><label>PR URL or number</label>
+          <div style="display: flex; gap: 6px;">
+            <div class="input" style="flex: 1; min-width: 0; display: flex; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-accent-200);">github.com/sebastiandev/atelier/pull/415</div>
+            <button onClick="{{ resolveAdd }}" class="btn btn-secondary" style="flex: none; font-size: 12px;">Resolve</button>
+          </div>
+        </div>
+        <sc-if value="{{ addResolved }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 10px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md); padding: 11px 13px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500);">
+              <span>#415</span><span style="padding: 1px 6px; border-radius: 8px; border: 1px solid var(--color-accent-700); color: var(--color-accent-300);">open</span><span style="margin-left: auto;">opened 1h ago</span>
+            </div>
+            <div style="margin-top: 6px; font-size: 13.5px; line-height: 1.35; text-wrap: pretty;">Drop the loop-run poll in favour of the WS event</div>
+            <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-neutral-500);">
+              <span style="flex: none;">marianof</span><span style="flex: none;">perf/drop-loop-poll</span><span style="flex: none;">8 files</span><span style="flex: none; color: #6faa7e;">+142</span><span style="flex: none; color: #c47b7b;">−96</span>
+            </div>
+          </div>
+        </sc-if>
+        <div style="margin-top: 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600);">Or pick an open PR in this repo</div>
+        <div style="margin-top: 8px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; max-height: 200px; overflow-y: auto;">
+          <sc-for list="{{ unassigned }}" as="u" hint-placeholder-count="3">
+            <button onClick="{{ u.onToggle }}" style="{{ u.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 6%, transparent);">
+              <span style="{{ u.boxStyle }}">{{ u.mark }}</span>
+              <span style="flex: 1; min-width: 0; text-align: left;">
+                <span style="display: block; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ u.title }}</span>
+                <span style="display: block; margin-top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--color-neutral-500);">#{{ u.id }} · {{ u.author }} · {{ u.updated }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <label style="display: flex; align-items: center; gap: 9px; margin-top: 12px; font-size: 12.5px; cursor: pointer;">
+          <span onClick="{{ toggleAddAuto }}" style="{{ addAutoBoxStyle }}">{{ addAutoMark }}</span>
+          <span>Run the automatic review once the worktree is ready</span>
+        </label>
+        <div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+          <button onClick="{{ confirmAdd }}" class="btn btn-primary">{{ addConfirmLabel }}</button>
+          <button onClick="{{ closeAdd }}" class="btn btn-secondary">Cancel</button>
+          <span style="font-size: 11.5px; color: var(--color-neutral-600);">a worktree is created on open</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 520px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 18px 20px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h4 style="margin: 0;">Choose an agent file</h4>
+          <span style="margin-left: auto; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">*.md</span>
+          <button onClick="{{ closePicker }}" style="background: transparent; border: 0; color: var(--color-neutral-400); font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        <div style="margin-top: 12px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; max-height: 300px; overflow-y: auto;">
+          <sc-for list="{{ agentFiles }}" as="f" hint-placeholder-count="4">
+            <button onClick="{{ f.onSelect }}" style="{{ f.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 6%, transparent);">
+              <span style="flex: none; color: var(--color-neutral-600);">◫</span>
+              <span style="flex: 1; min-width: 0; text-align: left;">
+                <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.path }}</span>
+                <span style="display: block; margin-top: 2px; font-size: 11px; color: var(--color-neutral-500);">{{ f.note }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 14px; align-items: center;">
+          <button onClick="{{ closePicker }}" class="btn btn-secondary" style="flex: none;">Browse the filesystem…</button>
+          <span style="font-size: 11.5px; color: var(--color-neutral-600);">scanned .atelier/agents and ~/.config/opencode/agent</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ trackOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 500px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 18px 20px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h4 style="margin: 0;">Track a repository</h4>
+          <button onClick="{{ closeTrack }}" style="margin-left: auto; background: transparent; border: 0; color: var(--color-neutral-400); font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        <div class="field" style="margin-top: 12px;"><label>Repository</label>
+          <div style="display: flex; gap: 6px;">
+            <div class="input" style="flex: 1; min-width: 0; display: flex; align-items: center; font-size: 12.5px; color: var(--color-neutral-600); font-family: 'JetBrains Mono', monospace;">owner/name</div>
+            <div style="flex: none; display: flex; gap: 2px; padding: 2px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
+              <button onClick="{{ setTrackGithub }}" style="{{ trackGithubStyle }}">GitHub</button>
+              <button onClick="{{ setTrackGitlab }}" style="{{ trackGitlabStyle }}">GitLab</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-neutral-600);">Or pick from your account</div>
+        <div style="margin-top: 8px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden; max-height: 210px; overflow-y: auto;">
+          <sc-for list="{{ discoverable }}" as="d" hint-placeholder-count="4">
+            <button onClick="{{ d.onToggle }}" style="{{ d.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 6%, transparent);">
+              <span style="{{ d.boxStyle }}">{{ d.mark }}</span>
+              <span style="flex: 1; min-width: 0; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ d.name }}</span>
+              <span style="flex: none; font-size: 10.5px; color: var(--color-neutral-500);">{{ d.note }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <label style="display: flex; align-items: center; gap: 9px; margin-top: 12px; font-size: 12.5px; cursor: pointer;">
+          <span onClick="{{ toggleTrackAuto }}" style="{{ trackAutoBoxStyle }}">{{ trackAutoMark }}</span>
+          <span>Run the automatic review on this repository too</span>
+        </label>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button onClick="{{ closeTrack }}" class="btn btn-primary">Track {{ trackCountLabel }}</button>
+          <button onClick="{{ closeTrack }}" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ oauthOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 70; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 440px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 20px 22px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <h4 style="margin: 0;">Connect {{ oauthProvider }}</h4>
+          <button onClick="{{ oauthCancel }}" style="margin-left: auto; background: transparent; border: 0; color: var(--color-neutral-400); font-size: 16px; cursor: pointer;">×</button>
+        </div>
+
+        <sc-if value="{{ oauthPhaseCode }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <p style="margin-top: 10px; font-size: 13px; line-height: 1.6; color: var(--color-neutral-300); text-wrap: pretty;">Enter this code on {{ oauthHost }} to authorize Review. Nothing is sent anywhere else — the token is written to your OS keychain.</p>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--color-accent-700); border-radius: var(--radius-md);">
+              <span style="flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 26px; letter-spacing: 0.14em; color: var(--color-accent-200);">{{ oauthCode }}</span>
+              <button onClick="{{ oauthCopy }}" class="btn btn-secondary" style="flex: none; font-size: 12px;">{{ oauthCopyLabel }}</button>
+            </div>
+            <div style="margin-top: 8px; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">expires in {{ oauthExpiry }} · scopes: {{ oauthScopes }}</div>
+            <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+              <button onClick="{{ oauthOpenBrowser }}" class="btn btn-primary" style="flex: none;">Open {{ oauthHost }}</button>
+              <button onClick="{{ oauthCancel }}" class="btn btn-secondary" style="flex: none;">Cancel</button>
+            </div>
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-divider);">
+              <button onClick="{{ oauthUseCli }}" class="btn btn-ghost" style="font-size: 12.5px; padding-left: 0;">Use the token from {{ oauthCli }} instead</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ oauthPhasePolling }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 16px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); animation: pulse 1.4s ease-in-out infinite;"></span>
+              <span style="font-size: 13.5px;">Waiting for you to approve in the browser…</span>
+            </div>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--color-neutral-400); line-height: 1.6;">Code <span style="font-family: 'JetBrains Mono', monospace; color: var(--color-accent-200);">{{ oauthCode }}</span> on {{ oauthHost }}. Polling every 5s.</div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+              <button onClick="{{ oauthOpenBrowser }}" class="btn btn-secondary" style="flex: none;">Reopen the page</button>
+              <button onClick="{{ oauthCancel }}" class="btn btn-ghost" style="flex: none;">Cancel</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ oauthPhaseDone }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 16px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #6faa7e;"></span>
+              <span style="font-size: 13.5px;">{{ oauthProvider }} connected</span>
+            </div>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--color-neutral-400); line-height: 1.6;">Token stored in the keychain. First fetch runs now.</div>
+            <button onClick="{{ oauthCancel }}" class="btn btn-primary" style="margin-top: 16px;">Done</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ reviewOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; background: color-mix(in srgb, var(--color-bg) 78%, transparent); display: flex; align-items: center; justify-content: center; padding: 24px;">
+      <div style="width: 100%; max-width: 560px; background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 20px 22px;">
+        <div style="display: flex; align-items: baseline;">
+          <h4 style="margin: 0;">Submit review</h4>
+          <span style="margin-left: auto; font-size: 11.5px; color: var(--color-neutral-500); font-family: 'JetBrains Mono', monospace;">#{{ currentId }} · {{ pendingCount }} pending</span>
+        </div>
+        <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 7px;">
+          <sc-for list="{{ verdicts }}" as="v" hint-placeholder-count="3">
+            <button onClick="{{ v.onSelect }}" style="{{ v.style }}">
+              <div style="font-size: 13.5px;">{{ v.label }}</div>
+              <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 2px;">{{ v.hint }}</div>
+            </button>
+          </sc-for>
+        </div>
+        <textarea class="input" placeholder="Overall feedback" style="margin-top: 12px; min-height: 76px; font-size: 13px;"></textarea>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--color-neutral-500); line-height: 1.5;">Markdown selections on the same line are merged into one comment before pushing.</div>
+        <div style="display: flex; gap: 8px; margin-top: 14px;">
+          <button onClick="{{ closeReview }}" class="btn btn-primary">Submit</button>
+          <button onClick="{{ closeReview }}" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;uiTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Nocturne&quot;,&quot;Ember&quot;,&quot;Slate&quot;],&quot;default&quot;:&quot;Nocturne&quot;,&quot;tsType&quot;:&quot;'Nocturne' | 'Ember' | 'Slate'&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;defaultDiffMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;unified&quot;,&quot;split&quot;],&quot;default&quot;:&quot;unified&quot;,&quot;tsType&quot;:&quot;'unified' | 'split'&quot;,&quot;section&quot;:&quot;Diff&quot;},&quot;diffTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;nocturne&quot;,&quot;muted&quot;,&quot;vivid&quot;,&quot;paper&quot;],&quot;default&quot;:&quot;nocturne&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Diff&quot;}}">
+const THEMES = {
+  nocturne: { add: 'rgba(111,170,126,0.13)', del: 'rgba(196,123,123,0.13)', addFg: '#cfe4d5', delFg: '#e8cdcd', label: 'Nocturne' },
+  muted:    { add: 'rgba(140,150,170,0.14)', del: 'rgba(170,140,150,0.14)', addFg: '#dcdfe8', delFg: '#e6dade', label: 'Muted' },
+  vivid:    { add: 'rgba(86,190,120,0.20)',  del: 'rgba(226,96,96,0.18)',   addFg: '#e2f5e7', delFg: '#fbdede', label: 'Vivid' },
+  paper:    { add: 'rgba(200,205,180,0.14)', del: 'rgba(205,185,170,0.14)', addFg: '#eceada', delFg: '#f0e2d8', label: 'Paper' }
+};
+
+const PRS = [
+  { id: 412, repo: 'sebastiandev/atelier', title: 'Make the PR status poll interval configurable', branch: 'feat/configurable-poll-interval', state: 'open', updated: '2h ago', fileCount: 6, add: 184, del: 37, comments: 3, agent: 'done', spec: 'docs/spec-agent-hooks.md', specPr: 398 },
+  { id: 409, repo: 'sebastiandev/atelier', title: 'Agent hooks phase 1 — refresh a view on tool_result', branch: 'feat/agent-hooks-observed', state: 'draft', updated: '5h ago', fileCount: 11, add: 342, del: 88, comments: 0, agent: 'running', spec: 'docs/spec-agent-hooks.md', specPr: 398 },
+  { id: 405, repo: 'sebastiandev/atelier', title: 'Loop editor: outcome transitions for blocked stages', branch: 'feat/loop-blocked-transitions', state: 'open', updated: 'yesterday', fileCount: 9, add: 121, del: 44, comments: 6, agent: 'idle', spec: null, specPr: null },
+  { id: 401, repo: 'sebastiandev/atelier', title: 'Persist ACP runtime provider capabilities', branch: 'fix/acp-capabilities-cache', state: 'open', updated: '2 days ago', fileCount: 4, add: 63, del: 19, comments: 1, agent: 'idle', spec: null, specPr: null },
+  { id: 2841, repo: 'shiphero/shiphero-api', title: 'Rate-limit the inventory sync webhook per account', branch: 'fix/webhook-rate-limit', state: 'open', updated: '4h ago', fileCount: 7, add: 96, del: 31, comments: 2, agent: 'done', spec: null, specPr: null },
+  { id: 2836, repo: 'shiphero/shiphero-api', title: 'Backfill order line SKUs missing from legacy imports', branch: 'chore/backfill-line-skus', state: 'draft', updated: 'yesterday', fileCount: 3, add: 44, del: 8, comments: 0, agent: 'idle', spec: null, specPr: null },
+  { id: 1180, repo: 'shiphero/warehouse-ui', title: 'Pick-path preview on the mobile scanner view', branch: 'feat/pick-path-preview', state: 'open', updated: '3 days ago', fileCount: 12, add: 271, del: 64, comments: 5, agent: 'idle', spec: null, specPr: null }
+];
+
+// Nocturne is the bound system's own palette (no overrides). The other two
+// re-point the same token names, so every surface follows.
+const UI_THEMES = {
+  Nocturne: { label: 'Nocturne', note: 'blurple on blue-grey', vars: '' },
+  Ember: {
+    label: 'Ember', note: 'warm ink, amber accent',
+    vars: '--color-bg: #191614; --color-surface: #221f1c; --color-text: #efe9e1;'
+      + '--color-divider: color-mix(in srgb, #efe9e1 16%, transparent); --color-accent: #d9a05b;'
+      + '--color-accent-100: #fdf6ec; --color-accent-200: #f8e7cf; --color-accent-300: #eecfa6;'
+      + '--color-accent-400: #e0b578; --color-accent-500: #cc9350; --color-accent-600: #a8763d;'
+      + '--color-accent-700: #825b2f; --color-accent-800: #5c4123; --color-accent-900: #332515;'
+      + '--color-neutral-100: #f7f4f0; --color-neutral-200: #eae5df; --color-neutral-300: #d5cec6;'
+      + '--color-neutral-400: #b6ada3; --color-neutral-500: #958b80; --color-neutral-600: #776d63;'
+      + '--color-neutral-700: #5b524a; --color-neutral-800: #413a34; --color-neutral-900: #2a2521;'
+      + '--shadow-sm: 0 0 0 1px #413a34; --shadow-md: 0 0 0 1px #5b524a, 0 6px 18px rgba(0,0,0,0.55);'
+      + '--shadow-lg: 0 0 0 1px #958b80, 0 16px 40px rgba(0,0,0,0.65);'
+  },
+  Slate: {
+    label: 'Slate', note: 'high contrast, reading first',
+    vars: '--color-bg: #10151a; --color-surface: #182029; --color-text: #f4f8fb;'
+      + '--color-divider: color-mix(in srgb, #f4f8fb 18%, transparent); --color-accent: #79b8d1;'
+      + '--color-accent-100: #f2fafd; --color-accent-200: #dcf0f7; --color-accent-300: #bde0ee;'
+      + '--color-accent-400: #96cbe1; --color-accent-500: #6faec8; --color-accent-600: #558da6;'
+      + '--color-accent-700: #416d80; --color-accent-800: #2f4e5c; --color-accent-900: #1e323b;'
+      + '--color-neutral-100: #f5f8fa; --color-neutral-200: #e6ebef; --color-neutral-300: #d0d8de;'
+      + '--color-neutral-400: #aeb9c2; --color-neutral-500: #8c99a4; --color-neutral-600: #6e7b86;'
+      + '--color-neutral-700: #545f69; --color-neutral-800: #3b444c; --color-neutral-900: #212930;'
+      + '--shadow-sm: 0 0 0 1px #3b444c; --shadow-md: 0 0 0 1px #545f69, 0 6px 18px rgba(0,0,0,0.6);'
+      + '--shadow-lg: 0 0 0 1px #8c99a4, 0 16px 40px rgba(0,0,0,0.7);'
+  }
+};
+
+// Open PRs in the current repo that are NOT assigned to the user — pickable
+// in the "Review a PR" dialog.
+const UNASSIGNED = [
+  { id: 415, repo: 'sebastiandev/atelier', title: 'Drop the loop-run poll in favour of the WS event', author: 'marianof', updated: '1h ago', branch: 'perf/drop-loop-poll', state: 'open', fileCount: 8, add: 142, del: 96, comments: 0, agent: 'idle', spec: null, specPr: null },
+  { id: 414, repo: 'sebastiandev/atelier', title: 'Wipe script: keep transcripts behind a flag', author: 'sebastiandev', updated: '6h ago', branch: 'chore/wipe-keep-transcripts', state: 'open', fileCount: 2, add: 31, del: 14, comments: 1, agent: 'idle', spec: null, specPr: null },
+  { id: 410, repo: 'sebastiandev/atelier', title: 'ACP runtime: bump the SDK and pin the wrappers', author: 'renovate', updated: '2 days ago', branch: 'deps/acp-sdk', state: 'open', fileCount: 5, add: 88, del: 71, comments: 0, agent: 'idle', spec: null, specPr: null },
+  { id: 2830, repo: 'shiphero/shiphero-api', title: 'Split the order mutation resolvers by domain', author: 'lauravz', updated: '5h ago', branch: 'refactor/order-resolvers', state: 'open', fileCount: 14, add: 402, del: 355, comments: 3, agent: 'idle', spec: null, specPr: null }
+];
+
+const REPOS = [
+  { name: 'sebastiandev/atelier', host: 'github', auto: 'auto-review on' },
+  { name: 'shiphero/shiphero-api', host: 'github', auto: 'auto-review on' },
+  { name: 'shiphero/warehouse-ui', host: 'gitlab', auto: 'manual only' }
+];
+
+const SCOPES = [
+  { label: '~/dev/atelier', kind: 'working tree' },
+  { label: '~/dev/atelier/backend/src', kind: 'folder' },
+  { label: '~/dev/shiphero-api', kind: 'working tree' },
+  { label: 'poller-clamp.diff', kind: 'patch file' }
+];
+
+const PR_FILES = [
+  { path: 'backend/src/infrastructure/artifacts/pr_status_poller.py', status: 'M', add: 34, del: 12, comments: 2, viewed: false, kind: 'code' },
+  { path: 'backend/src/application/http/routes/settings.py', status: 'A', add: 61, del: 0, comments: 0, viewed: false, kind: 'code' },
+  { path: 'frontend/src/views/SettingsView.tsx', status: 'M', add: 48, del: 9, comments: 1, viewed: true, kind: 'code' },
+  { path: 'docs/spec-agent-hooks.md', status: 'M', add: 22, del: 4, comments: 2, viewed: false, kind: 'md' },
+  { path: 'backend/tests/test_pr_status_poller.py', status: 'M', add: 19, del: 12, comments: 0, viewed: false, kind: 'code' },
+  { path: 'backend/src/domain/settings/poller.py', status: 'R', add: 2, del: 0, comments: 0, viewed: false, kind: 'code' }
+];
+
+const LOCAL_FILES = [
+  { path: 'backend/src/infrastructure/artifacts/pr_status_poller.py', status: 'M', add: 34, del: 12, comments: 0, viewed: false, kind: 'code' },
+  { path: 'docs/spec-agent-hooks.md', status: 'M', add: 22, del: 4, comments: 0, viewed: false, kind: 'md' },
+  { path: 'backend/tests/test_pr_status_poller.py', status: 'M', add: 19, del: 12, comments: 0, viewed: false, kind: 'code' }
+];
+
+const D = [
+  ['hunk', null, null, '@@ -33,11 +33,19 @@ from src.infrastructure.artifacts.github_pr_status import GitHubPrStateFetcher'],
+  ['ctx', 33, 33, '_log = logging.getLogger(__name__)'],
+  ['ctx', 34, 34, ''],
+  ['del', 35, null, 'DEFAULT_INTERVAL_SECONDS = 300  # 5 minutes'],
+  ['add', null, 35, 'DEFAULT_INTERVAL_SECONDS = 300  # 5 minutes, unless settings say otherwise'],
+  ['add', null, 36, 'MIN_INTERVAL_SECONDS = 60'],
+  ['add', null, 37, 'MAX_INTERVAL_SECONDS = 3600'],
+  ['ctx', 36, 38, '# Minimum gap between out-of-band refreshes. Protects against a user'],
+  ['ctx', 37, 39, '# bouncing between work tabs (or scripts hammering the endpoint) from'],
+  ['ctx', 38, 40, '# triggering one fetch-per-PR-per-click. 30s is short enough that an'],
+  ['ctx', 39, 41, '# opened tab feels live, long enough to coalesce real bursts.'],
+  ['ctx', 40, 42, 'DEFAULT_THROTTLE_SECONDS = 30.0'],
+  ['add', null, 43, ''],
+  ['add', null, 44, ''],
+  ['add', null, 45, 'def clamp_interval(seconds: int) -> int:'],
+  ['add', null, 46, '    """Keep a user-provided interval inside the polite range."""'],
+  ['add', null, 47, '    return max(MIN_INTERVAL_SECONDS, min(MAX_INTERVAL_SECONDS, seconds))'],
+  ['ctx', 41, 48, ''],
+  ['ctx', 42, 49, ''],
+  ['ctx', 43, 50, 'class PrStatusPoller:'],
+  ['hunk', null, null, '@@ -58,7 +66,7 @@ class PrStatusPoller:'],
+  ['ctx', 58, 66, '        self._workstore = workstore'],
+  ['del', 59, null, '        self._interval = interval_seconds'],
+  ['add', null, 67, '        self._interval = clamp_interval(interval_seconds)'],
+  ['ctx', 60, 68, '        self._throttle = throttle_seconds'],
+  ['ctx', 61, 69, '        self._task: asyncio.Task[None] | None = None'],
+  ['ctx', 62, 70, '        self._client: httpx.AsyncClient | None = None']
+];
+
+const MD_D = [
+  ['hunk', null, null, '@@ -18,6 +18,10 @@'],
+  ['ctx', 18, 18, '## 2. The rule'],
+  ['ctx', 19, 19, ''],
+  ['del', 20, null, '**If the runtime can observe it, observe it. Never ask the model.**'],
+  ['add', null, 20, '**If the runtime can observe it, observe it. Never ask the model for what'],
+  ['add', null, 21, 'the runtime already knows.**'],
+  ['ctx', 21, 22, ''],
+  ['ctx', 22, 23, 'A model can forget to announce an edit, describe it differently on a second'],
+  ['ctx', 23, 24, 'run, or announce one it did not make. Where the runtime already knows, a'],
+  ['ctx', 24, 25, 'declared marker adds a second source of truth that can disagree with the'],
+  ['ctx', 25, 26, 'first, and no way to tell which is right.'],
+  ['add', null, 27, ''],
+  ['add', null, 28, 'The ACP case below is why this rule exists: a real edit arrives with no'],
+  ['add', null, 29, 'path on the call at all.']
+];
+
+const AGENT_NOTES = {
+  6: { severity: 'medium · duplication', body: 'MIN/MAX also live in the new settings route as literals. One of the two will drift — lift them into domain/settings and import from both.' },
+  23: { severity: 'high · behaviour', body: 'The running poller reads self._interval once at construction, so a settings save has no effect until the backend restarts. Either re-read per cycle or wake the loop on change.' }
+};
+
+const OTHER_COMMENTS = {
+  23: [
+    { author: 'marianof', when: '3h ago', body: 'Clamping silently is surprising — a user who types 5 gets 60 with no feedback. Worth returning the clamped value from the settings route so the UI can echo it.' },
+    { author: 'sebastiandev', when: '2h ago', body: 'Route already returns the persisted settings object, so the echo is free. Will wire it in the view.' }
+  ]
+};
+
+const AGENT_FINDINGS = [
+  { line: 23, ref: 'pr_status_poller.py:67', severity: 'high · behaviour', body: 'A settings save never reaches the running poller — the interval is read once in the constructor.' },
+  { line: 6, ref: 'pr_status_poller.py:36', severity: 'medium · duplication', body: 'MIN/MAX interval constants duplicated between the poller and the settings route.' },
+  { line: 15, ref: 'pr_status_poller.py:45', severity: 'low · naming', body: 'clamp_interval is public but undocumented in __all__; either export it or make it private.' },
+  { line: 23, ref: 'test_pr_status_poller.py:41', severity: 'medium · coverage', body: 'Tests cover the clamp but not the reload path, which is the behaviour users will notice.' }
+];
+
+const PAST = [
+  { id: 398, title: 'Introduce the agent-hooks spec', verdict: 'Approved', agent: 'agreed', worktree: '~/.atelier/wt/398', action: 'Remove worktree' },
+  { id: 391, title: 'Unify loop run records', verdict: 'Changes requested', agent: 'agreed', worktree: '~/.atelier/wt/391', action: 'Remove worktree' },
+  { id: 384, title: 'Transcript migration for pre-0.4 runs', verdict: 'Commented', agent: 'not run', worktree: '—', action: 'Reopen' },
+  { id: 377, title: 'ACP wrapper: surface tool permissions inline', verdict: 'Approved', agent: 'disagreed', worktree: '~/.atelier/wt/377', action: 'Remove worktree' },
+  { id: 366, title: 'Loop stage library extraction', verdict: 'Approved', agent: 'agreed', worktree: '—', action: 'Reopen' }
+];
+
+const WORKTREES = [
+  { pr: 412, path: '~/.atelier/worktrees/atelier-412-configurable-poll', state: 'open', size: '284 MB' },
+  { pr: 409, path: '~/.atelier/worktrees/atelier-409-agent-hooks', state: 'draft', size: '291 MB' },
+  { pr: 398, path: '~/.atelier/worktrees/atelier-398-hooks-spec', state: 'merged', size: '276 MB' },
+  { pr: 391, path: '~/.atelier/worktrees/atelier-391-loop-runs', state: 'closed', size: '281 MB' }
+];
+
+const SHORTCUTS = [
+  ['j / k', 'next / previous file'], ['⏎', 'open selected PR'], ['esc', 'back / close'],
+  ['u', 'merged diff'], ['s', 'side by side'], ['m', 'rich ↔ raw markdown'],
+  ['c', 'comment on the focused line'], ['a', 'ask the agent in place'], ['y', 'copy line reference'],
+  ['d', 'toggle the chat dock'], ['v', 'mark file viewed'], ['⌘⏎', 'submit review'],
+  ['r', 'run the automatic review'], ['?', 'this sheet']
+];
+
+class Component extends DCLogic {
+  state = {
+    mode: 'pr',
+    view: 'inbox',
+    prId: null,
+    fileIdx: 0,
+    diffMode: this.props?.defaultDiffMode ?? 'unified',
+    diffTheme: this.props?.diffTheme ?? 'nocturne',
+    mdMode: 'rich',
+    dockOpen: true,
+    menuLine: null,
+    composerLine: null,
+    chatLine: null,
+    minimized: [],
+    myComments: {},
+    othersOpen: {},
+    agentPanelOpen: false,
+    shortcutsOpen: false,
+    reviewOpen: false,
+    settingsSection: 'Accounts',
+    pastFilter: 'All',
+    effort: 'high',
+    poll: '5 min',
+    autoOnFetch: true,
+    theme: this.props?.uiTheme ?? 'Nocturne',
+    selRect: null,
+    selText: '',
+    selCard: null,
+    sel1: null,
+    sel1Tab: 'comment',
+    sel2: false,
+    wtSel: [412],
+    viewed: {},
+    verdict: 'comment',
+    added: [],
+    addOpen: false,
+    addResolved: false,
+    addPicks: [],
+    addAuto: true,
+    connected: { GitHub: true, GitLab: false },
+    agentFile: '.atelier/agents/reviewer.md',
+    model: 'anthropic/claude-sonnet-4.5',
+    modelMenu: false,
+    picker: false,
+    trackOpen: false,
+    trackHost: 'GitHub',
+    trackPicks: [],
+    trackAuto: true,
+    oauth: null,
+    oauthCopied: false,
+    repo: REPOS[0].name,
+    repoMenu: false,
+    scope: SCOPES[0].label,
+    scopeMenu: false,
+    sbW: 306,
+    fetched: 'fetched 40s ago · gh · 4 assigned',
+    winW: typeof window === 'undefined' ? 1440 : window.innerWidth,
+    winH: typeof window === 'undefined' ? 900 : window.innerHeight
+  };
+
+  componentDidMount() {
+    this._key = (e) => {
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      const s = this.state, files = this.files();
+      if (e.key === '?') { this.setState({ shortcutsOpen: !s.shortcutsOpen }); return; }
+      if (e.key === 'Escape') { this.setState({ shortcutsOpen: false, reviewOpen: false, agentPanelOpen: false, menuLine: null }); return; }
+      if (e.key === 'd') this.setState({ dockOpen: !s.dockOpen });
+      if (e.key === 'u') this.setState({ diffMode: 'unified' });
+      if (e.key === 's') this.setState({ diffMode: 'split' });
+      if (e.key === 'm') this.setState({ mdMode: s.mdMode === 'rich' ? 'raw' : 'rich' });
+      if (e.key === 'r') this.setState({ agentPanelOpen: true });
+      if (e.key === 'j' && s.view === 'files') this.setState({ fileIdx: Math.min(files.length - 1, s.fileIdx + 1) });
+      if (e.key === 'k' && s.view === 'files') this.setState({ fileIdx: Math.max(0, s.fileIdx - 1) });
+    };
+    window.addEventListener('keydown', this._key);
+    this._resize = () => {
+      const w = window.innerWidth;
+      if (w !== this.state.winW || window.innerHeight !== this.state.winH) {
+        this.setState({ winW: w, winH: window.innerHeight, sbW: Math.min(this.state.sbW, this.maxSbW(w)) });
+      }
+    };
+    window.addEventListener('resize', this._resize);
+    this._resize();
+    // Custom selection in the rich markdown view: any selection inside the
+    // document gets the same three actions a diff line has.
+    this._sel = () => {
+      const sel = window.getSelection();
+      const doc = document.getElementById('md-doc');
+      if (!sel || sel.isCollapsed || !doc || !sel.anchorNode || !doc.contains(sel.anchorNode)) {
+        if (this.state.selRect && !this.state.selCard) this.setState({ selRect: null });
+        return;
+      }
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      const text = String(sel).replace(/\s+/g, ' ').trim();
+      this.setState({ selRect: { top: r.top, left: r.left, bottom: r.bottom }, selText: text });
+    };
+    window.addEventListener('mouseup', this._sel);
+    window.addEventListener('keyup', this._sel);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this._key);
+    window.removeEventListener('resize', this._resize);
+    window.removeEventListener('mouseup', this._sel);
+    window.removeEventListener('keyup', this._sel);
+  }
+
+  files() { return this.state.mode === 'diff' ? LOCAL_FILES : PR_FILES; }
+  repoPrs() {
+    const s = this.state;
+    const added = UNASSIGNED.filter(p => p.repo === s.repo && s.added.indexOf(p.id) !== -1);
+    return added.concat(PRS.filter(p => p.repo === s.repo));
+  }
+  pr() {
+    const all = PRS.concat(UNASSIGNED);
+    return all.find(p => p.id === this.state.prId) || this.repoPrs()[0] || PRS[0];
+  }
+
+  // The stored width is the single source of truth: clamped on drag and on
+  // window resize, never re-clamped at render time.
+  maxSbW(w) {
+    const dockW = (this.state.dockOpen && (w || this.state.winW) >= 1060) ? 344 : 44;
+    return Math.max(220, Math.min(460, (w || this.state.winW) - 48 - dockW - 480));
+  }
+  startResize = (e) => {
+    e.preventDefault();
+    const startX = e.clientX, startW = this.state.sbW, max = this.maxSbW();
+    const move = (ev) => this.setState({ sbW: Math.max(220, Math.min(max, startW + ev.clientX - startX)) });
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); document.body.style.cursor = ''; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    document.body.style.cursor = 'col-resize';
+  };
+  activeFile() { return this.files()[this.state.fileIdx] || this.files()[0]; }
+  seg(on) {
+    return 'padding: 4px 10px; font-size: 12px; border: 0; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body); white-space: nowrap;'
+      + (on ? 'background: var(--color-accent-900); color: var(--color-accent-100);' : 'background: transparent; color: var(--color-neutral-400);');
+  }
+  navBtn(on) {
+    return 'width: 32px; height: 32px; border-radius: var(--radius-md); cursor: pointer; font-size: 15px; border: 1px solid ' + (on ? 'var(--color-accent-700)' : 'transparent') + ';'
+      + (on ? 'background: var(--color-accent-900); color: var(--color-accent-200);' : 'background: transparent; color: var(--color-neutral-500);');
+  }
+  row(on) {
+    return 'padding: 9px 14px; cursor: pointer; border-left: 2px solid ' + (on ? 'var(--color-accent)' : 'transparent') + ';'
+      + (on ? 'background: color-mix(in srgb, var(--color-accent) 9%, transparent);' : '');
+  }
+  navRow(on) {
+    return 'padding: 7px 10px; font-size: 13px; border-radius: var(--radius-sm); cursor: pointer;'
+      + (on ? 'background: var(--color-accent-900); color: var(--color-accent-100);' : 'color: var(--color-neutral-400);');
+  }
+  chip(on) {
+    return 'flex: none; padding: 3px 9px; font-size: 11.5px; font-family: "JetBrains Mono", monospace; border-radius: var(--radius-md); cursor: pointer; border: 1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-divider)') + ';'
+      + (on ? 'background: var(--color-accent-900); color: var(--color-accent-100);' : 'background: transparent; color: var(--color-neutral-400);');
+  }
+  box(on) {
+    return 'width: 15px; height: 15px; flex: none; border-radius: 4px; border: 1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-neutral-700)') + '; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; color: var(--color-accent-200);'
+      + (on ? 'background: var(--color-accent-900);' : '');
+  }
+  marker(open, n) {
+    return 'flex: none; width: 26px; height: 24px; border-radius: var(--radius-sm); cursor: pointer; font-size: 11px; font-family: "JetBrains Mono", monospace; background: transparent; border: 1px solid ' + (open ? 'var(--color-accent)' : 'var(--color-divider)') + '; color: ' + (open ? 'var(--color-accent-200)' : 'var(--color-neutral-500)') + ';';
+  }
+
+  set(patch) { this.setState(patch); }
+
+  renderVals() {
+    const s = this.state, th = THEMES[s.diffTheme] || THEMES.nocturne;
+    const isPr = s.mode === 'pr';
+    const files = this.files();
+    const pr = this.pr();
+    const af = this.activeFile();
+    const inWorkspace = s.view === 'files' || s.mode === 'diff';
+    const showDiffPane = (s.view === 'files' || s.mode === 'diff') && af.kind === 'code';
+    const showMdPane = (s.view === 'files' || s.mode === 'diff') && af.kind === 'md';
+    const mine = s.myComments;
+    // Space budget: the diff pane keeps priority. On a narrow viewport the
+    // sidebar yields to the dock; collapsing the dock brings it back.
+    // The rail always exists (it carries the repo/scope selectors and the
+    // resize handle). Below 1060px the dock auto-collapses to its rail; the
+    // sidebar only yields when the dock is genuinely open on a mid viewport.
+    const narrow = s.winW < 1300;
+    const dockOpen = s.dockOpen && s.winW >= 1060;
+    const tight = narrow && dockOpen;
+    const sbW = s.sbW;
+    const centerW = s.winW - 48 - (tight ? 0 : sbW) - (dockOpen ? 344 : 44);
+    const compact = centerW < 720;
+    const mdStack = centerW < 780;
+
+    const mkLine = (d, i, src) => {
+      const [t, l, r, text] = d;
+      const isAdd = t === 'add', isDel = t === 'del', isHunk = t === 'hunk';
+      const sign = isAdd ? '+' : isDel ? '-' : isHunk ? '' : ' ';
+      const anchored = s.chatLine === i;
+      const bg = anchored ? 'color-mix(in srgb, var(--color-accent) 20%, transparent)'
+        : isHunk ? 'var(--color-neutral-900)' : isAdd ? th.add : isDel ? th.del : 'transparent';
+      const fg = isHunk ? 'var(--color-neutral-500)' : isAdd ? th.addFg : isDel ? th.delFg : 'var(--color-neutral-300)';
+      const ref = (isPr ? af.path.split('/').pop() : af.path.split('/').pop()) + ':' + (r || l || '');
+      const agent = src === 'code' ? AGENT_NOTES[i] : null;
+      const others = src === 'code' ? OTHER_COMMENTS[i] : null;
+      return {
+        id: i, type: t, text: (isHunk ? '' : sign + ' ') + text, bg, fg,
+        leftNum: isHunk ? '···' : (l == null ? '' : String(l)),
+        rightNum: isHunk ? '' : (r == null ? '' : String(r)),
+        leftText: isHunk ? text : (isAdd ? '' : '  ' + text), rightText: isHunk ? '' : (isDel ? '' : '  ' + text),
+        leftBg: isHunk ? 'var(--color-neutral-900)' : isDel ? th.del : isAdd ? 'transparent' : 'transparent',
+        rightBg: isHunk ? 'var(--color-neutral-900)' : isAdd ? th.add : isDel ? 'transparent' : 'transparent',
+        leftFg: isHunk ? 'var(--color-neutral-500)' : isDel ? th.delFg : 'var(--color-neutral-300)',
+        rightFg: isHunk ? 'var(--color-neutral-500)' : isAdd ? th.addFg : 'var(--color-neutral-300)',
+        ref: af.path + ':' + (r || l || ''),
+        plusStyle: 'flex: none; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-top: 2px; padding: 0; border-radius: 4px; line-height: 1; cursor: pointer; background: transparent; border: 1px solid var(--color-neutral-800); color: var(--color-neutral-500);' + (isHunk ? ' visibility: hidden;' : ''),
+        hasChat: s.chatLine === i || s.minimized.indexOf(i) !== -1,
+        chatIconTitle: s.chatLine === i ? 'Minimize this chat' : 'Reopen this chat',
+        chatIconStyle: 'flex: none; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 2px 0 0 3px; border-radius: 4px; cursor: pointer; background: var(--color-accent-900); border: 1px solid ' + (s.chatLine === i ? 'var(--color-accent)' : 'var(--color-accent-700)') + '; color: var(--color-accent-200);',
+        onToggleChat: () => { if (s.chatLine === i) this.set({ chatLine: null, minimized: s.minimized.concat([i]) }); else this.set({ chatLine: i, minimized: s.minimized.filter(x => x !== i) }); },
+        menuOpen: s.menuLine === i,
+        composerOpen: s.composerLine === i,
+        chatOpen: s.chatLine === i,
+        hasAgentNote: !!agent, agentNote: agent ? agent.body : '', agentSeverity: agent ? agent.severity : '',
+        hasOthers: !!others, others: others || [], othersOpen: !!s.othersOpen[i],
+        othersLabel: others ? (s.othersOpen[i] ? 'Hide ' + others.length + ' comments from others' : others.length + ' comments from others · ' + others[0].author) : '',
+        hasMine: isPr && !!mine[i], mineBody: mine[i] || '',
+        onMenu: () => this.set({ menuLine: s.menuLine === i ? null : i }),
+        onComment: () => this.set({ menuLine: null, composerLine: i }),
+        onAsk: () => this.set({ menuLine: null, composerLine: null, chatLine: i, minimized: s.minimized.filter(x => x !== i) }),
+        onCopy: () => this.set({ menuLine: null }),
+        onToggleOthers: () => this.set({ othersOpen: Object.assign({}, s.othersOpen, { [i]: !s.othersOpen[i] }) }),
+        onSaveComment: () => this.set({ composerLine: null, myComments: Object.assign({}, mine, { [i]: 'The clamp is right, but nothing re-reads the interval after a save — the loop keeps the boot value. Wake the loop on change or read per cycle.' }) }),
+        onCancelComment: () => this.set({ composerLine: null }),
+        onMinimize: () => this.set({ chatLine: null, minimized: s.minimized.concat([i]) }),
+        onCloseChat: () => this.set({ chatLine: null })
+      };
+    };
+
+    const lines = D.map((d, i) => mkLine(d, i, 'code'));
+    const mdLines = MD_D.map((d, i) => mkLine(d, i, 'md'));
+
+    return {
+      isPrMode: isPr, isDiffMode: !isPr,
+      repoScope: s.scope,
+      modePrStyle: this.seg(isPr), modeDiffStyle: this.seg(!isPr),
+      setModePr: () => this.set({ mode: 'pr', view: 'inbox', prId: null, fileIdx: 0 }),
+      setModeDiff: () => this.set({ mode: 'diff', view: 'files', fileIdx: 0 }),
+
+      navInboxStyle: this.navBtn(isPr && (s.view === 'inbox' || s.view === 'files')),
+      navPastStyle: this.navBtn(s.view === 'past'), navSettingsStyle: this.navBtn(s.view === 'settings'),
+      goInbox: () => this.set({ view: isPr ? (s.prId ? 'files' : 'inbox') : 'files' }),
+      goPast: () => this.set({ view: 'past' }), goSettings: () => this.set({ view: 'settings' }),
+      goWorktrees: () => this.set({ view: 'settings', settingsSection: 'Worktrees' }),
+
+      showSidebar: !tight,
+      sidebarStyle: 'width: ' + sbW + 'px; flex: none; border-right: 1px solid var(--color-divider); display: flex; flex-direction: column; min-height: 0; position: relative;',
+      resizerStyle: 'position: absolute; top: 0; bottom: 0; right: -3px; width: 6px; cursor: col-resize; background: transparent; z-index: 35;',
+      startResize: this.startResize,
+      sidebarIsPrList: !tight && isPr && s.view === 'inbox',
+      sidebarIsFiles: !tight && (s.view === 'files' || (s.mode === 'diff' && s.view !== 'settings' && s.view !== 'past')),
+      sidebarIsSettings: !tight && s.view === 'settings', sidebarIsPast: !tight && s.view === 'past',
+      showTopPrBar: tight && (s.view === 'files' || s.mode === 'diff'),
+
+      addOpen: s.addOpen,
+      openAdd: () => this.set({ addOpen: true, addResolved: false, addPicks: [] }),
+      closeAdd: () => this.set({ addOpen: false, addResolved: false, addPicks: [] }),
+      addResolved: s.addResolved,
+      resolveAdd: () => this.set({ addResolved: true }),
+      addAutoBoxStyle: this.box(s.addAuto), addAutoMark: s.addAuto ? '✓' : '',
+      toggleAddAuto: () => this.set({ addAuto: !s.addAuto }),
+      addConfirmLabel: (() => {
+        const n = s.addPicks.length + (s.addResolved ? 1 : 0);
+        return n > 1 ? 'Add ' + n + ' PRs to my list' : 'Add to my list';
+      })(),
+      confirmAdd: () => {
+        const ids = s.addPicks.concat(s.addResolved ? [415] : []);
+        this.set({ added: s.added.concat(ids.filter(i => s.added.indexOf(i) === -1)), addOpen: false, addResolved: false, addPicks: [] });
+      },
+      unassigned: UNASSIGNED.filter(p => p.repo === s.repo && s.added.indexOf(p.id) === -1).map(u => ({
+        id: u.id, title: u.title, author: u.author, updated: u.updated,
+        boxStyle: this.box(s.addPicks.indexOf(u.id) !== -1),
+        mark: s.addPicks.indexOf(u.id) !== -1 ? '✓' : '',
+        style: 'display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; background: transparent; border: 0; border-top: 1px solid var(--color-divider); cursor: pointer; color: var(--color-text); font-family: var(--font-body);',
+        onToggle: () => this.set({ addPicks: s.addPicks.indexOf(u.id) !== -1 ? s.addPicks.filter(x => x !== u.id) : s.addPicks.concat([u.id]) })
+      })),
+
+      currentRepo: s.repo,
+      repoMenuOpen: s.repoMenu,
+      toggleRepoMenu: () => this.set({ repoMenu: !s.repoMenu }),
+      goRepoSettings: () => this.set({ repoMenu: false, view: 'settings', settingsSection: 'Tracked repositories' }),
+      repoBtnStyle: 'display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 9px; font-size: 12.5px; font-family: var(--font-body); color: var(--color-text); background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer;',
+      repos: REPOS.map(r => ({
+        name: r.name, count: PRS.filter(p => p.repo === r.name).length,
+        style: 'display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; font-size: 12.5px; font-family: var(--font-body); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; color: ' + (s.repo === r.name ? 'var(--color-accent-200)' : 'var(--color-text)') + ';',
+        onSelect: () => this.set({ repo: r.name, repoMenu: false, prId: null, view: 'inbox', fileIdx: 0 })
+      })),
+      repoSettings: REPOS.map(r => ({
+        name: r.name, host: r.host, auto: r.auto, count: PRS.filter(p => p.repo === r.name).length,
+        boxStyle: this.box(true), mark: '✓', onToggle: () => {}
+      })),
+      currentScope: s.scope,
+      scopeMenuOpen: s.scopeMenu,
+      toggleScopeMenu: () => this.set({ scopeMenu: !s.scopeMenu }),
+      scopes: SCOPES.map(sc => ({
+        label: sc.label, kind: sc.kind,
+        style: 'display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body); color: ' + (s.scope === sc.label ? 'var(--color-accent-200)' : 'var(--color-text)') + ';',
+        onSelect: () => this.set({ scope: sc.label, scopeMenu: false, fileIdx: 0 })
+      })),
+
+      prs: this.repoPrs().map(p => ({
+        id: p.id, repo: p.repo, title: p.title, branch: p.branch, updated: p.updated,
+        fileCount: p.fileCount, add: p.add, del: p.del,
+        commentLabel: p.comments ? p.comments + ' comments' : 'no comments',
+        stateLabel: p.state === 'draft' ? 'draft' : 'open',
+        stateStyle: 'flex: none; white-space: nowrap; padding: 1px 6px; border-radius: 8px; border: 1px solid ' + (p.state === 'draft' ? 'var(--color-neutral-700); color: var(--color-neutral-400);' : 'var(--color-accent-700); color: var(--color-accent-300);'),
+        hasAgent: p.agent !== 'idle',
+        agentLabel: p.agent === 'running' ? 'agent reviewing…' : 'agent: request changes',
+        agentStyle: 'flex: none; white-space: nowrap; margin-left: auto; color: ' + (p.agent === 'running' ? 'var(--color-neutral-400)' : 'var(--color-accent-300)') + ';',
+        hasSpec: !!p.spec, spec: p.spec, specPr: p.specPr,
+        isAdded: s.added.indexOf(p.id) !== -1,
+        rowStyle: this.row(s.prId === p.id),
+        onSelect: () => this.set({ prId: p.id, view: 'files', fileIdx: 0 })
+      })),
+      prCount: this.repoPrs().length, lastFetch: s.fetched,
+      refreshPrs: () => this.set({ fetched: 'fetched just now · ' + this.repoPrs().length + ' assigned' }),
+
+      files: files.map((f, i) => ({
+        name: f.path.split('/').pop(), path: f.path, comments: f.comments, hasComments: f.comments > 0,
+        statusLabel: f.status,
+        dotStyle: 'width: 6px; height: 6px; flex: none; border-radius: 50%; background: ' + (f.status === 'A' ? '#6faa7e' : f.status === 'R' ? 'var(--color-accent)' : f.status === 'D' ? '#c47b7b' : 'var(--color-neutral-600)') + ';',
+        nameStyle: 'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: ' + (s.fileIdx === i ? 'var(--color-text)' : 'var(--color-neutral-400)') + ';',
+        viewedMark: (s.viewed[i] ?? f.viewed) ? '✓' : '',
+        viewedStyle: this.box((s.viewed[i] ?? f.viewed)),
+        rowStyle: 'display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; border-left: 2px solid ' + (s.fileIdx === i ? 'var(--color-accent)' : 'transparent') + ';' + (s.fileIdx === i ? 'background: color-mix(in srgb, var(--color-accent) 9%, transparent);' : ''),
+        chipStyle: this.chip(s.fileIdx === i),
+        onSelect: () => this.set({ fileIdx: i, view: s.mode === 'diff' ? 'files' : 'files' }),
+        onToggleViewed: (e) => { e.stopPropagation(); this.set({ viewed: Object.assign({}, s.viewed, { [i]: !(s.viewed[i] ?? f.viewed) }) }); }
+      })),
+      viewedLabel: Object.values(s.viewed).filter(Boolean).length + 1 + '/' + files.length + ' viewed',
+      backToList: () => this.set({ view: 'inbox', prId: null }),
+      backLabel: isPr ? 'All PRs' : 'Repo',
+      currentTitle: isPr ? pr.title : s.scope.split('/').pop(),
+      currentBranch: isPr ? pr.branch : 'feat/configurable-poll-interval · ' + LOCAL_FILES.length + ' changed files',
+      currentId: pr.id,
+      cyclePr: () => { const rp = this.repoPrs(); const i = rp.findIndex(p => p.id === pr.id); const n = rp[(i + 1) % rp.length]; this.set({ prId: n.id, fileIdx: 0 }); },
+      worktreeLabel: '~/.atelier/worktrees/atelier-' + pr.id,
+      pendingCount: Object.keys(mine).length + 2,
+      openReview: () => this.set({ reviewOpen: true }),
+
+      inboxSubtitle: s.repo + ' · ' + this.repoPrs().length + ' pending · polled every ' + s.poll + (s.autoOnFetch ? ' · automatic review on new commits' : ''),
+      showInbox: isPr && s.view === 'inbox',
+      showDiff: showDiffPane, showMd: showMdPane,
+      showPast: s.view === 'past', showSettings: s.view === 'settings',
+
+      activePath: af.path,
+      activeDir: af.path.split('/').slice(0, -1).join('/') + '/',
+      activeName: af.path.split('/').pop(),
+      activeAdd: af.add, activeDel: af.del,
+      mergedLabel: 'Merged',
+      splitLabel: compact ? 'Split' : 'Side by side',
+      // The toolbar drops to its own full-width row rather than being clipped.
+      diffToolbarStyle: compact
+        ? 'flex: 1 1 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;'
+        : 'flex: none; margin-left: auto; display: flex; align-items: center; gap: 8px;',
+      mdRowStyle: 'display: flex; flex-wrap: wrap; gap: ' + (mdStack ? '14px' : '20px') + '; max-width: 1140px; margin: 0 auto; padding: 0 24px;',
+      mdAsideStyle: mdStack ? 'width: 100%; flex: 1 1 100%; border-top: 1px solid var(--color-divider); padding-top: 14px;' : 'width: 224px; flex: none;',
+      activeViewedLabel: (s.viewed[s.fileIdx] ?? af.viewed) ? 'Viewed ✓' : 'Mark viewed',
+      toggleViewedActive: () => this.set({ viewed: Object.assign({}, s.viewed, { [s.fileIdx]: !(s.viewed[s.fileIdx] ?? af.viewed) }) }),
+      isUnified: s.diffMode === 'unified', isSplit: s.diffMode === 'split',
+      unifiedStyle: this.seg(s.diffMode === 'unified'), splitStyle: this.seg(s.diffMode === 'split'),
+      setUnified: () => this.set({ diffMode: 'unified' }), setSplit: () => this.set({ diffMode: 'split' }),
+      lines, mdLines,
+
+      hasAgentReview: isPr && pr.agent === 'done',
+      agentPanelOpen: s.agentPanelOpen,
+      toggleAgentPanel: () => this.set({ agentPanelOpen: !s.agentPanelOpen }),
+      rerunAgent: () => this.set({ agentPanelOpen: false }),
+      agentFindings: AGENT_FINDINGS.map(a => Object.assign({}, a, {
+        onJump: () => this.set({ agentPanelOpen: false, fileIdx: 0 })
+      })),
+
+      // The inline chat is a pane-level card (not inside the horizontally
+      // scrolled diff body), so it can never fall outside the visible pane.
+      // Its anchor line stays tinted in the diff.
+      chatOpen: s.chatLine != null,
+      chatCardStyle: 'position: absolute; right: 16px; bottom: 16px; z-index: 25; width: min(400px, calc(100% - 32px)); background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-family: var(--font-body);',
+      chatRef: s.chatLine != null ? af.path.split('/').pop() + ':' + ((D[s.chatLine] && (D[s.chatLine][2] || D[s.chatLine][1])) || '') : '',
+      chatMinimize: () => this.set({ chatLine: null, minimized: s.minimized.concat([s.chatLine]) }),
+      chatClose: () => this.set({ chatLine: null }),
+
+      hasMinimized: s.minimized.length > 0,
+      minimizedChats: s.minimized.map(i => ({
+        ref: (af.path.split('/').pop()) + ':' + (D[i] && (D[i][2] || D[i][1]) || ''),
+        onRestore: () => this.set({ chatLine: i, minimized: s.minimized.filter(x => x !== i) })
+      })),
+
+      isSpecFile: af.kind === 'md',
+      isRich: s.mdMode === 'rich', isRaw: s.mdMode === 'raw',
+      richStyle: this.seg(s.mdMode === 'rich'), rawStyle: this.seg(s.mdMode === 'raw'),
+      setRich: () => this.set({ mdMode: 'rich' }), setRaw: () => this.set({ mdMode: 'raw' }),
+      selBarOpen: !!s.selRect && !s.selCard,
+      selBarStyle: s.selRect
+        ? 'position: fixed; z-index: 50; top: ' + Math.max(52, s.selRect.top - 42) + 'px; left: ' + Math.round(s.selRect.left) + 'px; display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md);'
+        : 'display: none;',
+      selActionStyle: 'padding: 5px 9px; font-size: 12.5px; font-family: var(--font-body); background: transparent; border: 0; border-radius: var(--radius-sm); color: var(--color-text); cursor: pointer; white-space: nowrap;',
+      selRefLabel: af.path.split('/').pop() + ' · selection',
+      selQuote: s.selText.length > 160 ? s.selText.slice(0, 160) + '…' : s.selText,
+      keepSel: (e) => e.preventDefault(),
+      selComment: () => this.set({ selCard: 'comment' }),
+      selAsk: () => this.set({ selCard: 'agent' }),
+      selCopy: () => this.set({ selRect: null }),
+      selCardOpen: !!s.selCard && !!s.selRect,
+      selCardIsComment: s.selCard === 'comment', selCardIsAgent: s.selCard === 'agent',
+      selCardTitle: s.selCard === 'agent' ? 'Agent · on selection' : 'Proposed change',
+      selCardStyle: s.selRect
+        ? 'position: fixed; z-index: 50; top: ' + Math.min(s.selRect.bottom + 10, Math.max(120, s.winH - 300)) + 'px; left: ' + Math.round(Math.min(s.selRect.left, Math.max(60, s.winW - 420))) + 'px; width: min(400px, calc(100vw - 40px)); background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);'
+        : 'display: none;',
+      selCardClose: () => this.set({ selCard: null, selRect: null }),
+      hasMdSelection: true,
+      sel1Open: !!s.sel1, sel2Open: s.sel2,
+      toggleSel1: () => this.set({ sel1: s.sel1 ? null : 'open' }),
+      toggleSel2: () => this.set({ sel2: !s.sel2 }),
+      minimizeSel1: () => this.set({ sel1: null }),
+      marker1Style: this.marker(!!s.sel1), marker1Label: s.sel1 ? '−' : '1',
+      marker2Style: this.marker(s.sel2), marker2Label: s.sel2 ? '−' : '1',
+      sel1Style: 'background: ' + (s.sel1 ? 'color-mix(in srgb, var(--color-accent) 26%, transparent)' : 'color-mix(in srgb, var(--color-accent) 14%, transparent)') + '; border-bottom: 1px solid var(--color-accent-600); cursor: pointer;',
+      sel2Style: 'background: ' + (s.sel2 ? 'color-mix(in srgb, var(--color-accent) 26%, transparent)' : 'color-mix(in srgb, var(--color-accent) 14%, transparent)') + '; border-bottom: 1px solid var(--color-accent-600); cursor: pointer;',
+      selTabIsComment: s.sel1Tab === 'comment', selTabIsAgent: s.sel1Tab === 'agent',
+      selTabCommentStyle: this.chip(s.sel1Tab === 'comment'), selTabAgentStyle: this.chip(s.sel1Tab === 'agent'),
+      setSelTabComment: () => this.set({ sel1Tab: 'comment' }), setSelTabAgent: () => this.set({ sel1Tab: 'agent' }),
+
+      pastReviews: PAST.map(p => Object.assign({}, p, {
+        verdictStyle: 'font-size: 11.5px; padding: 1px 7px; border-radius: 8px; border: 1px solid ' + (p.verdict === 'Approved' ? 'rgba(111,170,126,0.5); color: #8fc09d;' : p.verdict === 'Changes requested' ? 'rgba(196,123,123,0.5); color: #d59a9a;' : 'var(--color-neutral-700); color: var(--color-neutral-400);')
+      })),
+      pastFilters: ['All', 'Approved', 'Changes requested', 'Commented'].map(l => ({
+        label: l, rowStyle: this.navRow(s.pastFilter === l), onSelect: () => this.set({ pastFilter: l })
+      })),
+
+      settingsNav: ['Accounts', 'Tracked repositories', 'Review agent', 'Fetching', 'Appearance', 'Worktrees', 'Shortcuts'].map(l => ({
+        label: l, rowStyle: this.navRow(s.settingsSection === l), onSelect: () => this.set({ settingsSection: l })
+      })),
+      agentFile: s.agentFile,
+      openFilePicker: () => this.set({ picker: true }),
+      closePicker: () => this.set({ picker: false }),
+      pickerOpen: s.picker,
+      agentFiles: [
+        { path: '.atelier/agents/reviewer.md', note: 'in this repo · 4.1 KB · edited 2d ago' },
+        { path: '.atelier/agents/reviewer-strict.md', note: 'in this repo · 6.7 KB · blocks on any high finding' },
+        { path: '.atelier/agents/security-review.md', note: 'in this repo · 3.2 KB' },
+        { path: '~/.config/opencode/agent/review.md', note: 'global · shared across projects' }
+      ].map(f => ({
+        path: f.path, note: f.note,
+        style: 'display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; background: ' + (s.agentFile === f.path ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'transparent') + '; border: 0; border-top: 1px solid var(--color-divider); cursor: pointer; color: var(--color-text); font-family: var(--font-body);',
+        onSelect: () => this.set({ agentFile: f.path, picker: false })
+      })),
+
+      model: s.model,
+      modelMenuOpen: s.modelMenu,
+      toggleModelMenu: () => this.set({ modelMenu: !s.modelMenu }),
+      models: [
+        { id: 'anthropic/claude-sonnet-4.5', note: 'default' },
+        { id: 'anthropic/claude-opus-4.1', note: 'slower' },
+        { id: 'openai/gpt-5-codex', note: 'openai' },
+        { id: 'google/gemini-2.5-pro', note: 'google' },
+        { id: 'ollama/qwen3-coder:30b', note: 'local' }
+      ].map(m => ({
+        id: m.id, note: m.note,
+        style: 'display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body); color: ' + (s.model === m.id ? 'var(--color-accent-200)' : 'var(--color-text)') + ';',
+        onSelect: () => this.set({ model: m.id, modelMenu: false })
+      })),
+
+      trackOpen: s.trackOpen,
+      openTrack: () => this.set({ trackOpen: true }),
+      closeTrack: () => this.set({ trackOpen: false, trackPicks: [] }),
+      trackGithubStyle: this.seg(s.trackHost === 'GitHub'), trackGitlabStyle: this.seg(s.trackHost === 'GitLab'),
+      setTrackGithub: () => this.set({ trackHost: 'GitHub' }), setTrackGitlab: () => this.set({ trackHost: 'GitLab' }),
+      trackAutoBoxStyle: this.box(s.trackAuto), trackAutoMark: s.trackAuto ? '✓' : '',
+      toggleTrackAuto: () => this.set({ trackAuto: !s.trackAuto }),
+      trackCountLabel: s.trackPicks.length ? s.trackPicks.length + ' repositories' : 'repository',
+      discoverable: [
+        { name: 'sebastiandev/omelette-scraps', note: '3 open PRs' },
+        { name: 'shiphero/shiphero-graphql', note: '11 open PRs' },
+        { name: 'shiphero/fulfillment-rules', note: '2 open PRs' },
+        { name: 'sebastiandev/dotfiles', note: 'no open PRs' }
+      ].map(d => ({
+        name: d.name, note: d.note,
+        boxStyle: this.box(s.trackPicks.indexOf(d.name) !== -1),
+        mark: s.trackPicks.indexOf(d.name) !== -1 ? '✓' : '',
+        style: 'display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; background: transparent; border: 0; border-top: 1px solid var(--color-divider); cursor: pointer; color: var(--color-text); font-family: var(--font-body);',
+        onToggle: () => this.set({ trackPicks: s.trackPicks.indexOf(d.name) !== -1 ? s.trackPicks.filter(x => x !== d.name) : s.trackPicks.concat([d.name]) })
+      })),
+
+      accounts: [
+        { name: 'GitHub', host: 'github.com/login/device', cli: 'gh CLI', scopes: 'repo, read:org', meta: 'sebastiandev · repo, read:org' },
+        { name: 'GitLab', host: 'gitlab.com/-/device', cli: 'glab CLI', scopes: 'api, read_user', meta: 'Not connected' }
+      ].map(a => {
+        const on = !!s.connected[a.name];
+        const pending = s.oauth && s.oauth.provider === a.name;
+        return {
+          name: a.name,
+          meta: pending ? 'Waiting for authorization…' : (on ? (a.name === 'GitHub' ? 'sebastiandev · ' + a.scopes : 'sebastiandev · ' + a.scopes) : 'Not connected'),
+          dotStyle: 'width: 7px; height: 7px; flex: none; border-radius: 50%; background: ' + (on ? '#6faa7e' : pending ? 'var(--color-accent)' : 'var(--color-neutral-700)') + ';' + (pending ? ' animation: pulse 1.4s ease-in-out infinite;' : ''),
+          action: pending ? 'Authorizing…' : on ? 'Reauthorize' : 'Connect',
+          btnClass: on && !pending ? 'btn btn-secondary' : 'btn btn-primary',
+          btnClassStyle: 'flex: none; font-size: 12px;',
+          onAction: () => this.set({ oauth: { provider: a.name, host: a.host, cli: a.cli, scopes: a.scopes, phase: 'code' }, oauthCopied: false })
+        };
+      }),
+      oauthOpen: !!s.oauth,
+      oauthProvider: s.oauth ? s.oauth.provider : '',
+      oauthHost: s.oauth ? s.oauth.host : '',
+      oauthCli: s.oauth ? s.oauth.cli : '',
+      oauthScopes: s.oauth ? s.oauth.scopes : '',
+      oauthCode: 'WDJB-MJHT',
+      oauthExpiry: '14:32',
+      oauthPhaseCode: !!s.oauth && s.oauth.phase === 'code',
+      oauthPhasePolling: !!s.oauth && s.oauth.phase === 'polling',
+      oauthPhaseDone: !!s.oauth && s.oauth.phase === 'done',
+      oauthCopyLabel: s.oauthCopied ? 'Copied' : 'Copy',
+      oauthCopy: () => this.set({ oauthCopied: true }),
+      oauthOpenBrowser: () => {
+        this.set({ oauth: Object.assign({}, s.oauth, { phase: 'polling' }) });
+        clearTimeout(this._poll);
+        this._poll = setTimeout(() => this.setState(st => ({
+          oauth: st.oauth ? Object.assign({}, st.oauth, { phase: 'done' }) : null,
+          connected: st.oauth ? Object.assign({}, st.connected, { [st.oauth.provider]: true }) : st.connected
+        })), 2600);
+      },
+      oauthUseCli: () => this.set({
+        oauth: Object.assign({}, s.oauth, { phase: 'done' }),
+        connected: Object.assign({}, s.connected, { [s.oauth.provider]: true })
+      }),
+      oauthCancel: () => { clearTimeout(this._poll); this.set({ oauth: null }); },
+
+      effortLowStyle: this.seg(s.effort === 'low'), effortMedStyle: this.seg(s.effort === 'medium'), effortHighStyle: this.seg(s.effort === 'high'),
+      setEffortLow: () => this.set({ effort: 'low' }), setEffortMed: () => this.set({ effort: 'medium' }), setEffortHigh: () => this.set({ effort: 'high' }),
+      poll1Style: this.seg(s.poll === '1 min'), poll5Style: this.seg(s.poll === '5 min'), poll15Style: this.seg(s.poll === '15 min'), pollOffStyle: this.seg(s.poll === 'manual'),
+      setPoll1: () => this.set({ poll: '1 min' }), setPoll5: () => this.set({ poll: '5 min' }), setPoll15: () => this.set({ poll: '15 min' }), setPollOff: () => this.set({ poll: 'manual' }),
+      autoFetchBoxStyle: this.box(s.autoOnFetch), autoFetchMark: s.autoOnFetch ? '✓' : '',
+      toggleAutoOnFetch: () => this.set({ autoOnFetch: !s.autoOnFetch }),
+      themeVars: (UI_THEMES[s.theme] || UI_THEMES.Nocturne).vars,
+      uiThemes: Object.keys(UI_THEMES).map(k => ({
+        label: UI_THEMES[k].label, note: UI_THEMES[k].note,
+        style: 'display: flex; align-items: center; padding: 7px 11px; font-size: 12.5px; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-body); background: transparent; border: 1px solid ' + (s.theme === k ? 'var(--color-accent)' : 'var(--color-divider)') + '; color: ' + (s.theme === k ? 'var(--color-text)' : 'var(--color-neutral-400)') + ';',
+        onSelect: () => this.set({ theme: k })
+      })),
+      diffThemes: Object.keys(THEMES).map(k => ({
+        label: THEMES[k].label, add: THEMES[k].add.replace('0.13', '0.9').replace('0.14', '0.9').replace('0.20', '0.9'),
+        del: THEMES[k].del.replace('0.13', '0.9').replace('0.14', '0.9').replace('0.18', '0.9'),
+        style: 'display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12.5px; border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-body); background: transparent; border: 1px solid ' + (s.diffTheme === k ? 'var(--color-accent)' : 'var(--color-divider)') + '; color: ' + (s.diffTheme === k ? 'var(--color-text)' : 'var(--color-neutral-400)') + ';',
+        onSelect: () => this.set({ diffTheme: k })
+      })),
+      worktrees: WORKTREES.map(w => ({
+        pr: w.pr, path: w.path, state: w.state, size: w.size,
+        boxStyle: this.box(s.wtSel.includes(w.pr)), mark: s.wtSel.includes(w.pr) ? '✓' : '',
+        onToggle: () => this.set({ wtSel: s.wtSel.includes(w.pr) ? s.wtSel.filter(x => x !== w.pr) : s.wtSel.concat([w.pr]) })
+      })),
+      wtSelected: s.wtSel.length,
+
+      dockOpen: dockOpen, dockClosed: !dockOpen,
+      toggleDock: () => this.set({ dockOpen: !s.dockOpen }),
+      dockScope: isPr && s.view === 'files' ? '#' + pr.id : isPr ? 'inbox' : 'working tree',
+      dockContext: af.path.split('/').pop(),
+
+      statusMode: isPr ? 'PR mode · ' + s.repo : 'Diff mode · ' + s.scope,
+      statusWorktree: isPr && s.view === 'files' ? 'worktree ready · ' + pr.branch : '',
+      statusHint: 'press ? for shortcuts',
+
+      shortcutsOpen: s.shortcutsOpen,
+      toggleShortcuts: () => this.set({ shortcutsOpen: !s.shortcutsOpen }),
+      shortcuts: SHORTCUTS.map(k => ({ key: k[0], label: k[1] })),
+
+      reviewOpen: s.reviewOpen, closeReview: () => this.set({ reviewOpen: false }),
+      verdicts: [
+        { key: 'comment', label: 'Comment', hint: 'Submit notes without a verdict' },
+        { key: 'approve', label: 'Approve', hint: 'Agent agreed on 2 of 4 findings' },
+        { key: 'changes', label: 'Request changes', hint: 'Agent suggests this' }
+      ].map(v => ({
+        label: v.label, hint: v.hint,
+        style: 'text-align: left; padding: 10px 12px; border-radius: var(--radius-md); cursor: pointer; background: transparent; font-family: var(--font-body); color: var(--color-text); border: 1px solid ' + (s.verdict === v.key ? 'var(--color-accent)' : 'var(--color-divider)') + ';',
+        onSelect: () => this.set({ verdict: v.key })
+      }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>
