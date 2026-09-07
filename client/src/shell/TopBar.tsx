@@ -2,10 +2,13 @@ import { MagnifyingGlass } from '@phosphor-icons/react'
 import type { DiffTheme, UiTheme } from '../theme/useTheme'
 import { Segmented } from './Segmented'
 import { ThemeMenu } from './ThemeMenu'
-
-type Mode = 'pr' | 'diff'
+import type { Mode } from './useMode'
 
 type TopBarProps = {
+  mode: Mode
+  /** The server was started with `review diff`: PR mode cannot be selected. */
+  modeLocked: boolean
+  onMode: (mode: Mode) => void
   uiTheme: UiTheme
   diffTheme: DiffTheme
   themeMenuOpen: boolean
@@ -18,6 +21,9 @@ type TopBarProps = {
 
 /** 46px top bar: mark + wordmark, mode toggle, search affordance, then Theme / ? / Dock on the right. */
 export function TopBar({
+  mode,
+  modeLocked,
+  onMode,
   uiTheme,
   diffTheme,
   themeMenuOpen,
@@ -37,12 +43,12 @@ export function TopBar({
       </div>
       <Segmented<Mode>
         label="Mode"
-        value="diff"
+        value={mode}
         options={[
-          { value: 'pr', label: 'PR mode', disabled: true, title: 'coming soon' },
+          { value: 'pr', label: 'PR mode', disabled: modeLocked, title: modeLocked ? 'started with `review diff`' : undefined },
           { value: 'diff', label: 'Diff mode' },
         ]}
-        onChange={() => {}}
+        onChange={onMode}
       />
       <div className="search" aria-hidden>
         <MagnifyingGlass size={13} />
@@ -60,9 +66,7 @@ export function TopBar({
           >
             Theme
           </button>
-          {themeMenuOpen && (
-            <ThemeMenu uiTheme={uiTheme} diffTheme={diffTheme} onUiTheme={onUiTheme} onDiffTheme={onDiffTheme} />
-          )}
+          {themeMenuOpen && <ThemeMenu uiTheme={uiTheme} diffTheme={diffTheme} onUiTheme={onUiTheme} onDiffTheme={onDiffTheme} />}
         </div>
         <button type="button" className="btn btn-secondary topbar-btn" title="Keyboard shortcuts" onClick={onToggleShortcuts}>
           ?

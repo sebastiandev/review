@@ -1,16 +1,21 @@
-import { CaretDown, Check, FolderOpen } from '@phosphor-icons/react'
-import type { DiffDocument, DiffFile } from '@review/shared'
-import { basename, scopeKind, scopeLabel } from './scope'
+import { Check } from '@phosphor-icons/react'
+import type { ReactNode } from 'react'
+import type { DiffFile } from '@review/shared'
+import { basename } from './scope'
 
 type FileTreeProps = {
-  document: DiffDocument
+  files: DiffFile[]
   selectedPath: string | null
   viewed: ReadonlySet<string>
-  scopeMenuOpen: boolean
+  /** Comment-count badge per path; absent or 0 renders nothing. */
+  badges?: Record<string, number>
   width: number
+  /** Scope selector (diff mode) or the PR header block. */
+  header: ReactNode
+  /** PR-mode footer: worktree line + Submit review. */
+  footer?: ReactNode
   onSelect: (path: string) => void
   onToggleViewed: (path: string) => void
-  onToggleScopeMenu: () => void
   onStartResize: (e: React.PointerEvent<HTMLElement>) => void
 }
 
@@ -21,54 +26,24 @@ const STATUS_CLASS: Record<DiffFile['status'], string> = {
   modified: 'dot-modified',
 }
 
-/** Diff-mode sidebar: scope selector, FILES overline with the viewed count, and one row per changed file. */
+/** Workspace sidebar: a header slot, the FILES overline with the viewed count, one row per changed file, a footer slot. */
 export function FileTree({
-  document,
+  files,
   selectedPath,
   viewed,
-  scopeMenuOpen,
+  badges,
   width,
+  header,
+  footer,
   onSelect,
   onToggleViewed,
-  onToggleScopeMenu,
   onStartResize,
 }: FileTreeProps) {
-  const { source, files } = document
-  const kind = scopeKind(source)
-  const label = scopeLabel(source)
   const viewedCount = files.filter((f) => viewed.has(f.path)).length
-  const meta = [source.kind === 'repo' && source.base ? `vs ${source.base}` : null, `${files.length} changed files`]
-    .filter(Boolean)
-    .join(' · ')
 
   return (
     <aside className="sidebar" style={{ width }}>
-      <div className="sidebar-head menu-anchor">
-        <button
-          type="button"
-          className="selector"
-          aria-haspopup="menu"
-          aria-expanded={scopeMenuOpen}
-          onClick={onToggleScopeMenu}
-        >
-          <FolderOpen size={14} className="selector-glyph" />
-          <span className="selector-path">{label}</span>
-          <CaretDown size={12} className="selector-glyph" />
-        </button>
-        {scopeMenuOpen && (
-          <div className="menu sidebar-menu" role="menu">
-            <button type="button" role="menuitem" className="menu-row menu-row-current" onClick={onToggleScopeMenu}>
-              <span className="menu-row-label mono">{label}</span>
-              <span className="menu-row-note">{kind}</span>
-            </button>
-            <button type="button" role="menuitem" className="menu-footer-row" disabled title="coming soon">
-              Open folder or .diff…
-            </button>
-          </div>
-        )}
-        <div className="sidebar-title">{basename(label)}</div>
-        <div className="sidebar-meta">{meta}</div>
-      </div>
+      {header}
       <div className="overline-row">
         <span>Files</span>
         <span className="overline-count">
@@ -79,6 +54,7 @@ export function FileTree({
         {files.map((file) => {
           const selected = file.path === selectedPath
           const isViewed = viewed.has(file.path)
+          const badge = badges?.[file.path] ?? 0
           return (
             <div
               key={file.path}
@@ -98,6 +74,11 @@ export function FileTree({
               <span className="file-row-name" title={file.path}>
                 {basename(file.path)}
               </span>
+              {badge > 0 && (
+                <span className="file-badge" title={`${badge} comments`}>
+                  {badge}
+                </span>
+              )}
               <button
                 type="button"
                 className={`viewed-box${isViewed ? ' viewed-box-on' : ''}`}
@@ -114,13 +95,8 @@ export function FileTree({
           )
         })}
       </div>
-      <div
-        className="sidebar-resize"
-        role="separator"
-        aria-orientation="vertical"
-        title="Drag to resize"
-        onPointerDown={onStartResize}
-      />
+      {footer}
+      <div className="sidebar-resize" role="separator" aria-orientation="vertical" title="Drag to resize" onPointerDown={onStartResize} />
     </aside>
   )
 }

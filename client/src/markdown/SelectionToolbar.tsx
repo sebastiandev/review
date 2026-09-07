@@ -13,6 +13,8 @@ type SelectionToolbarProps = {
   basename: string
   /** Selection rect in viewport coordinates. */
   rect: DOMRect
+  /** Present in PR mode only; without it the Comment action is disabled. */
+  onComment?: () => void
   onAsk: () => void
   onCopyRef: () => void
 }
@@ -23,13 +25,20 @@ function keepSelection(e: MouseEvent) {
 }
 
 /** Floating toolbar over a text selection: Comment (disabled in diff mode) · Ask the agent · Copy reference. */
-export function SelectionToolbar({ basename, rect, onAsk, onCopyRef }: SelectionToolbarProps) {
+export function SelectionToolbar({ basename, rect, onComment, onAsk, onCopyRef }: SelectionToolbarProps) {
   const top = Math.max(TOP_MIN, rect.top - ABOVE)
   const left = Math.max(EDGE, Math.min(rect.left, window.innerWidth - WIDTH_ESTIMATE - EDGE))
   return (
     <div className="sel-toolbar" role="toolbar" aria-label="Selection actions" style={{ top, left }}>
       <span className="sel-toolbar-label">{basename} · selection</span>
-      <button type="button" className="sel-action" disabled title="PR mode" onMouseDown={keepSelection}>
+      <button
+        type="button"
+        className="sel-action"
+        disabled={!onComment}
+        title={onComment ? undefined : 'PR mode'}
+        onMouseDown={keepSelection}
+        onClick={onComment}
+      >
         Comment
       </button>
       <button type="button" className="sel-action" onMouseDown={keepSelection} onClick={onAsk}>

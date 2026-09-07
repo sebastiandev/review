@@ -1,227 +1,153 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { ChatSendRequest, ChatThreadRef, DiffSelection } from '@review/shared'
-import { fetchConfig, fetchDiff, fetchFile } from './api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { markPrDone, syncRepo } from './api'
 import { ChatDock } from './chat/ChatDock'
-import { InlineChat } from './chat/InlineChat'
-import { DOCK_THREAD, useChatThreads } from './chat/useChatThreads'
+import { useServerEvent } from './events/useServerEvents'
 import { useTurnSettings } from './chat/useTurnSettings'
-import { AskPill } from './diff/AskPill'
-import { DiffView, lineKey, type DiffMode, type LineThreadState } from './diff/DiffView'
-import type { LineRef } from './diff/LineActionButton'
-import { parsePatch } from './diff/parsePatch'
-import { useDiffSelection } from './diff/useDiffSelection'
-import { FileTree } from './files/FileTree'
-import { basename, scopeKind, scopeLabel } from './files/scope'
-import { TopPrBar } from './files/TopPrBar'
-import { useViewed } from './files/useViewed'
-import { MarkdownView, type MarkdownThread } from './markdown/MarkdownView'
+import { AddPrModal } from './inbox/AddPrModal'
+import { Inbox } from './inbox/Inbox'
+import { InboxSidebar, repoLabel } from './inbox/InboxSidebar'
+import { inboxSubtitle, sortInboxRows } from './inbox/inboxRows'
+import { useNow } from './inbox/useNow'
+import { PrWorkspace } from './pr/PrWorkspace'
+import { keys, useInbox, useRepos, useSettings, useSyncInvalidation } from './pr/queries'
 import { Rail } from './shell/Rail'
-import { Segmented } from './shell/Segmented'
 import { ShortcutsSheet } from './shell/ShortcutsSheet'
 import { StatusBar } from './shell/StatusBar'
 import { TopBar } from './shell/TopBar'
 import { useLayout } from './shell/useLayout'
+import { useMode, type Mode } from './shell/useMode'
 import { useDiffTheme, useUiTheme } from './theme/useTheme'
+import { DiffWorkspace } from './workspace/DiffWorkspace'
+import { isEditing } from './workspace/Workspace'
 
-const FLASH_MS = 200
+const FLASH_MS = 5_000
 
-function isEditing(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')
-}
+type Overlay = 'shortcuts' | 'theme' | 'scope' | 'repo' | 'add' | null
 
-/** Scrolls the diff body to `path:start` and flashes rows start..end. */
-function flashLines(body: HTMLElement, path: string, start: number, end: number) {
-  const escaped = CSS.escape(path)
-  const first = body.querySelector<HTMLElement>(`[data-path="${escaped}"][data-line="${start}"]`)
-  if (!first) return
-  first.scrollIntoView({ block: 'center' })
-  const rows = [...body.querySelectorAll<HTMLElement>(`[data-path="${escaped}"][data-line]`)].filter((row) => {
-    const line = Number(row.dataset.line)
-    return line >= start && line <= end
-  })
-  for (const row of rows) row.classList.add('flash')
-  window.setTimeout(() => rows.forEach((row) => row.classList.remove('flash')), FLASH_MS)
-}
+/** Which sidebar/center pair shows. `past` and `settings` are phase-5 placeholders. */
+type View = 'inbox' | 'files' | 'past' | 'settings'
 
-type Overlay = 'shortcuts' | 'theme' | 'scope' | null
-
-/** Rendered markdown, or the file's own diff. */
-type MdMode = 'rich' | 'raw'
-
-function isMarkdownPath(path: string): boolean {
-  return /\.(md|markdown)$/i.test(path)
-}
-
-/** The `lineKey` a thread anchor lands on inside its file. */
-function anchorKey(anchor: DiffSelection): string {
-  return lineKey(anchor.side === 'LEFT' ? 'old' : 'new', anchor.startLine)
-}
-
-function anchorOf(ref: LineRef): DiffSelection {
-  return { path: ref.path, startLine: ref.line, endLine: ref.line, side: ref.side === 'old' ? 'LEFT' : 'RIGHT', text: ref.text }
-}
-
-/** Application shell: top bar, rail, file tree, one file's diff, chat dock and status bar. */
+/** Application shell: top bar, rail, the mode's sidebar + center + dock, status bar and overlays. */
 export function App() {
   const [uiTheme, setUiTheme] = useUiTheme()
   const [diffTheme, setDiffTheme] = useDiffTheme()
   const layout = useLayout()
-  const { toggleDock } = layout
+  const client = useQueryClient()
+  const repos = useRepos()
+  const settings = useSettings()
+  const { mode, prAvailable, probed, setMode } = useMode(repos)
+  useSyncInvalidation()
+
   const [overlay, setOverlay] = useState<Overlay>(null)
-  const [mode, setMode] = useState<DiffMode>('unified')
-  const [mdMode, setMdMode] = useState<MdMode>('rich')
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  const [openMenu, setOpenMenu] = useState<string | null>(null)
-  /** Id of the line thread whose card is showing; every other thread is minimized. */
-  const [chatLine, setChatLine] = useState<string | null>(null)
-  const body = useRef<HTMLDivElement>(null)
-  const touchedLine = useRef<LineRef | null>(null)
-  const pendingJump = useRef<{ path: string; start: number; end: number } | null>(null)
-
-  const diff = useQuery({ queryKey: ['diff'], queryFn: () => fetchDiff() })
-  const config = useQuery({ queryKey: ['config'], queryFn: fetchConfig, staleTime: Infinity })
-  const chat = useChatThreads()
+  const [view, setView] = useState<View>('inbox')
+  const [repoId, setRepoId] = useState<number | null>(null)
+  const [prId, setPrId] = useState<number | null>(null)
+  /** Inbox row the `j`/`k` cursor is on. */
+  const [inboxCursor, setInboxCursor] = useState<number | null>(null)
+  const [scopePath, setScopePath] = useState<string | null>(null)
+  const [prStatus, setPrStatus] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const now = useNow(30_000)
   const turn = useTurnSettings()
-  const dock = chat.thread(DOCK_THREAD)
-  const { selections, rect: selectionRect, clear: clearSelection } = useDiffSelection(body)
 
-  const document = diff.data
-  const scopePath = document ? scopeLabel(document.source) : null
-  const { viewed, toggle: toggleViewed } = useViewed(scopePath)
-  const parsedByPath = useMemo(() => new Map(parsePatch(document?.patch ?? '').map((f) => [f.path, f])), [document?.patch])
-  const files = document?.files ?? []
-  const selectedIndex = files.findIndex((f) => f.path === selectedPath)
-  const selectedFile = selectedIndex >= 0 ? files[selectedIndex] : files[0]
-  const openThread = chat.refs.find((ref) => ref.id === chatLine) ?? null
-  const fileThreads = useMemo(
-    () => chat.refs.filter((ref): ref is ChatThreadRef & { anchor: DiffSelection } => ref.anchor?.path === selectedFile?.path),
-    [chat.refs, selectedFile?.path],
-  )
-  const threadsByLine = useMemo(() => {
-    const byLine: Record<string, LineThreadState> = {}
-    for (const ref of fileThreads) byLine[anchorKey(ref.anchor)] = ref.id === chatLine ? 'open' : 'minimized'
-    return byLine
-  }, [fileThreads, chatLine])
-  const markdownThreads = useMemo<MarkdownThread[]>(
-    () =>
-      fileThreads.map((ref) => ({
-        id: ref.id,
-        startLine: ref.anchor.startLine,
-        endLine: ref.anchor.endLine,
-        text: ref.anchor.text,
-        open: ref.id === chatLine,
-      })),
-    [fileThreads, chatLine],
-  )
+  const repoList = repos.data ?? []
+  const repo = repoList.find((r) => r.id === repoId) ?? repoList[0] ?? null
+  const inbox = useInbox(mode === 'pr' ? (repo?.id ?? null) : null)
+  const rows = useMemo(() => sortInboxRows(inbox.data ?? []), [inbox.data])
+  const inboxNumbers = useMemo(() => new Set(rows.map((r) => r.number)), [rows])
+  const defaultDiffMode = settings.data?.defaultDiffMode ?? 'unified'
 
-  // Rich view needs the whole file; the source cannot provide it for patch files (404), then raw is the only view.
-  const markdownPath = selectedFile && isMarkdownPath(selectedFile.path) ? selectedFile.path : null
-  const fileContent = useQuery({
-    queryKey: ['file', markdownPath],
-    queryFn: () => {
-      if (!markdownPath) throw new Error('not a markdown file')
-      return fetchFile(markdownPath)
-    },
-    enabled: markdownPath !== null,
-    retry: false,
-    staleTime: Infinity,
-  })
-  const richUnavailable = fileContent.isError
-  const showRich = markdownPath !== null && mdMode === 'rich' && !richUnavailable
+  useEffect(() => {
+    if (!flash) return
+    const timer = window.setTimeout(() => setFlash(null), FLASH_MS)
+    return () => window.clearTimeout(timer)
+  }, [flash])
 
   const toggleOverlay = useCallback((which: Exclude<Overlay, null>) => {
     setOverlay((current) => (current === which ? null : which))
   }, [])
 
-  const selectFile = useCallback((path: string) => {
-    setSelectedPath(path)
-    setOpenMenu(null)
+  const goInbox = useCallback(() => {
+    setView('inbox')
+    setPrId(null)
+    setPrStatus(null)
   }, [])
 
-  const stepFile = useCallback(
-    (direction: 1 | -1) => {
-      if (files.length === 0) return
-      const current = selectedIndex < 0 ? 0 : selectedIndex
-      const next = files[Math.max(0, Math.min(files.length - 1, current + direction))]
-      if (next) selectFile(next.path)
-    },
-    [files, selectedIndex, selectFile],
-  )
-
-  const openLineChat = useCallback(
-    (anchor: DiffSelection) => {
-      setOpenMenu(null)
-      clearSelection()
-      void chat.openLineThread(anchor).then((ref) => setChatLine(ref.id))
-    },
-    [chat.openLineThread, clearSelection],
-  )
-
-  const askLine = useCallback((ref: LineRef) => openLineChat(anchorOf(ref)), [openLineChat])
-
-  const askSelection = useCallback(
-    (selections: DiffSelection[]) => {
-      const first = selections[0]
-      if (first) openLineChat(first)
-    },
-    [openLineChat],
-  )
-
-  const toggleThread = useCallback(
-    (key: string) => {
-      const ref = fileThreads.find((r) => anchorKey(r.anchor) === key)
-      if (ref) setChatLine((current) => (current === ref.id ? null : ref.id))
-    },
-    [fileThreads],
-  )
-
-  const toggleThreadById = useCallback((id: string) => setChatLine((current) => (current === id ? null : id)), [])
-
-  const toggleMdMode = useCallback(() => setMdMode((current) => (current === 'rich' ? 'raw' : 'rich')), [])
-
-  const closeThread = useCallback(
-    (id: string) => {
-      chat.forget(id)
-      setChatLine((current) => (current === id ? null : current))
-    },
-    [chat.forget],
-  )
-
-  const onSend = useCallback(
-    (request: ChatSendRequest) => chat.send(DOCK_THREAD, { ...request, ...turn.settings }),
-    [chat.send, turn.settings],
-  )
-
-  const copyRef = useCallback((ref: LineRef) => {
-    void navigator.clipboard.writeText(`${ref.path}:${ref.line}`)
-    setOpenMenu(null)
+  const openPr = useCallback((id: number) => {
+    setPrId(id)
+    setInboxCursor(id)
+    setView('files')
+    setOverlay(null)
   }, [])
 
-  const onJumpTo = useCallback(
-    (path: string, start: number, end: number) => {
-      pendingJump.current = { path, start, end }
-      selectFile(path)
+  const switchMode = useCallback(
+    (next: Mode) => {
+      setMode(next)
+      goInbox()
+      setOverlay(null)
     },
-    [selectFile],
+    [setMode, goInbox],
   )
 
-  // The jump target may belong to a file that was not rendered yet; flash once the body shows it.
-  useEffect(() => {
-    const jump = pendingJump.current
-    if (!jump || !body.current || selectedFile?.path !== jump.path) return
-    pendingJump.current = null
-    flashLines(body.current, jump.path, jump.start, jump.end)
+  const selectRepo = useCallback(
+    (id: number) => {
+      setRepoId(id)
+      setInboxCursor(null)
+      goInbox()
+      setOverlay(null)
+    },
+    [goInbox],
+  )
+
+  const refresh = useMutation({
+    mutationFn: (id: number) => syncRepo(id),
+    onMutate: () => setSyncing(true),
+    onError: (e) => {
+      setSyncing(false)
+      setFlash(`refresh failed: ${e instanceof Error ? e.message : String(e)}`)
+    },
+  })
+  // `useSyncInvalidation` refetches the inbox; here only the button state and the failure message.
+  useServerEvent((event) => {
+    if (event.type === 'sync.finished' && event.repoId === repo?.id) setSyncing(false)
+    if (event.type === 'sync.failed' && event.repoId === repo?.id) {
+      setSyncing(false)
+      setFlash(`refresh failed: ${event.message}`)
+    }
   })
 
+  const done = useMutation({
+    mutationFn: (id: number) => markPrDone(id),
+    onSuccess: (_result, id) => {
+      const row = rows.find((r) => r.id === id)
+      if (repo) void client.invalidateQueries({ queryKey: keys.inbox(repo.id) })
+      void client.invalidateQueries({ queryKey: keys.repos })
+      if (prId === id) goInbox()
+      setFlash(row ? `#${row.number} marked as done` : 'marked as done')
+    },
+    onError: (e) => setFlash(`could not mark done: ${e instanceof Error ? e.message : String(e)}`),
+  })
+
+  const stepInbox = useCallback(
+    (direction: 1 | -1) => {
+      if (rows.length === 0) return
+      const index = rows.findIndex((r) => r.id === inboxCursor)
+      const next = rows[index < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, index + direction))]
+      if (next) setInboxCursor(next.id)
+    },
+    [rows, inboxCursor],
+  )
+
+  // Capture phase: overlays swallow `esc` before the workspace sees it; inbox keys live here too.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // One layer per press: line menu, then the inline chat card, then overlays.
-        clearSelection()
-        if (openMenu) setOpenMenu(null)
-        else if (chatLine) setChatLine(null)
-        else setOverlay(null)
+        if (overlay) {
+          e.stopPropagation()
+          setOverlay(null)
+        }
         return
       }
       if (isEditing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
@@ -229,63 +155,39 @@ export function App() {
         case '?':
           toggleOverlay('shortcuts')
           break
-        case 'a':
-          if (touchedLine.current) askLine(touchedLine.current)
+        case 'd':
+          layout.toggleDock()
           break
         case 'j':
-          stepFile(1)
+          if (view === 'inbox') stepInbox(1)
           break
         case 'k':
-          stepFile(-1)
+          if (view === 'inbox') stepInbox(-1)
           break
-        case 'u':
-          setMode('unified')
-          break
-        case 's':
-          setMode('split')
-          break
-        case 'm':
-          if (markdownPath) toggleMdMode()
-          break
-        case 'd':
-          toggleDock()
-          break
-        case 'v':
-          if (selectedFile) toggleViewed(selectedFile.path)
-          break
-        case 'y':
-          if (touchedLine.current) copyRef(touchedLine.current)
+        case 'Enter':
+          if (view === 'inbox' && inboxCursor !== null && mode === 'pr') openPr(inboxCursor)
           break
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [clearSelection, openMenu, chatLine, toggleOverlay, stepFile, toggleDock, selectedFile, toggleViewed, copyRef, askLine, markdownPath, toggleMdMode])
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [overlay, toggleOverlay, layout.toggleDock, view, stepInbox, inboxCursor, mode, openPr])
 
-  const mdControl = markdownPath !== null && (
-    <Segmented<MdMode>
-      label="Markdown view"
-      value={showRich ? 'rich' : 'raw'}
-      options={[
-        { value: 'rich', label: 'Rich', disabled: richUnavailable, title: richUnavailable ? 'Not available for patch files' : undefined },
-        { value: 'raw', label: 'Raw diff' },
-      ]}
-      onChange={setMdMode}
-    />
-  )
-
-  const pillPosition = (() => {
-    if (!selectionRect || !body.current) return null
-    const bodyRect = body.current.getBoundingClientRect()
-    return {
-      left: selectionRect.right - bodyRect.left + body.current.scrollLeft + 8,
-      top: selectionRect.bottom - bodyRect.top + body.current.scrollTop + 4,
-    }
+  const status = (() => {
+    if (flash) return flash
+    if (mode === 'diff') return `diff mode${scopePath ? ` · ${scopePath}` : ''}`
+    if (view === 'files' && prStatus) return prStatus
+    return `PR mode${repo ? ` · ${repoLabel(repo)}` : ''}`
   })()
+
+  const showInbox = mode === 'pr' && view !== 'files'
 
   return (
     <div className="app">
       <TopBar
+        mode={mode}
+        modeLocked={probed && !prAvailable}
+        onMode={switchMode}
         uiTheme={uiTheme}
         diffTheme={diffTheme}
         themeMenuOpen={overlay === 'theme'}
@@ -296,105 +198,112 @@ export function App() {
         onToggleDock={layout.toggleDock}
       />
       <div className="app-body">
-        <Rail />
-        {document && !layout.tight && (
-          <FileTree
-            document={document}
-            selectedPath={selectedFile?.path ?? null}
-            viewed={viewed}
+        <Rail prMode={mode === 'pr'} view={view} onInbox={goInbox} />
+        {mode === 'diff' && (
+          <DiffWorkspace
+            layout={layout}
+            defaultDiffMode={defaultDiffMode}
             scopeMenuOpen={overlay === 'scope'}
-            width={layout.sidebarW}
-            onSelect={selectFile}
-            onToggleViewed={toggleViewed}
             onToggleScopeMenu={() => toggleOverlay('scope')}
-            onStartResize={layout.startSidebarResize}
+            onScope={setScopePath}
           />
         )}
-        <main className="center">
-          {document && layout.tight && (
-            <TopPrBar document={document} selectedPath={selectedFile?.path ?? null} onSelect={selectFile} />
-          )}
-          {diff.isPending && <p className="notice">Loading diff…</p>}
-          {diff.isError && <p className="notice">Could not load the diff: {String(diff.error)}</p>}
-          {document && files.length === 0 && (
-            <p className="notice">
-              No changes in {scopeLabel(document.source)}
-              {document.source.kind === 'repo' && !document.source.base
-                ? '. The working tree is clean; pass --base <ref> to compare the branch instead.'
-                : '.'}
-            </p>
-          )}
-          {selectedFile && showRich && fileContent.data && (
-            <MarkdownView
-              file={selectedFile}
-              content={fileContent.data.content}
-              compact={layout.compact}
-              centerW={layout.centerW}
-              threads={markdownThreads}
-              toolbar={mdControl}
-              onAsk={openLineChat}
-              onToggleThread={toggleThreadById}
-            />
-          )}
-          {selectedFile && showRich && fileContent.isPending && <p className="notice">Loading {basename(selectedFile.path)}…</p>}
-          {selectedFile && !showRich && (
-            <DiffView
-              file={selectedFile}
-              parsed={parsedByPath.get(selectedFile.path)}
-              mode={mode}
-              compact={layout.compact}
-              viewed={viewed.has(selectedFile.path)}
-              openMenu={openMenu}
-              threads={threadsByLine}
-              bodyRef={body}
-              toolbar={mdControl}
-              onMode={setMode}
-              onToggleViewed={() => toggleViewed(selectedFile.path)}
-              onToggleMenu={setOpenMenu}
-              onAsk={askLine}
-              onCopyRef={copyRef}
-              onToggleThread={toggleThread}
-              onTouchLine={(ref) => {
-                touchedLine.current = ref
-              }}
-            >
-              {pillPosition && selections.length > 0 && (
-                <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={askSelection} />
+        {mode === 'pr' && view === 'files' && prId !== null && (
+          <PrWorkspace
+            prId={prId}
+            inbox={rows}
+            layout={layout}
+            defaultDiffMode={defaultDiffMode}
+            onBack={goInbox}
+            onOpenPr={openPr}
+            onDone={(id) => done.mutate(id)}
+            onStatus={setPrStatus}
+            onFlash={setFlash}
+          />
+        )}
+        {showInbox && repo && (
+          <>
+            {!layout.tight && (
+              <InboxSidebar
+                repos={repoList}
+                repo={repo}
+                rows={rows}
+                selectedPrId={inboxCursor}
+                repoMenuOpen={overlay === 'repo'}
+                syncing={syncing}
+                now={now}
+                width={layout.sidebarW}
+                onSelectRepo={selectRepo}
+                onToggleRepoMenu={() => toggleOverlay('repo')}
+                onOpenPr={openPr}
+                onAddPr={() => setOverlay('add')}
+                onRefresh={() => refresh.mutate(repo.id)}
+                onDone={(id) => done.mutate(id)}
+                onStartResize={layout.startSidebarResize}
+              />
+            )}
+            <main className="center">
+              {inbox.isPending && <p className="notice">Loading pull requests…</p>}
+              {inbox.isError && <p className="notice">Could not load pull requests: {String(inbox.error)}</p>}
+              {inbox.data && (
+                <Inbox
+                  repo={repoLabel(repo)}
+                  subtitle={inboxSubtitle({
+                    repo: repoLabel(repo),
+                    pending: rows.length,
+                    pollInterval: settings.data?.pollInterval ?? 5,
+                    autoReviewOnFetch: settings.data?.autoReviewOnFetch ?? false,
+                  })}
+                  rows={rows}
+                  selectedPrId={inboxCursor}
+                  now={now}
+                  onOpenPr={openPr}
+                />
               )}
-            </DiffView>
-          )}
-          {openThread && (
-            <InlineChat
-              key={openThread.id}
-              thread={openThread}
-              state={chat.thread(openThread.id)}
-              onSend={(text) => chat.send(openThread.id, { text, ...turn.settings })}
-              onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
-              onMinimize={() => setChatLine(null)}
-              onClose={() => closeThread(openThread.id)}
+            </main>
+            <ChatDock
+              open={layout.dockOpen}
+              scope="inbox"
+              currentFile={null}
+              fileCount={0}
+              parts={[]}
+              idle
+              permissions={[]}
+              error={null}
+              config={undefined}
+              notice="Open a pull request to chat about it."
+              turn={turn}
+              lastTurn={null}
+              onSend={() => {}}
+              onPermission={() => {}}
+              onJumpTo={() => {}}
+              onToggle={layout.toggleDock}
             />
-          )}
-        </main>
-        <ChatDock
-          open={layout.dockOpen}
-          scope={document ? scopeKind(document.source) : null}
-          currentFile={selectedFile ? basename(selectedFile.path) : null}
-          fileCount={files.length}
-          parts={dock.parts}
-          idle={dock.idle}
-          permissions={dock.permissions}
-          error={dock.error}
-          config={config.data}
-          turn={turn}
-          lastTurn={dock.lastTurn}
-          onSend={onSend}
-          onPermission={(id, reply) => chat.respondPermission(DOCK_THREAD, id, reply)}
-          onJumpTo={onJumpTo}
-          onToggle={layout.toggleDock}
-        />
+          </>
+        )}
+        {mode === 'pr' && !repo && (
+          <main className="center">
+            <p className="notice">
+              {repos.isPending ? 'Loading repositories…' : 'No tracked repositories. Track one in Settings (phase 5).'}
+            </p>
+          </main>
+        )}
       </div>
-      <StatusBar scope={scopePath} />
+      <StatusBar text={status} />
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={() => setOverlay(null)} />}
+      {overlay === 'add' && repo && (
+        <AddPrModal
+          repoId={repo.id}
+          repo={repoLabel(repo)}
+          inboxNumbers={inboxNumbers}
+          now={now}
+          onClose={() => setOverlay(null)}
+          onAdded={(count) => {
+            setOverlay(null)
+            setFlash(`${count} PR${count === 1 ? '' : 's'} added to your list`)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -20,6 +20,8 @@ type ChatDockProps = {
   error: string | null
   /** Undefined until /api/config has loaded. */
   config: AppConfig | undefined
+  /** Replaces messages and composer with one line while the scope cannot chat yet (no worktree, inbox). */
+  notice?: string
   turn: TurnSettingsState
   lastTurn: ChatTurn | null
   /** Text, selections and command only; the caller attaches the turn settings. */
@@ -184,9 +186,7 @@ function Composer({ idle, commands, onSend, onOpenPicker }: ComposerProps) {
 
   return (
     <div className="composer">
-      {prefix !== null && (
-        <Picker items={completions} filter={prefix} keySource={textarea} onPick={onComplete} onClose={clear} />
-      )}
+      {prefix !== null && <Picker items={completions} filter={prefix} keySource={textarea} onPick={onComplete} onClose={clear} />}
       <div className="composer-row">
         <textarea
           ref={textarea}
@@ -298,6 +298,7 @@ export function ChatDock({
   permissions,
   error,
   config,
+  notice,
   turn,
   lastTurn,
   onSend,
@@ -339,20 +340,29 @@ export function ChatDock({
         {currentFile && <span className="context-chip">{currentFile}</span>}
         <span className="context-chip">{fileCount} files</span>
       </div>
-      <div ref={list} className="dock-messages">
-        {parts.map((part) => (
-          <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
-        ))}
-        {permissions.map((ask) => (
-          <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
-        ))}
-        {error && <p className="dock-error">{error}</p>}
-      </div>
-      <div className="dock-footer">
-        <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-        <Composer idle={idle} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
-        <div className="dock-provenance">opencode · {shownAgent ?? 'default agent'}{scope ? ` · ${scope}` : ''}</div>
-      </div>
+      {notice ? (
+        <p className="notice dock-notice">{notice}</p>
+      ) : (
+        <>
+          <div ref={list} className="dock-messages">
+            {parts.map((part) => (
+              <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
+            ))}
+            {permissions.map((ask) => (
+              <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
+            ))}
+            {error && <p className="dock-error">{error}</p>}
+          </div>
+          <div className="dock-footer">
+            <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
+            <Composer idle={idle} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
+            <div className="dock-provenance">
+              opencode · {shownAgent ?? 'default agent'}
+              {scope ? ` · ${scope}` : ''}
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }

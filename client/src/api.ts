@@ -5,30 +5,62 @@ import type {
   ChatThreadRef,
   DiffDocument,
   DiffSelection,
+  DraftCommentRow,
+  InboxRow,
   PermissionReply,
+  PrDetail,
+  PrPreview,
+  RepoSummary,
+  UserSettings,
+  Verdict,
 } from '@review/shared'
 
 export type FileContent = { path: string; content: string }
 
+/** A non-2xx reply. `code` and `ids` come from the server's `{code, ids?}` error body when it sent one. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | null,
+    readonly ids: number[] = [],
+    message: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+async function fail(url: string, init: RequestInit | undefined, res: Response): Promise<never> {
+  const body: unknown = await res.json().catch(() => null)
+  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
+  const code = typeof record.code === 'string' ? record.code : null
+  const ids = Array.isArray(record.ids) ? record.ids.filter((id): id is number => typeof id === 'number') : []
+  throw new ApiError(res.status, code, ids, `${init?.method ?? 'GET'} ${url} -> ${res.status}${code ? ` (${code})` : ''}`)
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
-  if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${url} -> ${res.status}`)
+  if (!res.ok) return fail(url, init, res)
   return (await res.json()) as T
 }
 
-const jsonInit = (body: unknown): RequestInit => ({
-  method: 'POST',
+/** For routes that answer 202/204 with no body. */
+async function requestVoid(url: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(url, init)
+  if (!res.ok) return fail(url, init, res)
+}
+
+const jsonInit = (method: string, body: unknown): RequestInit => ({
+  method,
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify(body),
 })
 
-async function postJson(url: string, body: unknown): Promise<void> {
-  const res = await fetch(url, jsonInit(body))
-  if (!res.ok) throw new Error(`POST ${url} -> ${res.status}`)
-}
-
 /** The scope diff mode serves. PR mode uses `pr:<id>`. */
 export const LOCAL_SCOPE = 'local'
+
+/** Scope id of a stored PR. Mirrors the server's `prScopeId`. */
+export const prScope = (prId: number) => `pr:${prId}`
 
 /** Scope ids contain `:`; they travel as one path segment. */
 const scopePath = (scope: string) => `/api/scopes/${encodeURIComponent(scope)}`
@@ -51,6 +83,11 @@ export function fetchConfig(): Promise<AppConfig> {
   return requestJson<AppConfig>('/api/config')
 }
 
+/** Persisted user settings alone; cheaper than `/api/config`, which also asks opencode. */
+export function fetchSettings(): Promise<UserSettings> {
+  return requestJson<UserSettings>('/api/settings')
+}
+
 /** Every thread the server knows: `dock` plus the line threads created so far. */
 export function fetchThreads(scope = LOCAL_SCOPE): Promise<ChatThreadRef[]> {
   return requestJson<ChatThreadRef[]>(`${scopePath(scope)}/threads`)
@@ -58,7 +95,7 @@ export function fetchThreads(scope = LOCAL_SCOPE): Promise<ChatThreadRef[]> {
 
 /** The thread anchored to `anchor`'s start line, created on first use. */
 export function createLineThread(anchor: DiffSelection, scope = LOCAL_SCOPE): Promise<ChatThreadRef> {
-  return requestJson<ChatThreadRef>(`${scopePath(scope)}/threads/line`, jsonInit(anchor))
+  return requestJson<ChatThreadRef>(`${scopePath(scope)}/threads/line`, jsonInit('POST', anchor))
 }
 
 /** Chat parts already produced in one thread. */
@@ -68,10 +105,93 @@ export function fetchChatHistory(thread: string, scope = LOCAL_SCOPE): Promise<C
 
 /** Sends a user turn to one thread; the reply streams over /api/events. */
 export function sendChat(thread: string, body: ChatSendRequest, scope = LOCAL_SCOPE): Promise<void> {
-  return postJson(threadPath(scope, thread), body)
+  return requestVoid(threadPath(scope, thread), jsonInit('POST', body))
 }
 
 /** Answers a pending permission ask in one thread. */
 export function replyPermission(thread: string, id: string, response: PermissionReply, scope = LOCAL_SCOPE): Promise<void> {
-  return postJson(`${threadPath(scope, thread)}/permission/${encodeURIComponent(id)}`, { response })
+  return requestVoid(`${threadPath(scope, thread)}/permission/${encodeURIComponent(id)}`, jsonInit('POST', { response }))
+}
+
+// ── PR mode ──────────────────────────────────────────────────────────────
+
+/** Tracked repos with inbox counts. Fails (404 or non-JSON) when the server was started with `review diff`. */
+export function fetchRepos(): Promise<RepoSummary[]> {
+  return requestJson<RepoSummary[]>('/api/repos')
+}
+
+/** Asks the scheduler to sync one repo now; completion arrives as `sync.finished`. */
+export function syncRepo(repoId: number): Promise<void> {
+  return requestVoid(`/api/repos/${repoId}/sync`, { method: 'POST' })
+}
+
+/** Active PRs of one repo. */
+export function fetchInbox(repoId: number): Promise<InboxRow[]> {
+  return requestJson<InboxRow[]>(`/api/repos/${repoId}/prs`)
+}
+
+/** Open PRs not requested from me and not stored yet: the add-dialog picker. */
+export function fetchOpenPrs(repoId: number): Promise<PrPreview[]> {
+  return requestJson<PrPreview[]>(`/api/repos/${repoId}/prs/open`)
+}
+
+export type ResolveResult = { repoId: number; preview: PrPreview } | { untrackedRepo: { provider: string; owner: string; name: string } }
+
+/** Turns a URL, `#n` or bare number into a PR preview. Rejects with a 404 `ApiError` when nothing matches. */
+export function resolvePr(repoId: number, input: string): Promise<ResolveResult> {
+  return requestJson<ResolveResult>(`/api/repos/${repoId}/prs/resolve`, jsonInit('POST', { input }))
+}
+
+/** Adds PRs to the inbox by number; returns their inbox rows. */
+export function addPrs(repoId: number, numbers: number[], reviewOnOpen: boolean): Promise<InboxRow[]> {
+  return requestJson<InboxRow[]>(`/api/repos/${repoId}/prs`, jsonInit('POST', { numbers, reviewOnOpen }))
+}
+
+/** Everything the PR screen needs: row, cached diff, remote comments, open draft, viewed marks. */
+export function fetchPrDetail(prId: number): Promise<PrDetail> {
+  return requestJson<PrDetail>(`/api/prs/${prId}`)
+}
+
+/** Starts the worktree checkout; progress arrives as `worktree.*` events. */
+export function openPr(prId: number): Promise<void> {
+  return requestVoid(`/api/prs/${prId}/open`, { method: 'POST' })
+}
+
+export function markPrDone(prId: number): Promise<void> {
+  return requestVoid(`/api/prs/${prId}/done`, { method: 'POST' })
+}
+
+export type ViewedMark = { path: string; headSha: string }
+
+/** Records (headSha) or clears (null) a viewed mark; returns every mark of the PR. */
+export function putViewed(prId: number, path: string, headSha: string | null): Promise<ViewedMark[]> {
+  return requestJson<ViewedMark[]>(`/api/prs/${prId}/viewed`, jsonInit('PUT', { path, headSha }))
+}
+
+export type NewComment = {
+  path: string
+  line: number
+  startLine: number | null
+  side: 'LEFT' | 'RIGHT'
+  body: string
+  inReplyTo?: string | null
+}
+
+export function createComment(prId: number, comment: NewComment): Promise<DraftCommentRow> {
+  return requestJson<DraftCommentRow>(`/api/prs/${prId}/comments`, jsonInit('POST', comment))
+}
+
+export function patchComment(prId: number, commentId: number, patch: { body?: string; selected?: boolean }): Promise<DraftCommentRow> {
+  return requestJson<DraftCommentRow>(`/api/prs/${prId}/comments/${commentId}`, jsonInit('PATCH', patch))
+}
+
+export function deleteComment(prId: number, commentId: number): Promise<void> {
+  return requestVoid(`/api/prs/${prId}/comments/${commentId}`, { method: 'DELETE' })
+}
+
+export type Submission = { id: number; draftId: number; remoteReviewId: string; verdict: Verdict; body: string; submittedAt: string }
+
+/** Pushes the open draft. 409 codes: `invalid_anchors` (with ids), `draft_stale`, `approve_not_confirmed`. */
+export function submitReview(prId: number, body: { verdict: Verdict; body: string; confirmApprove: boolean }): Promise<Submission> {
+  return requestJson<Submission>(`/api/prs/${prId}/submit`, jsonInit('POST', body))
 }

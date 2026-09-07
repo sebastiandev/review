@@ -1,5 +1,5 @@
 import { Check } from '@phosphor-icons/react'
-import type { ReactNode, RefObject } from 'react'
+import { Fragment, type ReactNode, type RefObject } from 'react'
 import type { DiffFile } from '@review/shared'
 import { Segmented } from '../shell/Segmented'
 import { FileHeader } from './FileHeader'
@@ -33,12 +33,16 @@ type DiffViewProps = {
   onMode: (mode: DiffMode) => void
   onToggleViewed: () => void
   onToggleMenu: (key: string | null) => void
+  /** PR mode only: enables "Add review comment" in the line menu. */
+  onComment?: (ref: LineRef) => void
   onAsk: (ref: LineRef) => void
   onCopyRef: (ref: LineRef) => void
   /** Reopen (or minimize, if showing) the chat card of the thread on `lineKey`. */
   onToggleThread: (key: string) => void
   /** Last line the pointer or focus touched; feeds the `y` shortcut. */
   onTouchLine: (ref: LineRef) => void
+  /** Line-anchored artifacts (comments, composer) rendered under the row, by `lineKey`. */
+  artifacts?: Record<string, ReactNode>
   /** Extra header controls placed before the view toggle (the markdown Rich / Raw diff control). */
   toolbar?: ReactNode
   /** Rendered inside the scrolling body (the Ask pill). */
@@ -46,6 +50,14 @@ type DiffViewProps = {
 }
 
 const MARKER: Record<DiffLine['kind'], string> = { add: '+ ', del: '- ', normal: '  ' }
+const NO_ARTIFACTS: Record<string, ReactNode> = {}
+
+/** The artifact under a side-by-side row: the right (new) line's, else the left (old) line's. */
+function splitArtifact(artifacts: Record<string, ReactNode>, left: DiffLine | null, right: DiffLine | null): ReactNode {
+  const fromRight = right?.newLine != null ? artifacts[lineKey('new', right.newLine)] : undefined
+  const fromLeft = left?.oldLine != null ? artifacts[lineKey('old', left.oldLine)] : undefined
+  return fromRight ?? fromLeft
+}
 
 function lineNumber(line: DiffLine, side: 'old' | 'new'): number {
   return (side === 'old' ? line.oldLine : line.newLine) ?? 0
@@ -57,13 +69,15 @@ type LineProps = {
   side: 'old' | 'new'
   openMenu: string | null
   threads: DiffViewProps['threads']
+  artifacts: Record<string, ReactNode>
   onToggleMenu: DiffViewProps['onToggleMenu']
+  onComment: DiffViewProps['onComment']
   onAsk: DiffViewProps['onAsk']
   onCopyRef: DiffViewProps['onCopyRef']
   onToggleThread: DiffViewProps['onToggleThread']
 }
 
-function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onAsk, onCopyRef, onToggleThread }: LineProps) {
+function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }: LineProps) {
   const key = lineKey(side, lineNumber(line, side))
   const thread = threads[key]
   return (
@@ -73,6 +87,7 @@ function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onAsk, 
         menuOpen={openMenu === key}
         onToggleMenu={() => onToggleMenu(openMenu === key ? null : key)}
         onCloseMenu={() => onToggleMenu(null)}
+        onComment={onComment}
         onAsk={onAsk}
         onCopyRef={onCopyRef}
       />
@@ -106,20 +121,24 @@ function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
       </div>
       {hunk.lines.map((line, i) => {
         const side = line.kind === 'del' ? 'old' : 'new'
-        const anchored = slot.threads[lineKey(side, lineNumber(line, side))] === 'open'
+        const key = lineKey(side, lineNumber(line, side))
+        const anchored = slot.threads[key] === 'open'
+        const artifact = slot.artifacts[key]
         return (
-          <div
-            key={i}
-            className={`drow drow-${line.kind}${anchored ? ' drow-anchored' : ''}`}
-            data-path={path}
-            data-side={side}
-            data-line={side === 'old' ? line.oldLine : line.newLine}
-          >
-            <span className="gutter">{line.oldLine}</span>
-            <span className="gutter">{line.newLine}</span>
-            <ActionSlot path={path} line={line} side={side} {...slot} />
-            <Code line={line} marker={MARKER[line.kind]} language={language} />
-          </div>
+          <Fragment key={i}>
+            <div
+              className={`drow drow-${line.kind}${anchored ? ' drow-anchored' : ''}`}
+              data-path={path}
+              data-side={side}
+              data-line={side === 'old' ? line.oldLine : line.newLine}
+            >
+              <span className="gutter">{line.oldLine}</span>
+              <span className="gutter">{line.newLine}</span>
+              <ActionSlot path={path} line={line} side={side} {...slot} />
+              <Code line={line} marker={MARKER[line.kind]} language={language} />
+            </div>
+            {artifact && <div className="artifacts">{artifact}</div>}
+          </Fragment>
         )
       })}
     </>
@@ -139,29 +158,35 @@ function SplitHunk({ path, hunk, ...slot }: HunkProps) {
           <span className="gutter" />
         </div>
       </div>
-      {splitRows(hunk.lines).map(({ left, right }, i) => (
-        <div key={i} className="srow">
-          <div
-            className={`side side-left${left ? ` side-${left.kind}` : ''}`}
-            data-path={left ? path : undefined}
-            data-side={left ? 'old' : undefined}
-            data-line={left?.oldLine ?? undefined}
-          >
-            <span className="gutter">{left?.oldLine}</span>
-            {left && <Code line={left} marker="  " language={language} />}
-          </div>
-          <div
-            className={`side${right ? ` side-${right.kind}` : ''}${right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
-            data-path={right ? path : undefined}
-            data-side={right ? 'new' : undefined}
-            data-line={right?.newLine ?? undefined}
-          >
-            <span className="gutter">{right?.newLine}</span>
-            {right ? <ActionSlot path={path} line={right} side="new" {...slot} /> : <span className="line-action-spacer" />}
-            {right && <Code line={right} marker="  " language={language} />}
-          </div>
-        </div>
-      ))}
+      {splitRows(hunk.lines).map(({ left, right }, i) => {
+        const artifact = splitArtifact(slot.artifacts, left, right)
+        return (
+          <Fragment key={i}>
+            <div className="srow">
+              <div
+                className={`side side-left${left ? ` side-${left.kind}` : ''}`}
+                data-path={left ? path : undefined}
+                data-side={left ? 'old' : undefined}
+                data-line={left?.oldLine ?? undefined}
+              >
+                <span className="gutter">{left?.oldLine}</span>
+                {left && <Code line={left} marker="  " language={language} />}
+              </div>
+              <div
+                className={`side${right ? ` side-${right.kind}` : ''}${right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
+                data-path={right ? path : undefined}
+                data-side={right ? 'new' : undefined}
+                data-line={right?.newLine ?? undefined}
+              >
+                <span className="gutter">{right?.newLine}</span>
+                {right ? <ActionSlot path={path} line={right} side="new" {...slot} /> : <span className="line-action-spacer" />}
+                {right && <Code line={right} marker="  " language={language} />}
+              </div>
+            </div>
+            {artifact && <div className="artifacts">{artifact}</div>}
+          </Fragment>
+        )
+      })}
     </>
   )
 }
@@ -189,14 +214,16 @@ export function DiffView({
   onMode,
   onToggleViewed,
   onToggleMenu,
+  onComment,
   onAsk,
   onCopyRef,
   onToggleThread,
   onTouchLine,
+  artifacts = NO_ARTIFACTS,
   toolbar,
   children,
 }: DiffViewProps) {
-  const slot = { path: file.path, openMenu, threads, onToggleMenu, onAsk, onCopyRef, onToggleThread }
+  const slot = { path: file.path, openMenu, threads, artifacts, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }
   const touch = (target: EventTarget | null) => {
     const ref = lineRefFrom(target)
     if (ref) onTouchLine(ref)
@@ -224,12 +251,7 @@ export function DiffView({
           )}
         </button>
       </FileHeader>
-      <div
-        ref={bodyRef}
-        className="diff-body"
-        onMouseOver={(e) => touch(e.target)}
-        onFocus={(e) => touch(e.target)}
-      >
+      <div ref={bodyRef} className="diff-body" onMouseOver={(e) => touch(e.target)} onFocus={(e) => touch(e.target)}>
         {!parsed || parsed.hunks.length === 0 ? (
           <p className="notice">Binary file or no textual changes.</p>
         ) : (

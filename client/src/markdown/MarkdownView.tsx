@@ -33,6 +33,8 @@ type MarkdownViewProps = {
   /** Header controls (the Rich / Raw diff control). */
   toolbar: ReactNode
   onAsk: (selection: DiffSelection) => void
+  /** PR mode only: comment on the selected range. */
+  onComment?: (selection: DiffSelection) => void
   /** Reopen (or minimize, if showing) the chat card of one thread. */
   onToggleThread: (id: string) => void
 }
@@ -138,15 +140,26 @@ function truncate(text: string): string {
 }
 
 /** Rendered markdown with selectable, line-anchored blocks, the selection toolbar and the Selections aside. */
-export function MarkdownView({ file, content, compact, centerW, threads, toolbar, onAsk, onToggleThread }: MarkdownViewProps) {
+export function MarkdownView({ file, content, compact, centerW, threads, toolbar, onAsk, onComment, onToggleThread }: MarkdownViewProps) {
   const doc = useRef<HTMLDivElement>(null)
   const { selection, clear } = useMarkdownSelection(doc)
   const context = useMemo(() => ({ threads, onToggle: onToggleThread }), [threads, onToggleThread])
   const stacked = centerW < ASIDE_STACK_BELOW
 
+  const selectionRange = (): DiffSelection | null =>
+    selection && { path: file.path, startLine: selection.startLine, endLine: selection.endLine, side: 'RIGHT', text: selection.text }
+
   const ask = () => {
-    if (!selection) return
-    onAsk({ path: file.path, startLine: selection.startLine, endLine: selection.endLine, side: 'RIGHT', text: selection.text })
+    const range = selectionRange()
+    if (!range) return
+    onAsk(range)
+    clear()
+  }
+
+  const comment = () => {
+    const range = selectionRange()
+    if (!range || !onComment) return
+    onComment(range)
     clear()
   }
 
@@ -188,7 +201,15 @@ export function MarkdownView({ file, content, compact, centerW, threads, toolbar
           </aside>
         </div>
       </div>
-      {selection && <SelectionToolbar basename={basename(file.path)} rect={selection.rect} onAsk={ask} onCopyRef={copyRef} />}
+      {selection && (
+        <SelectionToolbar
+          basename={basename(file.path)}
+          rect={selection.rect}
+          onComment={onComment ? comment : undefined}
+          onAsk={ask}
+          onCopyRef={copyRef}
+        />
+      )}
     </>
   )
 }

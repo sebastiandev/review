@@ -54,20 +54,20 @@ Goal: what exists today looks like the design. No new features.
 
 Server first, then UI.
 
-- [ ] SQLite store (`node:sqlite` or better-sqlite3) with the SPEC §3 schema + `viewed`,
+- [x] SQLite store (`node:sqlite` or better-sqlite3) with the SPEC §3 schema + `viewed`,
       `added_by_user`, `repo` tables. Migrations as numbered SQL files.
-- [ ] Ports in `domain`: `PullRequestProvider` (list assigned, list open unassigned, get by
+- [x] Ports in `domain`: `PullRequestProvider` (list assigned, list open unassigned, get by
       number/url, diff, comments, submit review), `Worktrees` (create/remove/list/size),
       `SettingsStore`. GitHub adapter over `gh` (token from the CLI). GitLab: port only.
-- [ ] Sync per SPEC §3b, per tracked repo, interval from settings (1/5/15/manual). Merged/closed
+- [x] Sync per SPEC §3b, per tracked repo, interval from settings (1/5/15/manual). Merged/closed
       → remove worktree, keep rows.
-- [ ] Commands (the only place that commits): `SyncRepo`, `OpenPullRequest` (creates worktree,
+- [x] Commands (the only place that commits): `SyncRepo`, `OpenPullRequest` (creates worktree,
       progress events creating → fetching → ready), `AddPullRequestManually`, `MarkDone`,
       `SubmitReview` (validateAnchors server-side, APPROVE needs explicit flag), `RemoveWorktree`.
-- [ ] UI: PR inbox (sidebar list + center cards + repo selector), Add PR modal, file tree footer
+- [x] UI: PR inbox (sidebar list + center cards + repo selector), Add PR modal, file tree footer
       (worktree path + Submit review · n), others' comments folded/threaded, your pending comment,
       comment composer, submit modal with three verdicts.
-- [ ] Top PR bar for the `tight` layout.
+- [x] Top PR bar for the `tight` layout.
 
 ## Phase 4 — Automatic review  ~1½ days
 

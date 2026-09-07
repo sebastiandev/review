@@ -11,12 +11,13 @@ type LineActionButtonProps = {
   onToggleMenu: () => void
   /** Fired on a pointer-down outside the button and its menu. */
   onCloseMenu: () => void
+  onComment?: (ref: LineRef) => void
   onAsk: (ref: LineRef) => void
   onCopyRef: (ref: LineRef) => void
 }
 
 /** 18px `⋯` button on a diff line; opens the line menu, which closes on an outside pointer-down. */
-export function LineActionButton({ lineRef, menuOpen, onToggleMenu, onCloseMenu, onAsk, onCopyRef }: LineActionButtonProps) {
+export function LineActionButton({ lineRef, menuOpen, onToggleMenu, onCloseMenu, onComment, onAsk, onCopyRef }: LineActionButtonProps) {
   const slot = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function LineActionButton({ lineRef, menuOpen, onToggleMenu, onCloseMenu,
       >
         <DotsThree size={11} weight="bold" />
       </button>
-      {menuOpen && <LineMenu lineRef={lineRef} onAsk={onAsk} onCopyRef={onCopyRef} />}
+      {menuOpen && <LineMenu lineRef={lineRef} onComment={onComment} onAsk={onAsk} onCopyRef={onCopyRef} />}
     </span>
   )
 }
