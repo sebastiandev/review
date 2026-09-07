@@ -1,132 +1,219 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import {
-  Decoration,
-  Diff,
-  Hunk,
-  parseDiff,
-  tokenize,
-  type ChangeData,
-  type FileData,
-  type HunkTokens,
-  type TokenizeOptions,
-} from 'react-diff-view'
-import { refractor } from 'refractor'
-import type { DiffDocument, DiffFile } from '@revu/shared'
-import { languageForPath } from './language'
+import { Check } from '@phosphor-icons/react'
+import type { ReactNode, RefObject } from 'react'
+import type { DiffFile } from '@revu/shared'
+import { basename, dirname } from '../files/scope'
+import { Segmented } from '../shell/Segmented'
+import { LineActionButton, type LineRef } from './LineActionButton'
+import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
+
+export type DiffMode = 'unified' | 'split'
 
 type DiffViewProps = {
-  document: DiffDocument
+  file: DiffFile
+  /** Undefined when the patch has no hunks for this file (binary, mode change). */
+  parsed: ParsedFile | undefined
+  mode: DiffMode
+  /** Toolbar on its own row and "Split" instead of "Side by side". */
+  compact: boolean
+  viewed: boolean
+  /** `side:line` of the line whose action menu is open, or null. */
+  openMenu: string | null
+  bodyRef: RefObject<HTMLDivElement | null>
+  onMode: (mode: DiffMode) => void
+  onToggleViewed: () => void
+  onToggleMenu: (key: string | null) => void
+  onCopyRef: (ref: LineRef) => void
+  /** Last line the pointer or focus touched; feeds the `y` shortcut. */
+  onTouchLine: (ref: LineRef) => void
+  /** Rendered inside the scrolling body (the Ask pill). */
+  children?: ReactNode
 }
 
-/** Path the viewer identifies a parsed file by: the new path, or the old one for deletions. */
-export function fileKey(file: FileData): string {
-  return file.type === 'delete' ? file.oldPath : file.newPath
+const MARKER: Record<DiffLine['kind'], string> = { add: '+ ', del: '- ', normal: '  ' }
+
+function lineOf(path: string, line: DiffLine): LineRef {
+  return { path, line: line.newLine ?? line.oldLine ?? 0 }
 }
 
-/** Row id: `<encoded path>:<side>:<line>`; stamped into data attributes after render. */
-function anchorId(path: string, change: ChangeData): string {
-  const side = change.type === 'delete' ? 'old' : 'new'
-  const line = change.type === 'normal' ? change.newLineNumber : change.lineNumber
-  return `${encodeURIComponent(path)}:${side}:${line}`
-}
-
-// react-diff-view targets refractor v2 (highlight returns an array); v5 returns a hast Root.
-type Highlighter = Extract<TokenizeOptions, { highlight: true }>['refractor']
-const highlighter = {
-  highlight: (text: string, language: string) => refractor.highlight(text, language).children,
-} as unknown as Highlighter
-
-function useTokens(file: FileData, path: string): HunkTokens | null {
-  return useMemo(() => {
-    const language = languageForPath(path)
-    if (!language) return null
-    try {
-      return tokenize(file.hunks, { highlight: true, refractor: highlighter, language })
-    } catch {
-      return null
-    }
-  }, [file, path])
-}
-
-type FileSectionProps = {
-  file: FileData
+type LineProps = {
   path: string
-  meta: DiffFile | undefined
+  line: DiffLine
+  side: 'old' | 'new'
+  openMenu: string | null
+  onToggleMenu: DiffViewProps['onToggleMenu']
+  onCopyRef: DiffViewProps['onCopyRef']
 }
 
-function FileSection({ file, path, meta }: FileSectionProps) {
-  const [open, setOpen] = useState(true)
-  const body = useRef<HTMLDivElement>(null)
-  const tokens = useTokens(file, path)
-
-  useLayoutEffect(() => {
-    if (!body.current) return
-    for (const tr of body.current.querySelectorAll<HTMLElement>('tr.diff-line[id]')) {
-      const parts = tr.id.split(':')
-      const line = parts.pop()
-      const side = parts.pop()
-      if (!line || !side) continue
-      tr.dataset.path = path
-      tr.dataset.side = side
-      tr.dataset.line = line
-    }
-  }, [path, open, tokens])
-
-  const status = meta?.status ?? file.type
+function ActionSlot({ path, line, side, openMenu, onToggleMenu, onCopyRef }: LineProps) {
+  const key = `${side}:${side === 'old' ? line.oldLine : line.newLine}`
   return (
-    <section className="file" data-file-header>
-      <button
-        type="button"
-        className="file-header"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        data-file-toggle
-      >
-        <span className="file-chevron" aria-hidden>
-          {open ? '▾' : '▸'}
-        </span>
-        <span className="file-path">{path}</span>
-        <span className="file-status">{status}</span>
-        <span className="file-counts">
-          <span className="file-adds">+{meta?.additions ?? 0}</span> <span className="file-dels">-{meta?.deletions ?? 0}</span>
-        </span>
-      </button>
-      {open && (
-        <div ref={body} className="file-body">
-          {file.isBinary ? (
-            <p className="file-binary">Binary file</p>
-          ) : (
-            <Diff
-              viewType="unified"
-              diffType={file.type}
-              hunks={file.hunks}
-              tokens={tokens}
-              generateAnchorID={(change) => anchorId(path, change)}
-            >
-              {(hunks) =>
-                hunks.flatMap((hunk) => [
-                  <Decoration key={`h${hunk.content}`}>{hunk.content}</Decoration>,
-                  <Hunk key={hunk.content} hunk={hunk} />,
-                ])
-              }
-            </Diff>
-          )}
-        </div>
-      )}
-    </section>
+    <LineActionButton
+      lineRef={lineOf(path, line)}
+      menuOpen={openMenu === key}
+      onToggleMenu={() => onToggleMenu(openMenu === key ? null : key)}
+      onCopyRef={onCopyRef}
+    />
   )
 }
 
-/** Renders a DiffDocument as per-file collapsible unified diffs. */
-export function DiffView({ document }: DiffViewProps) {
-  const files = useMemo(() => parseDiff(document.patch, { nearbySequences: 'zip' }), [document.patch])
-  const metaByPath = useMemo(() => new Map(document.files.map((f) => [f.path, f])), [document.files])
+function Code({ line, marker }: { line: DiffLine; marker: string }) {
   return (
-    <div className="diff-files">
-      {files.map((file) => {
-        const path = fileKey(file)
-        return <FileSection key={path} file={file} path={path} meta={metaByPath.get(path)} />
+    <span className="diff-code">
+      <span className="diff-marker" aria-hidden>
+        {marker}
+      </span>
+      <span className="diff-text">{line.text}</span>
+    </span>
+  )
+}
+
+type HunkProps = Omit<LineProps, 'line' | 'side'> & { hunk: DiffHunk }
+
+function UnifiedHunk({ path, hunk, ...menu }: HunkProps) {
+  return (
+    <>
+      <div className="drow drow-hunk">
+        <span className="gutter">···</span>
+        <span className="gutter" />
+        <span className="line-action-spacer" />
+        <span className="diff-code">{hunk.header}</span>
+      </div>
+      {hunk.lines.map((line, i) => {
+        const side = line.kind === 'del' ? 'old' : 'new'
+        return (
+          <div
+            key={i}
+            className={`drow drow-${line.kind}`}
+            data-path={path}
+            data-side={side}
+            data-line={side === 'old' ? line.oldLine : line.newLine}
+          >
+            <span className="gutter">{line.oldLine}</span>
+            <span className="gutter">{line.newLine}</span>
+            <ActionSlot path={path} line={line} side={side} {...menu} />
+            <Code line={line} marker={MARKER[line.kind]} />
+          </div>
+        )
       })}
-    </div>
+    </>
+  )
+}
+
+function SplitHunk({ path, hunk, ...menu }: HunkProps) {
+  return (
+    <>
+      <div className="srow">
+        <div className="side side-left side-hunk">
+          <span className="gutter">···</span>
+          <span className="diff-code">{hunk.header}</span>
+        </div>
+        <div className="side side-hunk">
+          <span className="gutter" />
+        </div>
+      </div>
+      {splitRows(hunk.lines).map(({ left, right }, i) => (
+        <div key={i} className="srow">
+          <div
+            className={`side side-left${left ? ` side-${left.kind}` : ''}`}
+            data-path={left ? path : undefined}
+            data-side={left ? 'old' : undefined}
+            data-line={left?.oldLine ?? undefined}
+          >
+            <span className="gutter">{left?.oldLine}</span>
+            {left && <Code line={left} marker="  " />}
+          </div>
+          <div
+            className={`side${right ? ` side-${right.kind}` : ''}`}
+            data-path={right ? path : undefined}
+            data-side={right ? 'new' : undefined}
+            data-line={right?.newLine ?? undefined}
+          >
+            <span className="gutter">{right?.newLine}</span>
+            {right ? <ActionSlot path={path} line={right} side="new" {...menu} /> : <span className="line-action-spacer" />}
+            {right && <Code line={right} marker="  " />}
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function lineRefFrom(target: EventTarget | null): LineRef | null {
+  if (!(target instanceof Element)) return null
+  const row = target.closest<HTMLElement>('[data-path][data-line]')
+  if (!row?.dataset.path) return null
+  const line = Number(row.dataset.line)
+  return Number.isFinite(line) ? { path: row.dataset.path, line } : null
+}
+
+/** One file's diff: header (path, counts, view toggle, viewed) over the scrolling merged or side-by-side body. */
+export function DiffView({
+  file,
+  parsed,
+  mode,
+  compact,
+  viewed,
+  openMenu,
+  bodyRef,
+  onMode,
+  onToggleViewed,
+  onToggleMenu,
+  onCopyRef,
+  onTouchLine,
+  children,
+}: DiffViewProps) {
+  const menu = { path: file.path, openMenu, onToggleMenu, onCopyRef }
+  const touch = (target: EventTarget | null) => {
+    const ref = lineRefFrom(target)
+    if (ref) onTouchLine(ref)
+  }
+  return (
+    <>
+      <div className={`file-header${compact ? ' file-header-compact' : ''}`}>
+        <span className="file-title">
+          <span className="file-dir">{dirname(file.path)}</span>
+          <span className="file-name">{basename(file.path)}</span>
+        </span>
+        <span className="count-add">+{file.additions}</span>
+        <span className="count-del">−{file.deletions}</span>
+        <div className="file-toolbar">
+          <Segmented<DiffMode>
+            label="Diff view"
+            value={mode}
+            options={[
+              { value: 'unified', label: 'Merged' },
+              { value: 'split', label: compact ? 'Split' : 'Side by side' },
+            ]}
+            onChange={onMode}
+          />
+          <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
+            {viewed ? (
+              <>
+                Viewed <Check size={12} weight="bold" />
+              </>
+            ) : (
+              'Mark viewed'
+            )}
+          </button>
+        </div>
+      </div>
+      <div
+        ref={bodyRef}
+        className="diff-body"
+        onMouseOver={(e) => touch(e.target)}
+        onFocus={(e) => touch(e.target)}
+      >
+        {!parsed || parsed.hunks.length === 0 ? (
+          <p className="notice">Binary file or no textual changes.</p>
+        ) : (
+          <div className={mode === 'unified' ? 'diff-unified' : 'diff-split'}>
+            {parsed.hunks.map((hunk, i) =>
+              mode === 'unified' ? <UnifiedHunk key={i} hunk={hunk} {...menu} /> : <SplitHunk key={i} hunk={hunk} {...menu} />,
+            )}
+          </div>
+        )}
+        {children}
+      </div>
+    </>
   )
 }

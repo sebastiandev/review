@@ -25,7 +25,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.ts'],
-    // Needed so `tokens.css?raw` resolves to the file text instead of an empty module.
+    // Needed so `*.css?raw` resolves to the file text instead of an empty module.
     css: true,
   },
 })

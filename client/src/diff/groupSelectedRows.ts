@@ -4,7 +4,7 @@ import type { DiffSelection } from '@revu/shared'
 export type SelectedRow = {
   path: string
   line: number
-  /** react-diff-view side: 'old' for deleted lines, 'new' otherwise. */
+  /** Diff side: 'old' for deleted lines (and the left split column), 'new' otherwise. */
   side: 'old' | 'new'
   text: string
 }

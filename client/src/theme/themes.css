@@ -1,0 +1,89 @@
+/* UI themes re-point Nocturne's tokens on <html data-theme>. Nocturne itself is the stylesheet's own palette (no block). */
+
+[data-theme="ember"] {
+  --color-bg: #191614;
+  --color-surface: #221f1c;
+  --color-text: #efe9e1;
+  --color-divider: color-mix(in srgb, #efe9e1 16%, transparent);
+  --color-accent: #d9a05b;
+  --color-accent-100: #fdf6ec;
+  --color-accent-200: #f8e7cf;
+  --color-accent-300: #eecfa6;
+  --color-accent-400: #e0b578;
+  --color-accent-500: #cc9350;
+  --color-accent-600: #a8763d;
+  --color-accent-700: #825b2f;
+  --color-accent-800: #5c4123;
+  --color-accent-900: #332515;
+  --color-neutral-100: #f7f4f0;
+  --color-neutral-200: #eae5df;
+  --color-neutral-300: #d5cec6;
+  --color-neutral-400: #b6ada3;
+  --color-neutral-500: #958b80;
+  --color-neutral-600: #776d63;
+  --color-neutral-700: #5b524a;
+  --color-neutral-800: #413a34;
+  --color-neutral-900: #2a2521;
+  --shadow-sm: 0 0 0 1px #413a34;
+  --shadow-md: 0 0 0 1px #5b524a, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px #958b80, 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="slate"] {
+  --color-bg: #10151a;
+  --color-surface: #182029;
+  --color-text: #f4f8fb;
+  --color-divider: color-mix(in srgb, #f4f8fb 18%, transparent);
+  --color-accent: #79b8d1;
+  --color-accent-100: #f2fafd;
+  --color-accent-200: #dcf0f7;
+  --color-accent-300: #bde0ee;
+  --color-accent-400: #96cbe1;
+  --color-accent-500: #6faec8;
+  --color-accent-600: #558da6;
+  --color-accent-700: #416d80;
+  --color-accent-800: #2f4e5c;
+  --color-accent-900: #1e323b;
+  --color-neutral-100: #f5f8fa;
+  --color-neutral-200: #e6ebef;
+  --color-neutral-300: #d0d8de;
+  --color-neutral-400: #aeb9c2;
+  --color-neutral-500: #8c99a4;
+  --color-neutral-600: #6e7b86;
+  --color-neutral-700: #545f69;
+  --color-neutral-800: #3b444c;
+  --color-neutral-900: #212930;
+  --shadow-sm: 0 0 0 1px #3b444c;
+  --shadow-md: 0 0 0 1px #545f69, 0 6px 18px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 0 0 1px #8c99a4, 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* Diff themes: added/removed line tints and their text, on <html data-diff-theme>. */
+
+[data-diff-theme="nocturne"] {
+  --diff-add-bg: rgba(111, 170, 126, 0.13);
+  --diff-del-bg: rgba(196, 123, 123, 0.13);
+  --diff-add-fg: #cfe4d5;
+  --diff-del-fg: #e8cdcd;
+}
+
+[data-diff-theme="muted"] {
+  --diff-add-bg: rgba(140, 150, 170, 0.14);
+  --diff-del-bg: rgba(170, 140, 150, 0.14);
+  --diff-add-fg: #dcdfe8;
+  --diff-del-fg: #e6dade;
+}
+
+[data-diff-theme="vivid"] {
+  --diff-add-bg: rgba(86, 190, 120, 0.2);
+  --diff-del-bg: rgba(226, 96, 96, 0.18);
+  --diff-add-fg: #e2f5e7;
+  --diff-del-fg: #fbdede;
+}
+
+[data-diff-theme="paper"] {
+  --diff-add-bg: rgba(200, 205, 180, 0.14);
+  --diff-del-bg: rgba(205, 185, 170, 0.14);
+  --diff-add-fg: #eceada;
+  --diff-del-fg: #f0e2d8;
+}

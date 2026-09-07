@@ -12,7 +12,7 @@ const EMPTY: DiffSelectionState = { selections: [], rect: null }
 
 function rowOf(node: Node | null): HTMLElement | null {
   const element = node instanceof Element ? node : node?.parentElement ?? null
-  return element?.closest<HTMLElement>('tr[data-path]') ?? null
+  return element?.closest<HTMLElement>('[data-path][data-line]') ?? null
 }
 
 function selectedRow(tr: HTMLElement): SelectedRow | null {
@@ -20,7 +20,7 @@ function selectedRow(tr: HTMLElement): SelectedRow | null {
   const line = Number(tr.dataset.line)
   const side = tr.dataset.side
   if (!path || !Number.isFinite(line) || (side !== 'old' && side !== 'new')) return null
-  return { path, line, side, text: tr.querySelector('td.diff-code')?.textContent ?? '' }
+  return { path, line, side, text: tr.querySelector('.diff-text')?.textContent ?? '' }
 }
 
 function endRect(range: Range): DOMRect {
@@ -37,7 +37,7 @@ function readSelection(container: HTMLElement): DiffSelectionState {
   const range = selection.getRangeAt(0)
   if (!rowOf(range.startContainer) && !rowOf(range.endContainer)) return EMPTY
   const rows: SelectedRow[] = []
-  for (const tr of container.querySelectorAll<HTMLElement>('tr[data-path]')) {
+  for (const tr of container.querySelectorAll<HTMLElement>('[data-path][data-line]')) {
     if (!range.intersectsNode(tr)) continue
     const row = selectedRow(tr)
     if (row) rows.push(row)

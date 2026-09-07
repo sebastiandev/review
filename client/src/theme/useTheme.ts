@@ -1,33 +1,40 @@
 import { useEffect, useState } from 'react'
 
-export type Theme = 'dark' | 'light' | 'system'
+export const UI_THEMES = ['nocturne', 'ember', 'slate'] as const
+export const DIFF_THEMES = ['nocturne', 'muted', 'vivid', 'paper'] as const
 
-const STORAGE_KEY = 'revu.theme'
-const DARK_QUERY = '(prefers-color-scheme: dark)'
+export type UiTheme = (typeof UI_THEMES)[number]
+export type DiffTheme = (typeof DIFF_THEMES)[number]
 
-function storedTheme(): Theme {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return stored === 'dark' || stored === 'light' ? stored : 'system'
+// Keys and attribute names are mirrored by the inline script in index.html that applies them before first paint.
+const UI_KEY = 'revu.theme'
+const DIFF_KEY = 'revu.diffTheme'
+
+function stored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  const value = localStorage.getItem(key)
+  return allowed.includes(value as T) ? (value as T) : fallback
 }
 
-function resolveTheme(theme: Theme): 'dark' | 'light' {
-  if (theme !== 'system') return theme
-  return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
-}
-
-/** Current theme choice and its setter; persists and mirrors the resolved value onto `<html data-theme>`. */
-export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>(storedTheme)
-
+function usePersistedAttribute<T extends string>(
+  key: string,
+  attribute: string,
+  allowed: readonly T[],
+  fallback: T,
+): [T, (value: T) => void] {
+  const [value, setValue] = useState<T>(() => stored(key, allowed, fallback))
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, theme)
-    const apply = () => document.documentElement.setAttribute('data-theme', resolveTheme(theme))
-    apply()
-    if (theme !== 'system') return
-    const media = window.matchMedia(DARK_QUERY)
-    media.addEventListener('change', apply)
-    return () => media.removeEventListener('change', apply)
-  }, [theme])
+    localStorage.setItem(key, value)
+    document.documentElement.setAttribute(attribute, value)
+  }, [key, attribute, value])
+  return [value, setValue]
+}
 
-  return [theme, setTheme]
+/** UI theme and its setter; persisted and mirrored onto `<html data-theme>`. */
+export function useUiTheme(): [UiTheme, (theme: UiTheme) => void] {
+  return usePersistedAttribute(UI_KEY, 'data-theme', UI_THEMES, 'nocturne')
+}
+
+/** Diff line-tint theme and its setter; persisted and mirrored onto `<html data-diff-theme>`. */
+export function useDiffTheme(): [DiffTheme, (theme: DiffTheme) => void] {
+  return usePersistedAttribute(DIFF_KEY, 'data-diff-theme', DIFF_THEMES, 'nocturne')
 }

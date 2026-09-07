@@ -1,21 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="nocturne" data-diff-theme="nocturne">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>revu</title>
+    <title>Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
     <script>
-      // Apply the persisted theme before first paint to avoid a flash.
-      (function () {
-        var stored = localStorage.getItem('revu.theme')
-        var theme = stored === 'dark' || stored === 'light' ? stored : 'system'
-        var resolved =
-          theme === 'system'
-            ? window.matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light'
-            : theme
-        document.documentElement.setAttribute('data-theme', resolved)
+      // Apply the persisted themes before first paint to avoid a flash. Keys mirror src/theme/useTheme.ts.
+      ;(function () {
+        var pick = function (key, allowed, fallback) {
+          var stored = localStorage.getItem(key)
+          return allowed.indexOf(stored) >= 0 ? stored : fallback
+        }
+        var root = document.documentElement
+        root.setAttribute('data-theme', pick('revu.theme', ['nocturne', 'ember', 'slate'], 'nocturne'))
+        root.setAttribute('data-diff-theme', pick('revu.diffTheme', ['nocturne', 'muted', 'vivid', 'paper'], 'nocturne'))
       })()
     </script>
   </head>

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import type { AppConfig, ChatPart, ChatSendRequest, DiffSelection, ModelRef, PermissionAsk, PermissionReply } from '@revu/shared'
 import { Picker, type PickerItem } from './Picker'
 import { quoteSelection, splitQuotes, type Quote } from './quotes'
@@ -6,14 +7,16 @@ import { LOCAL_COMMANDS, parseSlashCommand, slashPrefix, type LocalCommand } fro
 import type { ChatTurn } from './useChat'
 import type { TurnSettingsState } from './useTurnSettings'
 
-export const DOCK_MIN_WIDTH = 320
-const DOCK_STORAGE_KEY = 'revu.dockWidth'
-
 /** Selections the user asked about; a new `id` appends them to the composer. */
 export type QuoteRequest = { id: number; selections: DiffSelection[] }
 
 type ChatDockProps = {
   open: boolean
+  /** Shown in the header: `working tree` / `patch file`. */
+  scope: string | null
+  /** Context chips: the selected file's basename and the file count. */
+  currentFile: string | null
+  fileCount: number
   parts: ChatPart[]
   idle: boolean
   permissions: PermissionAsk[]
@@ -27,6 +30,7 @@ type ChatDockProps = {
   onSend: (request: ChatSendRequest) => void
   onPermission: (id: string, response: PermissionReply) => void
   onJumpTo: (path: string, start: number, end: number) => void
+  onToggle: () => void
 }
 
 const EMPTY_CONFIG: Pick<AppConfig, 'agents' | 'models' | 'commands'> = { agents: [], models: [], commands: [] }
@@ -38,39 +42,6 @@ const LOCAL_COMMAND_HINTS: Record<LocalCommand, string> = {
 }
 
 const NO_VARIANT: PickerItem = { id: '', label: 'no variant' }
-
-function storedDockWidth(): number {
-  const stored = Number(localStorage.getItem(DOCK_STORAGE_KEY))
-  return stored >= DOCK_MIN_WIDTH ? stored : 400
-}
-
-/** Dock width in px, persisted; `startResize` begins a pointer drag on the left edge. */
-export function useDockWidth() {
-  const [width, setWidth] = useState(storedDockWidth)
-  const [dragging, setDragging] = useState(false)
-
-  useEffect(() => {
-    localStorage.setItem(DOCK_STORAGE_KEY, String(width))
-  }, [width])
-
-  const startResize = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setDragging(true)
-    const onMove = (move: globalThis.PointerEvent) => {
-      const max = window.innerWidth - 400
-      setWidth(Math.min(max, Math.max(DOCK_MIN_WIDTH, window.innerWidth - move.clientX)))
-    }
-    const onUp = () => {
-      setDragging(false)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }, [])
-
-  return { width, dragging, startResize }
-}
 
 type QuoteBlockProps = { quote: Quote; onJumpTo: ChatDockProps['onJumpTo'] }
 
@@ -146,13 +117,13 @@ function PermissionRow({ ask, onPermission }: PermissionRowProps) {
     <div className="permission">
       <span className="permission-title">{ask.title}</span>
       <span className="permission-actions">
-        <button type="button" onClick={() => onPermission(ask.id, 'once')}>
+        <button type="button" className="btn btn-primary btn-xs" onClick={() => onPermission(ask.id, 'once')}>
           Allow once
         </button>
-        <button type="button" onClick={() => onPermission(ask.id, 'always')}>
+        <button type="button" className="btn btn-secondary btn-xs" onClick={() => onPermission(ask.id, 'always')}>
           Always
         </button>
-        <button type="button" onClick={() => onPermission(ask.id, 'reject')}>
+        <button type="button" className="btn btn-secondary btn-xs" onClick={() => onPermission(ask.id, 'reject')}>
           Reject
         </button>
       </span>
@@ -241,17 +212,17 @@ function Composer({ idle, quoteRequest, commands, onSend, onOpenPicker }: Compos
       {prefix !== null && (
         <Picker items={completions} filter={prefix} keySource={textarea} onPick={onComplete} onClose={clear} />
       )}
-      <textarea
-        ref={textarea}
-        className="composer-input"
-        value={draft}
-        placeholder="Ask about the diff…  ⌘↵ to send  / for commands"
-        rows={4}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      <div className="composer-actions">
-        <button type="button" className="button-primary" disabled={!idle || !draft.trim()} onClick={submit}>
+      <div className="composer-row">
+        <textarea
+          ref={textarea}
+          className="input composer-input"
+          value={draft}
+          placeholder="Ask about the diff…  ⌘↵ to send  / for commands"
+          rows={1}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        <button type="button" className="btn btn-primary composer-send" disabled={!idle || !draft.trim()} onClick={submit}>
           Send
         </button>
       </div>
@@ -269,7 +240,7 @@ type StatusRowProps = {
 
 const sameModel = (a: ModelRef, b: ModelRef) => a.providerID === b.providerID && a.modelID === b.modelID
 
-/** One 24px row naming agent · model · variant. Shows what the last turn actually used once known. */
+/** Mono row naming agent · model · variant. Shows what the last turn actually used once known. */
 function StatusRow({ config, turn, lastTurn, picker, onOpenPicker }: StatusRowProps) {
   const { settings } = turn
   const shownAgent = lastTurn ? lastTurn.agent : settings.agent
@@ -341,9 +312,12 @@ function StatusRow({ config, turn, lastTurn, picker, onOpenPicker }: StatusRowPr
   )
 }
 
-/** Right-hand chat dock: message list, pending permission asks and the composer. */
+/** Right-hand chat dock: 344px open (header, context chips, turns, footer) or a 44px rail with a vertical "Chat". */
 export function ChatDock({
   open,
+  scope,
+  currentFile,
+  fileCount,
   parts,
   idle,
   permissions,
@@ -355,34 +329,55 @@ export function ChatDock({
   onSend,
   onPermission,
   onJumpTo,
+  onToggle,
 }: ChatDockProps) {
-  const { width, dragging, startResize } = useDockWidth()
   const list = useRef<HTMLDivElement>(null)
   const [picker, setPicker] = useState<LocalCommand | null>(null)
   const catalog = config ?? EMPTY_CONFIG
+  const shownAgent = lastTurn ? lastTurn.agent : turn.settings.agent
 
   useEffect(() => {
     const element = list.current
     if (element) element.scrollTop = element.scrollHeight
   }, [parts, permissions])
 
+  if (!open) {
+    return (
+      <aside className="dock dock-collapsed">
+        <button type="button" className="dock-expand" aria-label="Show chat" aria-expanded={false} onClick={onToggle}>
+          <CaretLeft size={14} />
+        </button>
+        <span className="dock-vertical">Chat</span>
+      </aside>
+    )
+  }
+
   return (
-    <aside className={`dock${dragging ? ' dock-dragging' : ''}`} style={{ width: open ? width : 0 }} inert={!open}>
-      <div className="dock-resize" role="separator" aria-orientation="vertical" onPointerDown={startResize} />
-      <div className="dock-inner" style={{ width }}>
-        <div ref={list} className="dock-messages">
-          {parts.map((part) => (
-            <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
-          ))}
-          {permissions.map((ask) => (
-            <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
-          ))}
-          {error && <p className="dock-error">{error}</p>}
-        </div>
-        <div className="dock-footer">
-          <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-          <Composer idle={idle} quoteRequest={quoteRequest} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
-        </div>
+    <aside className="dock">
+      <div className="dock-head">
+        <span className="dock-title">Chat</span>
+        {scope && <span className="dock-scope">{scope}</span>}
+        <button type="button" className="dock-collapse" aria-label="Collapse chat" aria-expanded onClick={onToggle}>
+          <CaretRight size={14} />
+        </button>
+      </div>
+      <div className="dock-context">
+        {currentFile && <span className="context-chip">{currentFile}</span>}
+        <span className="context-chip">{fileCount} files</span>
+      </div>
+      <div ref={list} className="dock-messages">
+        {parts.map((part) => (
+          <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
+        ))}
+        {permissions.map((ask) => (
+          <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
+        ))}
+        {error && <p className="dock-error">{error}</p>}
+      </div>
+      <div className="dock-footer">
+        <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
+        <Composer idle={idle} quoteRequest={quoteRequest} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
+        <div className="dock-provenance">opencode · {shownAgent ?? 'default agent'}{scope ? ` · ${scope}` : ''}</div>
       </div>
     </aside>
   )
