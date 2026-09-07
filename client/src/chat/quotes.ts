@@ -1,15 +1,9 @@
-import type { DiffSelection } from '@review/shared'
-
 /** A quoted diff range inside a user turn. */
 export type Quote = { path: string; startLine: number; endLine: number; text: string }
 
 export type TextSegment = { kind: 'text'; text: string } | { kind: 'quote'; quote: Quote }
 
-/** Fenced block a selection becomes in the composer: ```path:start-end ... ``` */
-export function quoteSelection(selection: DiffSelection): string {
-  return `\`\`\`${selection.path}:${selection.startLine}-${selection.endLine}\n${selection.text}\n\`\`\`\n`
-}
-
+/** Fenced block a quoted selection takes inside a user turn: ```path:start-end ... ``` */
 const FENCE = /```([^\s`]+):(\d+)-(\d+)\n([\s\S]*?)\n```\n?/g
 
 /** Splits a user turn into plain text and quoted diff ranges. */

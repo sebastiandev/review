@@ -1,4 +1,12 @@
-import type { AppConfig, ChatPart, ChatSendRequest, DiffDocument, PermissionReply } from '@review/shared'
+import type {
+  AppConfig,
+  ChatPart,
+  ChatSendRequest,
+  ChatThreadRef,
+  DiffDocument,
+  DiffSelection,
+  PermissionReply,
+} from '@review/shared'
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -6,14 +14,19 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+const jsonInit = (body: unknown): RequestInit => ({
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+})
+
 async function postJson(url: string, body: unknown): Promise<void> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const res = await fetch(url, jsonInit(body))
   if (!res.ok) throw new Error(`POST ${url} -> ${res.status}`)
 }
+
+/** Thread ids contain `/` and `:`; they travel as one path segment. */
+const threadPath = (thread: string) => `/api/chat/${encodeURIComponent(thread)}`
 
 /** The diff the session is reviewing. */
 export function fetchDiff(): Promise<DiffDocument> {
@@ -25,17 +38,27 @@ export function fetchConfig(): Promise<AppConfig> {
   return requestJson<AppConfig>('/api/config')
 }
 
-/** Chat parts already produced in this session. */
-export function fetchChatHistory(): Promise<ChatPart[]> {
-  return requestJson<ChatPart[]>('/api/chat/history')
+/** Every thread the server knows: `dock` plus the line threads created so far. */
+export function fetchThreads(): Promise<ChatThreadRef[]> {
+  return requestJson<ChatThreadRef[]>('/api/threads')
 }
 
-/** Sends a user turn; the reply streams over /api/events. */
-export function sendChat(body: ChatSendRequest): Promise<void> {
-  return postJson('/api/chat', body)
+/** The thread anchored to `anchor`'s start line, created on first use. */
+export function createLineThread(anchor: DiffSelection): Promise<ChatThreadRef> {
+  return requestJson<ChatThreadRef>('/api/threads/line', jsonInit(anchor))
 }
 
-/** Answers a pending permission ask. */
-export function replyPermission(id: string, response: PermissionReply): Promise<void> {
-  return postJson(`/api/permission/${encodeURIComponent(id)}`, { response })
+/** Chat parts already produced in one thread. */
+export function fetchChatHistory(thread: string): Promise<ChatPart[]> {
+  return requestJson<ChatPart[]>(`${threadPath(thread)}/history`)
+}
+
+/** Sends a user turn to one thread; the reply streams over /api/events. */
+export function sendChat(thread: string, body: ChatSendRequest): Promise<void> {
+  return postJson(threadPath(thread), body)
+}
+
+/** Answers a pending permission ask in one thread. */
+export function replyPermission(thread: string, id: string, response: PermissionReply): Promise<void> {
+  return postJson(`${threadPath(thread)}/permission/${encodeURIComponent(id)}`, { response })
 }

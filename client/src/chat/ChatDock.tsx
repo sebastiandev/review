@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CaretLeft, CaretRight } from '@phosphor-icons/react'
-import type { AppConfig, ChatPart, ChatSendRequest, DiffSelection, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
+import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { Picker, type PickerItem } from './Picker'
-import { quoteSelection, splitQuotes, type Quote } from './quotes'
+import { splitQuotes, type Quote } from './quotes'
 import { LOCAL_COMMANDS, parseSlashCommand, slashPrefix, type LocalCommand } from './slashCommand'
-import type { ChatTurn } from './useChat'
+import type { ChatTurn } from './threadStore'
 import type { TurnSettingsState } from './useTurnSettings'
-
-/** Selections the user asked about; a new `id` appends them to the composer. */
-export type QuoteRequest = { id: number; selections: DiffSelection[] }
 
 type ChatDockProps = {
   open: boolean
@@ -21,7 +18,6 @@ type ChatDockProps = {
   idle: boolean
   permissions: PermissionAsk[]
   error: string | null
-  quoteRequest: QuoteRequest | null
   /** Undefined until /api/config has loaded. */
   config: AppConfig | undefined
   turn: TurnSettingsState
@@ -133,38 +129,18 @@ function PermissionRow({ ask, onPermission }: PermissionRowProps) {
 
 type ComposerProps = {
   idle: boolean
-  quoteRequest: QuoteRequest | null
   commands: AppConfig['commands']
   onSend: ChatDockProps['onSend']
   onOpenPicker: (kind: LocalCommand) => void
 }
 
-function Composer({ idle, quoteRequest, commands, onSend, onOpenPicker }: ComposerProps) {
+function Composer({ idle, commands, onSend, onOpenPicker }: ComposerProps) {
   const [draft, setDraft] = useState('')
-  const [attached, setAttached] = useState<DiffSelection[]>([])
   const textarea = useRef<HTMLTextAreaElement>(null)
-  const consumed = useRef<number | null>(null)
   const commandNames = commands.map((c) => c.name)
   const prefix = slashPrefix(draft)
 
-  useEffect(() => {
-    if (!quoteRequest || consumed.current === quoteRequest.id) return
-    consumed.current = quoteRequest.id
-    const quoted = quoteRequest.selections.map(quoteSelection).join('')
-    const next = draft.length && !draft.endsWith('\n') ? `${draft}\n${quoted}` : `${draft}${quoted}`
-    setDraft(next)
-    setAttached((current) => [...current, ...quoteRequest.selections])
-    const element = textarea.current
-    if (element) {
-      element.focus()
-      requestAnimationFrame(() => element.setSelectionRange(next.length, next.length))
-    }
-  }, [quoteRequest, draft])
-
-  const clear = () => {
-    setDraft('')
-    setAttached([])
-  }
+  const clear = () => setDraft('')
 
   const submit = () => {
     const text = draft.trim()
@@ -175,9 +151,8 @@ function Composer({ idle, quoteRequest, commands, onSend, onOpenPicker }: Compos
       clear()
       return
     }
-    const selections = attached.length ? attached : undefined
-    if (parsed.kind === 'server') onSend({ command: parsed.name, text: parsed.args, selections })
-    else onSend({ text, selections })
+    if (parsed.kind === 'server') onSend({ command: parsed.name, text: parsed.args })
+    else onSend({ text })
     clear()
   }
 
@@ -322,7 +297,6 @@ export function ChatDock({
   idle,
   permissions,
   error,
-  quoteRequest,
   config,
   turn,
   lastTurn,
@@ -376,7 +350,7 @@ export function ChatDock({
       </div>
       <div className="dock-footer">
         <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-        <Composer idle={idle} quoteRequest={quoteRequest} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
+        <Composer idle={idle} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
         <div className="dock-provenance">opencode · {shownAgent ?? 'default agent'}{scope ? ` · ${scope}` : ''}</div>
       </div>
     </aside>

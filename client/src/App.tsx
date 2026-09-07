@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ChatSendRequest, DiffSelection } from '@review/shared'
+import type { ChatSendRequest, ChatThreadRef, DiffSelection } from '@review/shared'
 import { fetchConfig, fetchDiff } from './api'
-import { ChatDock, type QuoteRequest } from './chat/ChatDock'
-import { useChat } from './chat/useChat'
+import { ChatDock } from './chat/ChatDock'
+import { InlineChat } from './chat/InlineChat'
+import { DOCK_THREAD, useChatThreads } from './chat/useChatThreads'
 import { useTurnSettings } from './chat/useTurnSettings'
 import { AskPill } from './diff/AskPill'
-import { DiffView, type DiffMode } from './diff/DiffView'
+import { DiffView, lineKey, type DiffMode, type LineThreadState } from './diff/DiffView'
 import type { LineRef } from './diff/LineActionButton'
 import { parsePatch } from './diff/parsePatch'
 import { useDiffSelection } from './diff/useDiffSelection'
@@ -43,6 +44,15 @@ function flashLines(body: HTMLElement, path: string, start: number, end: number)
 
 type Overlay = 'shortcuts' | 'theme' | 'scope' | null
 
+/** The `lineKey` a thread anchor lands on inside its file. */
+function anchorKey(anchor: DiffSelection): string {
+  return lineKey(anchor.side === 'LEFT' ? 'old' : 'new', anchor.startLine)
+}
+
+function anchorOf(ref: LineRef): DiffSelection {
+  return { path: ref.path, startLine: ref.line, endLine: ref.line, side: ref.side === 'old' ? 'LEFT' : 'RIGHT', text: ref.text }
+}
+
 /** Application shell: top bar, rail, file tree, one file's diff, chat dock and status bar. */
 export function App() {
   const [uiTheme, setUiTheme] = useUiTheme()
@@ -53,15 +63,17 @@ export function App() {
   const [mode, setMode] = useState<DiffMode>('unified')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
-  const [quoteRequest, setQuoteRequest] = useState<QuoteRequest | null>(null)
+  /** Id of the line thread whose card is showing; every other thread is minimized. */
+  const [chatLine, setChatLine] = useState<string | null>(null)
   const body = useRef<HTMLDivElement>(null)
   const touchedLine = useRef<LineRef | null>(null)
   const pendingJump = useRef<{ path: string; start: number; end: number } | null>(null)
 
   const diff = useQuery({ queryKey: ['diff'], queryFn: fetchDiff })
   const config = useQuery({ queryKey: ['config'], queryFn: fetchConfig, staleTime: Infinity })
-  const chat = useChat()
+  const chat = useChatThreads()
   const turn = useTurnSettings()
+  const dock = chat.thread(DOCK_THREAD)
   const { selections, rect: selectionRect, clear: clearSelection } = useDiffSelection(body)
 
   const document = diff.data
@@ -71,6 +83,16 @@ export function App() {
   const files = document?.files ?? []
   const selectedIndex = files.findIndex((f) => f.path === selectedPath)
   const selectedFile = selectedIndex >= 0 ? files[selectedIndex] : files[0]
+  const openThread = chat.refs.find((ref) => ref.id === chatLine) ?? null
+  const fileThreads = useMemo(
+    () => chat.refs.filter((ref): ref is ChatThreadRef & { anchor: DiffSelection } => ref.anchor?.path === selectedFile?.path),
+    [chat.refs, selectedFile?.path],
+  )
+  const threadsByLine = useMemo(() => {
+    const byLine: Record<string, LineThreadState> = {}
+    for (const ref of fileThreads) byLine[anchorKey(ref.anchor)] = ref.id === chatLine ? 'open' : 'minimized'
+    return byLine
+  }, [fileThreads, chatLine])
 
   const toggleOverlay = useCallback((which: Exclude<Overlay, null>) => {
     setOverlay((current) => (current === which ? null : which))
@@ -91,17 +113,43 @@ export function App() {
     [files, selectedIndex, selectFile],
   )
 
-  const onAsk = useCallback(
-    (selections: DiffSelection[]) => {
-      layout.openDock()
-      setQuoteRequest({ id: Date.now(), selections })
+  const openLineChat = useCallback(
+    (anchor: DiffSelection) => {
+      setOpenMenu(null)
       clearSelection()
+      void chat.openLineThread(anchor).then((ref) => setChatLine(ref.id))
     },
-    [clearSelection, layout.openDock],
+    [chat.openLineThread, clearSelection],
+  )
+
+  const askLine = useCallback((ref: LineRef) => openLineChat(anchorOf(ref)), [openLineChat])
+
+  const askSelection = useCallback(
+    (selections: DiffSelection[]) => {
+      const first = selections[0]
+      if (first) openLineChat(first)
+    },
+    [openLineChat],
+  )
+
+  const toggleThread = useCallback(
+    (key: string) => {
+      const ref = fileThreads.find((r) => anchorKey(r.anchor) === key)
+      if (ref) setChatLine((current) => (current === ref.id ? null : ref.id))
+    },
+    [fileThreads],
+  )
+
+  const closeThread = useCallback(
+    (id: string) => {
+      chat.forget(id)
+      setChatLine((current) => (current === id ? null : current))
+    },
+    [chat.forget],
   )
 
   const onSend = useCallback(
-    (request: ChatSendRequest) => chat.send({ ...request, ...turn.settings }),
+    (request: ChatSendRequest) => chat.send(DOCK_THREAD, { ...request, ...turn.settings }),
     [chat.send, turn.settings],
   )
 
@@ -129,15 +177,20 @@ export function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setOverlay(null)
-        setOpenMenu(null)
+        // One layer per press: line menu, then the inline chat card, then overlays.
         clearSelection()
+        if (openMenu) setOpenMenu(null)
+        else if (chatLine) setChatLine(null)
+        else setOverlay(null)
         return
       }
       if (isEditing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
       switch (e.key) {
         case '?':
           toggleOverlay('shortcuts')
+          break
+        case 'a':
+          if (touchedLine.current) askLine(touchedLine.current)
           break
         case 'j':
           stepFile(1)
@@ -164,7 +217,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [clearSelection, toggleOverlay, stepFile, toggleDock, selectedFile, toggleViewed, copyRef])
+  }, [clearSelection, openMenu, chatLine, toggleOverlay, stepFile, toggleDock, selectedFile, toggleViewed, copyRef, askLine])
 
   const pillPosition = (() => {
     if (!selectionRect || !body.current) return null
@@ -224,19 +277,33 @@ export function App() {
               compact={layout.compact}
               viewed={viewed.has(selectedFile.path)}
               openMenu={openMenu}
+              threads={threadsByLine}
               bodyRef={body}
               onMode={setMode}
               onToggleViewed={() => toggleViewed(selectedFile.path)}
               onToggleMenu={setOpenMenu}
+              onAsk={askLine}
               onCopyRef={copyRef}
+              onToggleThread={toggleThread}
               onTouchLine={(ref) => {
                 touchedLine.current = ref
               }}
             >
               {pillPosition && selections.length > 0 && (
-                <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={onAsk} />
+                <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={askSelection} />
               )}
             </DiffView>
+          )}
+          {openThread && (
+            <InlineChat
+              key={openThread.id}
+              thread={openThread}
+              state={chat.thread(openThread.id)}
+              onSend={(text) => chat.send(openThread.id, { text, ...turn.settings })}
+              onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
+              onMinimize={() => setChatLine(null)}
+              onClose={() => closeThread(openThread.id)}
+            />
           )}
         </main>
         <ChatDock
@@ -244,16 +311,15 @@ export function App() {
           scope={document ? scopeKind(document.source) : null}
           currentFile={selectedFile ? basename(selectedFile.path) : null}
           fileCount={files.length}
-          parts={chat.parts}
-          idle={chat.idle}
-          permissions={chat.permissions}
-          error={chat.error}
-          quoteRequest={quoteRequest}
+          parts={dock.parts}
+          idle={dock.idle}
+          permissions={dock.permissions}
+          error={dock.error}
           config={config.data}
           turn={turn}
-          lastTurn={chat.lastTurn}
+          lastTurn={dock.lastTurn}
           onSend={onSend}
-          onPermission={chat.answerPermission}
+          onPermission={(id, reply) => chat.respondPermission(DOCK_THREAD, id, reply)}
           onJumpTo={onJumpTo}
           onToggle={layout.toggleDock}
         />

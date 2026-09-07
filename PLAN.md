@@ -16,30 +16,30 @@ Status legend: [x] done · [ ] pending
 
 Goal: what exists today looks like the design. No new features.
 
-- [ ] Replace `client/src/theme/tokens.css` with `design/design-system/styles.css`; map the old
+- [x] Replace `client/src/theme/tokens.css` with `design/design-system/styles.css`; map the old
       token names onto Nocturne variables during the transition, then delete them.
-- [ ] Three UI themes (Nocturne / Ember / Slate) via `data-theme`; four diff themes via
+- [x] Three UI themes (Nocturne / Ember / Slate) via `data-theme`; four diff themes via
       `data-diff-theme`. Persist both. Drop `system`/light.
-- [ ] App shell: top bar 46, icon rail 48, sidebar 306 (resizable 220–460, clamp rule from README),
+- [x] App shell: top bar 46, icon rail 48, sidebar 306 (resizable 220–460, clamp rule from README),
       center, dock 344/44, status bar 26. Responsive rules (1300 / 1060 / centerW 720 / 780).
-- [ ] Diff body per README §2: gutters 46, `⋯` line action button (Phosphor `dots-three`), hunk
+- [x] Diff body per README §2: gutters 46, `⋯` line action button (Phosphor `dots-three`), hunk
       rows, merged + side-by-side, `min-width` 620/860 inside `overflow:auto`.
-- [ ] Chat dock per README §8, keeping the status row (agent · model · variant) and `/` commands.
-- [ ] Sidebar = file tree with status dots and viewed checkboxes; scope selector in diff mode.
-- [ ] Fonts: Inter + JetBrains Mono. Phosphor icons for rail glyphs.
-- [ ] Shortcuts sheet (`?`) and the keys already meaningful in diff mode: `j k u s d v y esc`.
+- [x] Chat dock per README §8, keeping the status row (agent · model · variant) and `/` commands.
+- [x] Sidebar = file tree with status dots and viewed checkboxes; scope selector in diff mode.
+- [x] Fonts: Inter + JetBrains Mono. Phosphor icons for rail glyphs.
+- [x] Shortcuts sheet (`?`) and the keys already meaningful in diff mode: `j k u s d v y esc`.
 
 ## Phase 1 — Line actions and inline chat  ~1 day
 
-- [ ] Line menu (single-open, `esc` closes): Ask the agent here · Copy line reference
+- [x] Line menu (single-open, `esc` closes): Ask the agent here · Copy line reference
       (Add review comment appears in PR mode only, phase 3).
-- [ ] Inline chat card at pane level (absolute, right/bottom), per line, minimizable to a gutter
+- [x] Inline chat card at pane level (absolute, right/bottom), per line, minimizable to a gutter
       marker (Phosphor `chat-centered`); anchor line tinted while open. Several may exist;
       one card shown at a time.
-- [ ] Server: `ChatSession` gains child sessions keyed by line reference; each inline chat is an
+- [x] Server: `ChatSession` gains child sessions keyed by line reference; each inline chat is an
       opencode child session of the PR/scope session so it inherits context.
-- [ ] Keys: `a` ask in place, `y` copy ref, `c` reserved.
-- [ ] Text-selection → Ask stays as a second entry point in the diff (decided: both).
+- [x] Keys: `a` ask in place, `y` copy ref, `c` reserved.
+- [x] Text-selection → Ask stays as a second entry point in the diff (decided: both).
 
 ## Phase 2 — Markdown rich view  ~1 day
 
