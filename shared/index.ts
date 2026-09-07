@@ -91,11 +91,11 @@ export type ServerEvent =
   | { type: 'worktree.failed'; prId: number; message: string }
   | { type: 'worktree.removed'; prId: number }
   | { type: 'review.submitted'; prId: number; verdict: Verdict; remoteReviewId: string }
-  // Phase 4 (agent runs).
-  | { type: 'review.queued'; prId: number }
-  | { type: 'review.running'; prId: number }
-  | { type: 'review.ready'; prId: number; verdict: Verdict | null }
-  | { type: 'review.failed'; prId: number; message: string }
+  // Agent runs. `agentReviewId` is the `agent_review` row the run writes to.
+  | { type: 'review.queued'; prId: number; agentReviewId: number }
+  | { type: 'review.running'; prId: number; agentReviewId: number }
+  | { type: 'review.ready'; prId: number; agentReviewId: number; verdict: Verdict; findingCount: number }
+  | { type: 'review.failed'; prId: number; agentReviewId: number; message: string }
 
 export type Verdict = 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES'
 
@@ -158,7 +158,49 @@ export type InboxRow = {
   draftCommentCount: number
   /** Verdict already submitted for the current head, if any. */
   submittedVerdict: Verdict | null
+  /** Latest agent run for the current head, if any. */
+  agentStatus: AgentReviewStatus | null
+  /** Verdict of that run once ready. */
+  agentVerdict: Verdict | null
 }
+
+export type AgentReviewStatus = 'queued' | 'running' | 'ready' | 'failed'
+
+/** One agent run over a PR head. */
+export type AgentReview = {
+  id: number
+  prId: number
+  headSha: string
+  status: AgentReviewStatus
+  agent: string
+  model: ModelRef | null
+  variant: string | null
+  /** opencode session, so the chat pane can resume it. */
+  sessionId: string | null
+  verdict: Verdict | null
+  /** The agent's general feedback (payload `body`). */
+  summary: string | null
+  error: string | null
+  /** Payload comments dropped because they did not anchor to the diff. */
+  invalidAnchorCount: number
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+/** One remark the agent anchored to the diff. "Keep in review" copies it into a draft comment. */
+export type AgentFinding = {
+  id: number
+  agentReviewId: number
+  path: string
+  line: number
+  startLine: number | null
+  side: 'LEFT' | 'RIGHT'
+  severity: 'block' | 'question' | 'note'
+  body: string
+}
+
+/** One run with everything it produced. */
+export type AgentReviewDetail = { review: AgentReview; findings: AgentFinding[] }
 
 /** A remote PR not yet (or possibly already) in the inbox. */
 export type PrPreview = {
@@ -214,6 +256,8 @@ export type PrDetail = {
   diff: DiffDocument | null
   comments: RemoteCommentRow[]
   draft: { id: number; headSha: string; status: 'open' | 'submitted'; comments: DraftCommentRow[] } | null
+  /** Latest agent run for the current head, any status. */
+  agentReview: AgentReviewDetail | null
   viewed: { path: string; headSha: string }[]
 }
 

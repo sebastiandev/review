@@ -7,7 +7,7 @@ import { mergeSameLineComments, validateAnchors, type Submission } from '../revi
 import type { Store } from '../store.ts'
 
 export type SubmitReviewDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'drafts' | 'submissions'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'drafts' | 'submissions' | 'agentReviews'>
   providers: Record<ProviderKind, Pick<PullRequestProvider, 'submitReview'>>
   events: Events
   clock: Clock
@@ -25,7 +25,8 @@ export type SubmitReviewRequest = { prId: number; verdict: Verdict; body: string
  * - every selected comment anchors to the cached diff; otherwise they are flagged
  *   `anchorValid = false` in their own transaction and `InvalidAnchors(ids)` is thrown
  * Post-conditions:
- * - one `submission` row, the draft marked submitted, `review.submitted` emitted
+ * - one `submission` row carrying the verdict of the latest ready agent run for this head (if
+ *   any) as `agentVerdict`, the draft marked submitted, `review.submitted` emitted
  */
 export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequest): Promise<Submission> {
   const { store } = deps
@@ -54,8 +55,9 @@ export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequ
   const now = deps.clock()
   const submission = store.transaction(() => {
     const target = draft ?? findOrCreateDraft(store.drafts, pr.id, pr.headSha, now)
+    const agentVerdict = store.agentReviews.latest(pr.id, pr.headSha, 'ready')?.verdict ?? null
     const submission = store.submissions.insert(
-      { draftId: target.id, remoteReviewId, verdict: req.verdict, body: req.body, agentVerdict: null, submittedAt: now },
+      { draftId: target.id, remoteReviewId, verdict: req.verdict, body: req.body, agentVerdict, submittedAt: now },
       JSON.stringify(payload),
     )
     store.drafts.markSubmitted(target.id, now)

@@ -1,4 +1,5 @@
 import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
+import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, ParsedFinding } from './agentReview.ts'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from './pullRequests.ts'
 import type { DraftComment, ReviewDraft, Submission } from './review.ts'
 
@@ -46,12 +47,29 @@ export type Store = {
     markSubmitted(id: number, now: string): void
     comments(draftId: number): DraftComment[]
     getComment(id: number): DraftComment | null
+    /** The comment in `draftId` kept from finding `findingId`, if any. */
+    commentForFinding(draftId: number, findingId: number): DraftComment | null
     insertComment(c: Omit<DraftComment, 'id'>, now: string): DraftComment
     updateComment(id: number, patch: Partial<Pick<DraftComment, 'body' | 'selected' | 'anchorValid'>>, now: string): void
     deleteComment(id: number): void
   }
   submissions: {
     insert(s: Omit<Submission, 'id'>, payloadJson: string): Submission
+  }
+  agentReviews: {
+    get(id: number): AgentReview | null
+    /** Newest run for the head; `status` narrows it (e.g. the latest `ready` one). */
+    latest(prId: number, headSha: string, status: AgentReviewStatus | null): AgentReview | null
+    /** Every run for the PR with its findings, newest first. */
+    listForPr(prId: number): AgentReviewDetail[]
+    insert(r: Pick<AgentReview, 'prId' | 'headSha' | 'agent' | 'model' | 'variant'>): AgentReview
+    update(
+      id: number,
+      patch: Partial<Pick<AgentReview, 'status' | 'sessionId' | 'verdict' | 'summary' | 'error' | 'invalidAnchorCount' | 'startedAt' | 'finishedAt'>>,
+    ): void
+    findings(reviewId: number): AgentFinding[]
+    getFinding(id: number): AgentFinding | null
+    insertFindings(reviewId: number, rows: ParsedFinding[]): AgentFinding[]
   }
   viewed: {
     list(prId: number): { path: string; headSha: string }[]

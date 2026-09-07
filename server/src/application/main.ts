@@ -8,14 +8,16 @@ import { prMode } from './prMode.ts'
 import { fixedScope, LOCAL_SCOPE } from './scopes.ts'
 import { localRepoSource, patchFileSource } from '../infrastructure/diffSources.ts'
 import { eventBus } from '../infrastructure/events.ts'
+import { fileExists, fsPayloads } from '../infrastructure/fsPayloads.ts'
 import { ghProvider } from '../infrastructure/github/ghProvider.ts'
 import { gitWorktrees } from '../infrastructure/gitWorktrees.ts'
 import { openOpencodeChat } from '../infrastructure/opencodeChat.ts'
+import { opencodeRunner } from '../infrastructure/opencodeRunner.ts'
 import { execFileRunner } from '../infrastructure/process.ts'
 import { openDatabase } from '../infrastructure/sqlite/database.ts'
 import { sqliteStore } from '../infrastructure/sqlite/store.ts'
 
-/** `~/.cache/review`: the SQLite store, repo clones and PR worktrees. */
+/** `~/.cache/review`: the SQLite store, repo clones, PR worktrees and agent payloads. */
 export const DEFAULT_CACHE_DIR = join(homedir(), '.cache', 'review')
 
 export type DiffModeOptions = {
@@ -74,6 +76,9 @@ export async function startPrMode(opts: PrModeOptions) {
     // No GitLab adapter yet; `gh` under the gitlab key keeps the Record total until one exists.
     providers: { github, gitlab: github },
     worktrees: gitWorktrees({ cacheDir: opts.cacheDir, run: execFileRunner }),
+    runner: opencodeRunner({ baseUrl: opts.opencodeUrl }),
+    payloads: fsPayloads(join(opts.cacheDir, 'payloads')),
+    fileExists,
     events: eventBus(),
     clock: () => new Date().toISOString(),
     opencodeUrl: opts.opencodeUrl,

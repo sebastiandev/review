@@ -51,6 +51,11 @@ describe('ghProvider', () => {
     expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open review-requested:@me')
   })
 
+  it('viewerLogin asks graphql for the viewer', async () => {
+    const { run } = fakeRunner(() => JSON.stringify({ data: { viewer: { login: 'seba' } } }))
+    expect(await ghProvider(run).viewerLogin()).toBe('seba')
+  })
+
   it('get maps the node and passes the number as a variable', async () => {
     const { run, calls } = fakeRunner(() => fixture('graphql_get_merged.json'))
     const pr = await ghProvider(run).get(repo, 400)

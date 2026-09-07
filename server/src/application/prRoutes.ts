@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
-import type { Verdict } from '@review/shared'
+import type { ModelRef, Verdict } from '@review/shared'
 import { addPullRequests, listOpenPreviews, resolvePullRequest } from '../domain/commands/addPullRequests.ts'
+import { dismissFinding, keepAllFindings, keepFinding } from '../domain/commands/agentFindings.ts'
 import { addDraftComment, deleteDraftComment, editDraftComment } from '../domain/commands/draftComments.ts'
 import { markDone, reopenPullRequest } from '../domain/commands/markDone.ts'
 import type { OpenPullRequest } from '../domain/commands/openPullRequest.ts'
@@ -13,6 +14,7 @@ import type { ProviderKind, PullRequestProvider, RepoRef } from '../domain/pullR
 import type { Anchor } from '../domain/review.ts'
 import type { Store } from '../domain/store.ts'
 import type { Worktrees } from '../domain/worktrees.ts'
+import type { ReviewQueue } from './reviewQueue.ts'
 import type { Scheduler } from './scheduler.ts'
 
 export type PrRoutesDeps = {
@@ -23,6 +25,7 @@ export type PrRoutesDeps = {
   clock: Clock
   openPullRequest: OpenPullRequest
   scheduler: Pick<Scheduler, 'runNow'>
+  reviewQueue: ReviewQueue
 }
 
 /** PR-mode routes. Each one parses input, calls one Command or one read model, and maps the result. */
@@ -125,6 +128,37 @@ export function prRoutes(deps: PrRoutesDeps) {
     })
     return c.json(submission)
   })
+
+  /** Start an agent run; `agent`/`model`/`variant` default to the settings. Progress arrives over /api/events. */
+  app.post('/api/prs/:id/review', async (c) => {
+    const prId = id(c.req.param('id'))
+    if (!store.pullRequests.get(prId)) return c.json({ code: 'not_found' }, 404)
+    // Body is optional: defaults alone are a valid request.
+    const body = (await c.req.json().catch(() => ({}))) as { agent?: string; model?: ModelRef | null; variant?: string | null }
+    const settings = store.settings.read()
+    const status = deps.reviewQueue.enqueue({
+      prId,
+      agent: body.agent ?? settings.defaultReviewAgent,
+      model: body.model === undefined ? settings.defaultModel : body.model,
+      variant: body.variant === undefined ? settings.defaultVariant : body.variant,
+    })
+    return c.json({ status }, 202)
+  })
+
+  app.get('/api/prs/:id/reviews', (c) => c.json(store.agentReviews.listForPr(id(c.req.param('id')))))
+
+  app.post('/api/prs/:id/findings/:fid/keep', (c) =>
+    c.json(keepFinding(deps, { prId: id(c.req.param('id')), findingId: id(c.req.param('fid')) }), 201),
+  )
+
+  app.delete('/api/prs/:id/findings/:fid/keep', (c) => {
+    dismissFinding(deps, { prId: id(c.req.param('id')), findingId: id(c.req.param('fid')) })
+    return c.body(null, 204)
+  })
+
+  app.post('/api/prs/:id/reviews/:rid/keep-all', (c) =>
+    c.json(keepAllFindings(deps, { prId: id(c.req.param('id')), agentReviewId: id(c.req.param('rid')) })),
+  )
 
   app.get('/api/reviews', (c) => c.json(store.views.pastReviews((c.req.query('verdict') as Verdict | undefined) ?? null)))
 

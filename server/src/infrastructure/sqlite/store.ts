@@ -1,6 +1,7 @@
 import type { DatabaseSync, SQLInputValue, SQLOutputValue } from 'node:sqlite'
 import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from '../../domain/pullRequests.ts'
+import type { AgentFinding, AgentReview } from '../../domain/agentReview.ts'
 import type { DraftComment, ReviewDraft, Submission } from '../../domain/review.ts'
 import type { Store } from '../../domain/store.ts'
 import { DEFAULT_USER_SETTINGS } from '../../domain/settings.ts'
@@ -148,6 +149,8 @@ export function sqliteStore(db: DatabaseSync): Store {
       },
       comments: (draftId) => q('SELECT * FROM draft_comment WHERE draft_id = ? ORDER BY id').all(draftId).map(toDraftComment),
       getComment: (id) => nullable(q('SELECT * FROM draft_comment WHERE id = ?').get(id), toDraftComment),
+      commentForFinding: (draftId, findingId) =>
+        nullable(q('SELECT * FROM draft_comment WHERE draft_id = ? AND finding_id = ?').get(draftId, findingId), toDraftComment),
       insertComment(c, now) {
         const { lastInsertRowid } = q(
           `INSERT INTO draft_comment (draft_id, path, line, start_line, side, body, agent_body, origin, selected, anchor_valid, in_reply_to, finding_id, created_at, updated_at)
@@ -175,6 +178,54 @@ export function sqliteStore(db: DatabaseSync): Store {
           'INSERT INTO submission (draft_id, remote_review_id, verdict, body, agent_verdict, submitted_at, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ).run(s.draftId, s.remoteReviewId, s.verdict, s.body, s.agentVerdict, s.submittedAt, payloadJson)
         return toSubmission(q('SELECT * FROM submission WHERE id = ?').get(lastInsertRowid)!)
+      },
+    },
+
+    agentReviews: {
+      get: (id) => nullable(q('SELECT * FROM agent_review WHERE id = ?').get(id), toAgentReview),
+      latest: (prId, headSha, status) =>
+        nullable(
+          q('SELECT * FROM agent_review WHERE pr_id = ? AND head_sha = ? AND (? IS NULL OR status = ?) ORDER BY id DESC LIMIT 1').get(
+            prId, headSha, status, status,
+          ),
+          toAgentReview,
+        ),
+      listForPr(prId) {
+        const reviews = q('SELECT * FROM agent_review WHERE pr_id = ? ORDER BY id DESC').all(prId).map(toAgentReview)
+        const findings = q(
+          'SELECT f.* FROM agent_finding f JOIN agent_review r ON r.id = f.agent_review_id WHERE r.pr_id = ? ORDER BY f.id',
+        )
+          .all(prId)
+          .map(toAgentFinding)
+        return reviews.map((review) => ({ review, findings: findings.filter((f) => f.agentReviewId === review.id) }))
+      },
+      insert(r) {
+        const { lastInsertRowid } = q(
+          "INSERT INTO agent_review (pr_id, head_sha, status, agent, model, variant) VALUES (?, ?, 'queued', ?, ?, ?)",
+        ).run(r.prId, r.headSha, r.agent, r.model ? JSON.stringify(r.model) : null, r.variant)
+        return toAgentReview(q('SELECT * FROM agent_review WHERE id = ?').get(lastInsertRowid)!)
+      },
+      update(id, patch) {
+        const cols = columns(patch, {
+          status: (v) => v,
+          sessionId: (v) => v,
+          verdict: (v) => v,
+          summary: (v) => v,
+          error: (v) => v,
+          invalidAnchorCount: (v) => v,
+          startedAt: (v) => v,
+          finishedAt: (v) => v,
+        })
+        if (cols.sets.length) q(`UPDATE agent_review SET ${cols.sets.join(', ')} WHERE id = ?`).run(...cols.values, id)
+      },
+      findings: (reviewId) => q('SELECT * FROM agent_finding WHERE agent_review_id = ? ORDER BY id').all(reviewId).map(toAgentFinding),
+      getFinding: (id) => nullable(q('SELECT * FROM agent_finding WHERE id = ?').get(id), toAgentFinding),
+      insertFindings(reviewId, rows) {
+        const insert = q(
+          'INSERT INTO agent_finding (agent_review_id, path, line, start_line, side, severity, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        for (const f of rows) insert.run(reviewId, f.path, f.line, f.startLine, f.side, f.severity, f.body)
+        return store.agentReviews.findings(reviewId)
       },
     },
 
@@ -214,6 +265,7 @@ export function sqliteStore(db: DatabaseSync): Store {
         const pr = toPullRequest(row)
         const diff = store.diffs.get(pr.id, pr.headSha)
         const draft = store.drafts.open(pr.id, pr.headSha)
+        const agentReview = store.agentReviews.latest(pr.id, pr.headSha, null)
         return {
           pr: {
             ...toInboxRow(row),
@@ -237,6 +289,7 @@ export function sqliteStore(db: DatabaseSync): Store {
             status: draft.status,
             comments: store.drafts.comments(draft.id).map(({ draftId: _draftId, ...c }) => c),
           },
+          agentReview: agentReview && { review: agentReview, findings: store.agentReviews.findings(agentReview.id) },
           viewed: store.viewed.list(pr.id),
         }
       },
@@ -311,7 +364,9 @@ const INBOX_SELECT = `SELECT pr.*, r.owner || '/' || r.name AS repo,
          (SELECT COUNT(*) FROM draft_comment dc JOIN review_draft d ON d.id = dc.draft_id
            WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha AND d.status = 'open') AS draft_comment_count,
          (SELECT s.verdict FROM submission s JOIN review_draft d ON d.id = s.draft_id
-           WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha ORDER BY s.id DESC LIMIT 1) AS submitted_verdict
+           WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha ORDER BY s.id DESC LIMIT 1) AS submitted_verdict,
+         (SELECT ar.status FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_status,
+         (SELECT ar.verdict FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_verdict
   FROM pull_request pr JOIN repo r ON r.id = pr.repo_id`
 
 // --- row mapping ---------------------------------------------------------------------------
@@ -479,5 +534,39 @@ function toInboxRow(r: Row): InboxRow {
     remoteCommentCount: num(r.remote_comment_count),
     draftCommentCount: num(r.draft_comment_count),
     submittedVerdict: (r.submitted_verdict as Verdict | null) ?? null,
+    agentStatus: (r.agent_status as InboxRow['agentStatus']) ?? null,
+    agentVerdict: (r.agent_verdict as Verdict | null) ?? null,
+  }
+}
+
+function toAgentReview(r: Row): AgentReview {
+  return {
+    id: num(r.id),
+    prId: num(r.pr_id),
+    headSha: str(r.head_sha),
+    status: str(r.status) as AgentReview['status'],
+    agent: str(r.agent),
+    model: r.model === null ? null : (JSON.parse(str(r.model)) as AgentReview['model']),
+    variant: (r.variant as string | null) ?? null,
+    sessionId: (r.session_id as string | null) ?? null,
+    verdict: (r.verdict as Verdict | null) ?? null,
+    summary: (r.summary as string | null) ?? null,
+    error: (r.error as string | null) ?? null,
+    invalidAnchorCount: num(r.invalid_anchor_count),
+    startedAt: (r.started_at as string | null) ?? null,
+    finishedAt: (r.finished_at as string | null) ?? null,
+  }
+}
+
+function toAgentFinding(r: Row): AgentFinding {
+  return {
+    id: num(r.id),
+    agentReviewId: num(r.agent_review_id),
+    path: str(r.path),
+    line: num(r.line),
+    startLine: (r.start_line as number | null) ?? null,
+    side: str(r.side) as AgentFinding['side'],
+    severity: str(r.severity) as AgentFinding['severity'],
+    body: str(r.body),
   }
 }

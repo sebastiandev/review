@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ChatEvent, ChatThreadRef, ServerEvent, WorktreeStage } from '@review/shared'
+import type { AgentRunner, AgentRunRequest, PayloadFiles } from '../agentRunner.ts'
 import { lineThreadId, type ChatHub, type ChatInput, type ChatThread } from '../chat.ts'
 import type { Clock, Events } from '../ports.ts'
 import type {
@@ -68,6 +69,8 @@ export type FakeProvider = PullRequestProvider & {
   /** Every method invocation, as `name:number` (or `name`). */
   calls: string[]
   submitted: { repo: RepoRef; number: number; payload: ReviewPayload }[]
+  /** What `viewerLogin` answers. */
+  viewer: string
 }
 
 /** In-memory `PullRequestProvider`. `listOpen` returns the open PRs in `remote`. */
@@ -77,14 +80,19 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
   const remoteComments = new Map<number, RemoteComment[]>()
   const calls: string[] = []
   const submitted: FakeProvider['submitted'] = []
-  return {
+  const fake: FakeProvider = {
     kind: 'github',
     remote,
     patches,
     remoteComments,
     calls,
     submitted,
+    viewer: 'me',
     cloneUrl: (repo) => `https://github.com/${repo.owner}/${repo.name}.git`,
+    async viewerLogin() {
+      calls.push('viewerLogin')
+      return fake.viewer
+    },
     async listReviewRequested() {
       calls.push('listReviewRequested')
       return [...remote.values()].filter((p) => p.state === 'open' && p.reviewRequested)
@@ -115,6 +123,64 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
       return m ? { repo, number: Number(m[1]) } : null
     },
   }
+  return fake
+}
+
+export type MemoryPayloads = PayloadFiles & { files: Map<string, string> }
+
+/** In-memory `PayloadFiles`; the fake runner writes into `files`. */
+export function memoryPayloads(): MemoryPayloads {
+  const files = new Map<string, string>()
+  return {
+    files,
+    pathFor: (r) => `/payloads/pr-${r.prId}-${r.headSha}-${r.id}.json`,
+    async read(path) {
+      return files.get(path) ?? null
+    },
+  }
+}
+
+export type FakeRunnerBehaviour =
+  /** Write `text` where the prompt says, then go idle. */
+  | { kind: 'write'; text: string }
+  /** Go idle without writing anything. */
+  | { kind: 'silent' }
+  | { kind: 'fail'; error: Error }
+  /** Never settle. */
+  | { kind: 'hang' }
+
+export type FakeRunner = AgentRunner & { runs: AgentRunRequest[]; behaviour: FakeRunnerBehaviour; sessionId: string }
+
+/**
+ * An `AgentRunner` standing in for the agent: it reads the payload path out of the prompt the
+ * way the real agent does and writes there. Reports `sessionId` before "running".
+ */
+export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehaviour = { kind: 'silent' }): FakeRunner {
+  const fake: FakeRunner = {
+    runs: [],
+    behaviour,
+    sessionId: 'ses_fake',
+    async run(req, onSession) {
+      fake.runs.push(req)
+      onSession(fake.sessionId)
+      const b = fake.behaviour
+      switch (b.kind) {
+        case 'write': {
+          const m = /Write the review payload to (\S+) using/.exec(req.prompt)
+          if (!m) throw new Error('fake runner: prompt names no payload path')
+          payloads.files.set(m[1], b.text)
+          return
+        }
+        case 'silent':
+          return
+        case 'fail':
+          throw b.error
+        case 'hang':
+          return new Promise(() => {})
+      }
+    },
+  }
+  return fake
 }
 
 export type FakeWorktrees = Worktrees & {

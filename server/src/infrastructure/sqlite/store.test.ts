@@ -19,11 +19,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002'])
+    expect(versions).toEqual(['0001', '0002', '0003'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(2)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(3)
     second.close()
   })
 
@@ -180,6 +180,58 @@ describe('sqliteStore', () => {
     })
   })
 
+  describe('agentReviews', () => {
+    const finding = { path: 'a.py', line: 2, startLine: null, side: 'RIGHT' as const, severity: 'note' as const, body: 'hm' }
+
+    it('inserts queued, updates through the run, and lists runs newest first with their findings', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
+      const first = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'pr-reviewer', model: { providerID: 'p', modelID: 'm' }, variant: 'high' })
+      expect(first).toMatchObject({ status: 'queued', model: { providerID: 'p', modelID: 'm' }, variant: 'high', sessionId: null, verdict: null, invalidAnchorCount: 0 })
+
+      store.agentReviews.update(first.id, { status: 'running', sessionId: 'ses_1', startedAt: NOW })
+      store.agentReviews.update(first.id, { status: 'ready', verdict: 'COMMENT', summary: 'ok', invalidAnchorCount: 1, finishedAt: NOW })
+      const findings = store.agentReviews.insertFindings(first.id, [finding, { ...finding, line: 3 }])
+      expect(findings.map((f) => f.line)).toEqual([2, 3])
+      expect(store.agentReviews.getFinding(findings[0].id)).toEqual(findings[0])
+      expect(store.agentReviews.get(first.id)).toMatchObject({ status: 'ready', sessionId: 'ses_1', verdict: 'COMMENT', summary: 'ok', invalidAnchorCount: 1 })
+
+      const second = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'pr-reviewer', model: null, variant: null })
+      expect(store.agentReviews.listForPr(pr.id)).toEqual([
+        { review: second, findings: [] },
+        { review: store.agentReviews.get(first.id), findings },
+      ])
+    })
+
+    it('latest picks the newest run for the head, optionally by status', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
+      const ready = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      store.agentReviews.update(ready.id, { status: 'ready', verdict: 'APPROVE' })
+      const failed = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      store.agentReviews.update(failed.id, { status: 'failed', error: 'x' })
+      store.agentReviews.insert({ prId: pr.id, headSha: 'other-sha', agent: 'a', model: null, variant: null })
+
+      expect(store.agentReviews.latest(pr.id, pr.headSha, null)?.id).toBe(failed.id)
+      expect(store.agentReviews.latest(pr.id, pr.headSha, 'ready')?.id).toBe(ready.id)
+      expect(store.agentReviews.latest(pr.id, 'unknown', null)).toBeNull()
+    })
+
+    it('commentForFinding finds the draft comment kept from a finding', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
+      const review = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      const [f] = store.agentReviews.insertFindings(review.id, [finding])
+      const draft = store.drafts.insert(pr.id, pr.headSha, NOW)
+      expect(store.drafts.commentForFinding(draft.id, f.id)).toBeNull()
+      const kept = store.drafts.insertComment(
+        { draftId: draft.id, ...finding, body: 'hm', agentBody: 'hm', origin: 'agent', selected: true, anchorValid: true, inReplyTo: null, findingId: f.id },
+        NOW,
+      )
+      expect(store.drafts.commentForFinding(draft.id, f.id)).toEqual(kept)
+    })
+  })
+
   describe('viewed and settings', () => {
     it('viewed marks are per path and cleared with null', () => {
       const repo = seedRepo()
@@ -220,7 +272,20 @@ describe('sqliteStore', () => {
       )
       const rows = store.views.inbox(repo.id)
       expect(rows.map((r) => r.number)).toEqual([1])
-      expect(rows[0]).toMatchObject({ remoteCommentCount: 1, draftCommentCount: 1, submittedVerdict: null, hasWorktree: false })
+      expect(rows[0]).toMatchObject({ remoteCommentCount: 1, draftCommentCount: 1, submittedVerdict: null, hasWorktree: false, agentStatus: null, agentVerdict: null })
+    })
+
+    it('inbox reports the latest agent run for the current head only', () => {
+      const repo = seedRepo()
+      const pr = store.pullRequests.upsert(repo.id, remotePr({ number: 1 }), {}, NOW)
+      const old = store.agentReviews.insert({ prId: pr.id, headSha: 'old-sha', agent: 'a', model: null, variant: null })
+      store.agentReviews.update(old.id, { status: 'ready', verdict: 'APPROVE' })
+      expect(store.views.inbox(repo.id)[0]).toMatchObject({ agentStatus: null, agentVerdict: null })
+
+      const ready = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      store.agentReviews.update(ready.id, { status: 'ready', verdict: 'REQUEST_CHANGES' })
+      store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      expect(store.views.inbox(repo.id)[0]).toMatchObject({ agentStatus: 'queued', agentVerdict: null })
     })
 
     it('prDetail joins the PR row with its diff, comments, open draft and viewed marks', () => {
@@ -240,7 +305,12 @@ describe('sqliteStore', () => {
       expect(detail.diff).toEqual({ source: { kind: 'pr', repo: 'acme/widgets', number: 7, headSha: pr.headSha }, patch: 'p', files: [], anchors: { 'a.py': [1] } })
       expect(detail.draft).toEqual({ id: draft.id, headSha: pr.headSha, status: 'open', comments: [expect.objectContaining({ id: comment.id, body: 'b' })] })
       expect(detail.draft?.comments[0]).not.toHaveProperty('draftId')
+      expect(detail.agentReview).toBeNull()
       expect(detail.viewed).toEqual([{ path: 'a.py', headSha: pr.headSha }])
+
+      const review = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'a', model: null, variant: null })
+      const findings = store.agentReviews.insertFindings(review.id, [{ path: 'a.py', line: 1, startLine: null, side: 'RIGHT', severity: 'note', body: 'x' }])
+      expect(store.views.prDetail(pr.id)?.agentReview).toEqual({ review, findings })
     })
 
     it('prDetail is null for an unknown id and has null diff/draft before they exist', () => {

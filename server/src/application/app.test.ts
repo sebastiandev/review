@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { InboxRow, PastReviewRow, RepoSummary, ServerEvent, UserSettings } from '@review/shared'
+import type { AgentReviewDetail, InboxRow, PastReviewRow, PrDetail, RepoSummary, ServerEvent, UserSettings } from '@review/shared'
 import type { DraftComment, Submission } from '../domain/review.ts'
 import type { Repo } from '../domain/pullRequests.ts'
 import type { Store } from '../domain/store.ts'
 import {
   fakeChatHub,
   fakeProvider,
+  fakeRunner,
   fakeWorktrees,
   fixedClock,
   memoryEvents,
+  memoryPayloads,
   openTestStore,
   remotePr,
   type FakeProvider,
+  type FakeRunner,
   type FakeWorktrees,
   type MemoryEvents,
 } from '../domain/testing/fakes.ts'
@@ -28,18 +31,32 @@ describe('PR mode app', () => {
   let close: () => Promise<void>
   let provider: FakeProvider
   let worktrees: FakeWorktrees
+  let runner: FakeRunner
   let events: MemoryEvents
   let app: ReturnType<typeof prMode>['app']
+
+  const PAYLOAD = JSON.stringify({
+    pr: 415,
+    repo: 'acme/widgets',
+    event: 'COMMENT',
+    body: 'One remark.',
+    comments: [{ path: 'src/a.py', line: 2, side: 'RIGHT', body: 'Note: consider renaming' }],
+  })
 
   beforeEach(async () => {
     ;({ store, close } = await openTestStore())
     provider = fakeProvider([remotePr({ number: 415, title: 'Fix widgets' })])
     worktrees = fakeWorktrees()
+    const payloads = memoryPayloads()
+    runner = fakeRunner(payloads, { kind: 'write', text: PAYLOAD })
     events = memoryEvents()
     ;({ app } = prMode({
       store,
       providers: { github: provider, gitlab: provider },
       worktrees,
+      runner,
+      payloads,
+      fileExists: async () => false,
       events,
       clock: fixedClock(),
       opencodeUrl: 'http://opencode.test',
@@ -140,6 +157,55 @@ describe('PR mode app', () => {
     expect(await (await app.request('/api/reviews?verdict=APPROVE')).json()).toEqual([])
   })
 
+  it('runs an agent review, lists it, and keeps a finding into the draft', async () => {
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const [pr]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    const ready = nextEvent('worktree.ready')
+    await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
+    await ready
+
+    const reviewReady = nextEvent('review.ready')
+    const started = await app.request(`/api/prs/${pr.id}/review`, json('POST', { agent: 'reviewer' }))
+    expect(started.status).toBe(202)
+    expect(await started.json()).toEqual({ status: 'queued' })
+    expect(await reviewReady).toMatchObject({ prId: pr.id, verdict: 'COMMENT', findingCount: 1 })
+    expect(runner.runs).toMatchObject([{ directory: '/wt/acme/widgets/415', agent: 'reviewer', model: null, variant: null }])
+
+    const runs: AgentReviewDetail[] = await (await app.request(`/api/prs/${pr.id}/reviews`)).json()
+    expect(runs).toMatchObject([{ review: { status: 'ready', verdict: 'COMMENT', summary: 'One remark.', agent: 'reviewer' }, findings: [{ line: 2, severity: 'note' }] }])
+    const [{ review, findings }] = runs
+
+    const kept = await app.request(`/api/prs/${pr.id}/findings/${findings[0].id}/keep`, { method: 'POST' })
+    expect(kept.status).toBe(201)
+    expect(await kept.json()).toMatchObject({ origin: 'agent', findingId: findings[0].id, body: 'Note: consider renaming' })
+    const detail: PrDetail = await (await app.request(`/api/prs/${pr.id}`)).json()
+    expect(detail.agentReview).toEqual({ review, findings })
+    expect(detail.draft?.comments).toMatchObject([{ origin: 'agent', findingId: findings[0].id }])
+    expect(detail.pr).toMatchObject({ agentStatus: 'ready', agentVerdict: 'COMMENT' })
+
+    expect((await app.request(`/api/prs/${pr.id}/findings/${findings[0].id}/keep`, { method: 'DELETE' })).status).toBe(204)
+    const all = await app.request(`/api/prs/${pr.id}/reviews/${review.id}/keep-all`, { method: 'POST' })
+    expect(await all.json()).toMatchObject([{ findingId: findings[0].id }])
+  })
+
+  it('starts a review on worktree.ready for PRs added with reviewOnOpen, once per head', async () => {
+    const repo = await trackRepo()
+    provider.remote.set(7, remotePr({ number: 7, reviewRequested: false }))
+    const [added]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`, json('POST', { numbers: [7], reviewOnOpen: true }))).json()
+
+    const reviewReady = nextEvent('review.ready')
+    await app.request(`/api/prs/${added.id}/open`, { method: 'POST' })
+    await reviewReady
+    expect(runner.runs).toHaveLength(1)
+
+    const ready = nextEvent('worktree.ready')
+    await app.request(`/api/prs/${added.id}/open`, { method: 'POST' })
+    await ready
+    await new Promise((r) => setTimeout(r, 0))
+    expect(runner.runs).toHaveLength(1)
+  })
+
   it('lists worktrees with sizes and removes them on request', async () => {
     const repo = await trackRepo()
     await syncRepo(repo.id)
@@ -208,6 +274,8 @@ describe('PR mode app', () => {
     ['GET', '/api/scopes/local/diff', 404, { code: 'not_found' }],
     ['DELETE', '/api/repos/999', 404, { code: 'not_found' }],
     ['POST', '/api/prs/999/done', 404, { code: 'not_found' }],
+    ['POST', '/api/prs/999/review', 404, { code: 'not_found' }],
+    ['POST', '/api/prs/999/findings/1/keep', 404, { code: 'not_found' }],
   ])('%s %s -> %d', async (method, path, status, body) => {
     const res = await app.request(path, { method })
     expect(res.status).toBe(status)

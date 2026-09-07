@@ -28,6 +28,9 @@ query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) { pullRequest(number: $number) { ${PR_FIELDS} } }
 }`
 
+const VIEWER = `query { viewer { login } }`
+
+type ViewerPage = { data: { viewer: { login: string } } }
 type ListPage = { data: { viewer: { login: string }; repository: { pullRequests: { nodes: GraphqlPullRequest[] } } } }
 type SearchPage = { data: { viewer: { login: string }; search: { nodes: GraphqlPullRequest[] } } }
 type GetPage = { data: { viewer: { login: string }; repository: { pullRequest: GraphqlPullRequest | null } } }
@@ -44,6 +47,11 @@ export function ghProvider(run: Runner): PullRequestProvider {
     kind: 'github',
     cloneUrl: (repo) => `https://github.com/${slug(repo)}.git`,
     parseReference,
+
+    async viewerLogin() {
+      const out = await run('gh', ['api', 'graphql', '-f', `query=${VIEWER}`])
+      return (JSON.parse(out) as ViewerPage).data.viewer.login
+    },
 
     async listReviewRequested(repo) {
       const q = `repo:${slug(repo)} is:pr is:open review-requested:@me`

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { RunReviewResult } from '../domain/agentReview.ts'
-import { memoryEvents } from '../domain/testing/fakes.ts'
 import { reviewQueue } from './reviewQueue.ts'
 
 const request = (prId: number) => ({ prId, agent: 'pr-reviewer', model: null, variant: null })
@@ -9,9 +8,7 @@ describe('reviewQueue', () => {
   it('runs one review at a time and frees the slot when it settles', async () => {
     let finish!: (r: RunReviewResult) => void
     const started: number[] = []
-    const events = memoryEvents()
     const queue = reviewQueue({
-      events,
       log: () => {},
       runReview: (req) =>
         new Promise((resolve) => {
@@ -23,7 +20,6 @@ describe('reviewQueue', () => {
     expect(queue.enqueue(request(1))).toBe('queued')
     expect(queue.enqueue(request(2))).toBe('busy')
     expect(started).toEqual([1])
-    expect(events.events).toEqual([{ type: 'review.queued', prId: 1 }])
 
     finish({} as RunReviewResult)
     await Promise.resolve()
@@ -33,7 +29,7 @@ describe('reviewQueue', () => {
   })
 
   it('frees the slot when the run fails', async () => {
-    const queue = reviewQueue({ events: memoryEvents(), log: () => {}, runReview: () => Promise.reject(new Error('boom')) })
+    const queue = reviewQueue({ log: () => {}, runReview: () => Promise.reject(new Error('boom')) })
     expect(queue.enqueue(request(1))).toBe('queued')
     await new Promise((r) => setTimeout(r, 0))
     expect(queue.enqueue(request(1))).toBe('queued')

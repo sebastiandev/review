@@ -25,6 +25,8 @@ function row(over: Partial<InboxRow> & Pick<InboxRow, 'id' | 'updatedAt'>): Inbo
     remoteCommentCount: 0,
     draftCommentCount: 0,
     submittedVerdict: null,
+    agentStatus: null,
+    agentVerdict: null,
     ...over,
   }
 }

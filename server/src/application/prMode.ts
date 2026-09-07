@@ -1,5 +1,7 @@
+import type { AgentRunner, PayloadFiles } from '../domain/agentRunner.ts'
 import type { ChatHub } from '../domain/chat.ts'
 import { makeOpenPullRequest } from '../domain/commands/openPullRequest.ts'
+import { runReview } from '../domain/commands/runReview.ts'
 import { syncRepo } from '../domain/commands/syncRepo.ts'
 import type { Clock, Events } from '../domain/ports.ts'
 import type { ProviderKind, PullRequestProvider } from '../domain/pullRequests.ts'
@@ -8,6 +10,7 @@ import type { Worktrees } from '../domain/worktrees.ts'
 import type { OpencodeChatOptions } from '../infrastructure/opencodeChat.ts'
 import { createApp } from './app.ts'
 import { prRoutes } from './prRoutes.ts'
+import { reviewQueue } from './reviewQueue.ts'
 import { prScopes } from './scopes.ts'
 import { scheduler, type Scheduler } from './scheduler.ts'
 
@@ -15,6 +18,9 @@ export type PrModeDeps = {
   store: Store
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Worktrees
+  runner: AgentRunner
+  payloads: PayloadFiles
+  fileExists: (path: string) => Promise<boolean>
   events: Events
   clock: Clock
   opencodeUrl: string
@@ -25,9 +31,21 @@ export type PrModeDeps = {
   openChat?: (opts: OpencodeChatOptions) => Promise<ChatHub>
 }
 
-/** Wire the PR-mode app from its adapters. The scheduler is returned unstarted. */
+/**
+ * Wire the PR-mode app from its adapters. The scheduler is returned unstarted.
+ * Policy: a PR added with `reviewOnOpen` gets one agent run per head, started when its
+ * worktree becomes ready.
+ */
 export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; scheduler: Scheduler } {
   const sync = scheduler({ store: deps.store, syncRepo: (repoId) => syncRepo(deps, { repoId }) })
+  const reviews = reviewQueue({ runReview: (req) => runReview(deps, req) })
+  deps.events.subscribe((e) => {
+    if (e.type !== 'worktree.ready') return
+    const pr = deps.store.pullRequests.get(e.prId)
+    if (!pr?.reviewOnOpen || deps.store.agentReviews.latest(pr.id, pr.headSha, null)) return
+    const settings = deps.store.settings.read()
+    reviews.enqueue({ prId: pr.id, agent: settings.defaultReviewAgent, model: settings.defaultModel, variant: settings.defaultVariant })
+  })
   const app = createApp({
     scopes: prScopes({ store: deps.store, opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat }),
     store: deps.store,
@@ -35,7 +53,7 @@ export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; s
     settingsChanged: sync.reschedule,
     opencodeUrl: deps.opencodeUrl,
     directory: deps.directory,
-    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync })],
+    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews })],
     staticDir: deps.staticDir,
   })
   return { app, scheduler: sync }
