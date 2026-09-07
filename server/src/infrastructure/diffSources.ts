@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { resolve, relative, isAbsolute } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { DiffSource } from '../domain/diff.ts'
@@ -10,6 +11,8 @@ export function patchFileSource(path: string): DiffSource {
   return {
     ref: { kind: 'patch', path },
     read: () => readFile(path, 'utf8'),
+    // A patch carries only hunks; there is no file to read.
+    fileContent: async () => null,
   }
 }
 
@@ -30,6 +33,12 @@ export function localRepoSource(path: string, base: string | null): DiffSource {
       const tracked = await git(path, ['diff', 'HEAD'])
       const untracked = await untrackedAsDiff(path)
       return tracked.stdout + untracked
+    },
+    async fileContent(file) {
+      const full = resolve(path, file)
+      const rel = relative(path, full)
+      if (rel.startsWith('..') || isAbsolute(rel)) return null
+      return readFile(full, 'utf8').catch(() => null)
     },
   }
 }

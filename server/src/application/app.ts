@@ -27,6 +27,15 @@ export function createApp(deps: AppDeps) {
     return c.json(buildDiffDocument(deps.source.ref, patch))
   })
 
+  /** Full new-side content of one changed file, for the rich markdown view. */
+  app.get('/api/file', async (c) => {
+    const path = c.req.query('path')
+    if (!path) return c.json({ error: 'path required' }, 400)
+    const content = await deps.source.fileContent(path)
+    if (content === null) return c.json({ error: 'not available' }, 404)
+    return c.json({ path, content })
+  })
+
   app.get('/api/config', async (c) => {
     const catalog = await readOpencodeCatalog(deps.opencodeUrl, deps.directory)
     return c.json({ ...catalog, settings: deps.settings })

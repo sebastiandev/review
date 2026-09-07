@@ -5,6 +5,8 @@ import type { DiffDocument, DiffFile, DiffSourceRef } from '@review/shared'
 export type DiffSource = {
   ref: DiffSourceRef
   read(): Promise<string>
+  /** Full new-side content of a file in the diff, or null when the source cannot provide it. */
+  fileContent(path: string): Promise<string | null>
 }
 
 /**
