@@ -39,7 +39,7 @@ Goal: what exists today looks like the design. No new features.
 - [ ] Server: `ChatSession` gains child sessions keyed by line reference; each inline chat is an
       opencode child session of the PR/scope session so it inherits context.
 - [ ] Keys: `a` ask in place, `y` copy ref, `c` reserved.
-- [ ] Decision pending: keep text-selection → Ask in the diff as a second entry point.
+- [ ] Text-selection → Ask stays as a second entry point in the diff (decided: both).
 
 ## Phase 2 — Markdown rich view  ~1 day
 
@@ -89,14 +89,16 @@ Server first, then UI.
 - [ ] Settings → Review agent (agent picker from opencode, model from providers, variant), Fetching,
       Appearance (default diff view, theme, diff theme).
 
-## Phase 6 — Accounts  ~1 day, later
+## Phase 6 — Accounts  ~1 day
 
-- [ ] Device-flow OAuth for GitHub with keychain storage (macOS `security`), account row phases.
-- [ ] GitLab provider + `glab` token path.
+- [ ] GitHub: both paths — device-flow OAuth with keychain storage (macOS `security`) and
+      "use the token from the gh CLI". Account row phases per README.
+- [ ] GitLab: deferred; provider port exists from phase 3.
 
 ## Deferred / not planned
 
-- Light theme (design has none). Revisit only if asked.
+- Light theme (decided: design wins, dark themes only).
+- GitLab (decided: defer).
 - Multiple inline chat cards visible at once.
 
 ---
