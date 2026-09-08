@@ -30,7 +30,7 @@ export function InlineChat({ thread, folded, onToggleFold, onClose, ...panel }: 
         <button type="button" className="ichat-fold" aria-expanded={!folded} title={folded ? 'Unfold' : 'Fold'} onClick={onToggleFold}>
           {folded ? <CaretRight size={12} /> : <CaretDown size={12} />}
         </button>
-        <span className="ichat-dot" aria-hidden />
+        {panel.idle ? <span className="ichat-dot" aria-hidden /> : <span className="spinner spinner-xs" aria-label="Agent working" />}
         <span className="ichat-title">Chat</span>
         <span className="ichat-ref">{refLabel(thread)}</span>
         {folded && (

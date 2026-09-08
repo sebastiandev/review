@@ -2965,3 +2965,12 @@ button {
 .ichat-floating .ichat {
   box-shadow: var(--shadow-lg);
 }
+
+.status-spinner {
+  margin-right: 2px;
+}
+
+.dock-head .spinner,
+.ichat-head .spinner {
+  margin-right: 0;
+}

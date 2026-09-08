@@ -235,6 +235,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
 
 type StatusRowProps = {
   config: Pick<AppConfig, 'agents' | 'models' | 'commands'>
+  idle: boolean
   turn: TurnSettingsState
   lastTurn: ChatTurn | null
   picker: LocalCommand | null
@@ -244,7 +245,7 @@ type StatusRowProps = {
 const sameModel = (a: ModelRef, b: ModelRef) => a.providerID === b.providerID && a.modelID === b.modelID
 
 /** Mono row naming agent · model · variant. Shows what the last turn actually used once known. */
-function StatusRow({ config, turn, lastTurn, picker, onOpenPicker }: StatusRowProps) {
+function StatusRow({ config, idle, turn, lastTurn, picker, onOpenPicker }: StatusRowProps) {
   const { settings } = turn
   const shownAgent = lastTurn ? lastTurn.agent : settings.agent
   const shownModel = lastTurn ? lastTurn.model : settings.model
@@ -292,6 +293,7 @@ function StatusRow({ config, turn, lastTurn, picker, onOpenPicker }: StatusRowPr
           onClose={close}
         />
       )}
+      {!idle && <span className="spinner spinner-xs status-spinner" aria-label="Agent working" />}
       <button type="button" className="status-item" onClick={() => onOpenPicker('agents')}>
         {shownAgent ?? 'default agent'}
       </button>
@@ -388,7 +390,7 @@ export function ChatPanel({
         {error && <p className="dock-error">{error}</p>}
       </div>
       <div className="dock-footer">
-        <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
+        <StatusRow config={catalog} idle={idle} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
         <Composer
           idle={idle}
           commands={catalog.commands}
@@ -439,6 +441,7 @@ export function ChatDock({
           <CaretLeft size={14} />
         </button>
         <span className="dock-vertical">Chat</span>
+        {!idle && <span className="spinner spinner-xs" aria-label="Agent working" />}
       </aside>
     )
   }
@@ -450,6 +453,7 @@ export function ChatDock({
       )}
       <div className="dock-head">
         <span className="dock-title">Chat</span>
+        {!idle && <span className="spinner spinner-xs" aria-label="Agent working" />}
         {scope && <span className="dock-scope">{scope}</span>}
         <button type="button" className="dock-collapse" aria-label="Collapse chat" aria-expanded onClick={onToggle}>
           <CaretRight size={14} />
