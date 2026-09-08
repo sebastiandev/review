@@ -845,7 +845,6 @@ button {
 .ichat {
   position: relative;
   width: 100%;
-  max-width: 760px;
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
@@ -1765,6 +1764,12 @@ button {
   font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* The chat card ignores the artifact column cap and runs to the right edge of the diff. */
+.artifacts:has(.ichat) {
+  max-width: none;
+  margin-right: 12px;
 }
 
 .artifact-ref {
