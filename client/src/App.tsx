@@ -7,7 +7,7 @@ import { useTurnSettings } from './chat/useTurnSettings'
 import { AddPrModal } from './inbox/AddPrModal'
 import { Inbox } from './inbox/Inbox'
 import { InboxSidebar, repoLabel } from './inbox/InboxSidebar'
-import { inboxSubtitle, sortInboxRows } from './inbox/inboxRows'
+import { DEFAULT_INBOX_FILTER, countByReviewState, filterInboxRows, inboxSubtitle, type InboxFilter, type ReviewState } from './inbox/inboxRows'
 import { useNow } from './inbox/useNow'
 import { PastReviews, PastSidebar } from './past/PastReviews'
 import type { PastFilter } from './past/pastRows'
@@ -30,6 +30,18 @@ import { DiffWorkspace } from './workspace/DiffWorkspace'
 import { isEditing } from './workspace/Workspace'
 
 const FLASH_MS = 5_000
+const INBOX_FILTER_KEY = 'review.inboxFilter'
+
+function storedInboxFilter(): InboxFilter {
+  try {
+    const raw = localStorage.getItem(INBOX_FILTER_KEY)
+    if (!raw) return DEFAULT_INBOX_FILTER
+    const parsed = JSON.parse(raw) as Partial<InboxFilter>
+    return { show: { ...DEFAULT_INBOX_FILTER.show, ...parsed.show }, sort: parsed.sort === 'oldest' ? 'oldest' : 'newest' }
+  } catch {
+    return DEFAULT_INBOX_FILTER
+  }
+}
 
 type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | 'search' | null
 
@@ -69,7 +81,12 @@ export function App() {
   const repoList = repos.data ?? []
   const repo = repoList.find((r) => r.id === repoId) ?? repoList[0] ?? null
   const inbox = useInbox(mode === 'pr' ? (repo?.id ?? null) : null)
-  const rows = useMemo(() => sortInboxRows(inbox.data ?? []), [inbox.data])
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>(() => storedInboxFilter())
+  useEffect(() => localStorage.setItem(INBOX_FILTER_KEY, JSON.stringify(inboxFilter)), [inboxFilter])
+  const toggleState = useCallback((state: ReviewState) => setInboxFilter((f) => ({ ...f, show: { ...f.show, [state]: !f.show[state] } })), [])
+  const toggleSort = useCallback(() => setInboxFilter((f) => ({ ...f, sort: f.sort === 'newest' ? 'oldest' : 'newest' })), [])
+  const counts = useMemo(() => countByReviewState(inbox.data ?? []), [inbox.data])
+  const rows = useMemo(() => filterInboxRows(inbox.data ?? [], inboxFilter), [inbox.data, inboxFilter])
   const inboxNumbers = useMemo(() => new Set(rows.map((r) => r.number)), [rows])
   const defaultDiffMode = settings.data?.defaultDiffMode ?? 'unified'
 
@@ -337,6 +354,10 @@ export function App() {
                 onRefresh={() => refresh.mutate(repo.id)}
                 onDone={(id) => done.mutate(id)}
                 onManageRepos={() => goSettings('repositories')}
+                filter={inboxFilter}
+                counts={counts}
+                onToggleState={toggleState}
+                onToggleSort={toggleSort}
                 onStartResize={layout.startSidebarResize}
               />
             )}

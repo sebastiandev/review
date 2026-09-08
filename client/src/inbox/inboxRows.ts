@@ -2,10 +2,7 @@ import type { InboxRow, UserSettings } from '@review/shared'
 
 /** Manually added PRs first, then most recently updated first. */
 export function sortInboxRows(rows: InboxRow[]): InboxRow[] {
-  return [...rows].sort((a, b) => {
-    if (a.addedByUser !== b.addedByUser) return a.addedByUser ? -1 : 1
-    return b.updatedAt.localeCompare(a.updatedAt)
-  })
+  return filterInboxRows(rows, DEFAULT_INBOX_FILTER)
 }
 
 const MINUTE = 60_000
@@ -50,4 +47,36 @@ type FetchLineInput = { syncedAt: string | null; provider: string; assigned: num
 export function fetchLine({ syncedAt, provider, assigned, now }: FetchLineInput): string {
   const fetched = syncedAt ? `fetched ${relativeTime(syncedAt, now)}` : 'never fetched'
   return `${fetched} · ${PROVIDER_SHORT[provider] ?? provider} · ${assigned} assigned`
+}
+
+export type ReviewState = 'approved' | 'commented' | 'pending'
+export type InboxSort = 'newest' | 'oldest'
+export type InboxFilter = { show: Record<ReviewState, boolean>; sort: InboxSort }
+
+export const DEFAULT_INBOX_FILTER: InboxFilter = { show: { approved: true, commented: true, pending: true }, sort: 'newest' }
+
+export const REVIEW_STATE_LABEL: Record<ReviewState, string> = { approved: 'Approved', commented: 'Commented', pending: 'Pending' }
+
+/** Where my review of the current head stands: approved, commented (incl. changes requested), or nothing yet. */
+export function reviewStateOf(row: Pick<InboxRow, 'submittedVerdict'>): ReviewState {
+  if (row.submittedVerdict === 'APPROVE') return 'approved'
+  if (row.submittedVerdict === null) return 'pending'
+  return 'commented'
+}
+
+/** Rows whose review state is switched on, in the requested date order (manually added PRs still first). */
+export function filterInboxRows(rows: InboxRow[], filter: InboxFilter): InboxRow[] {
+  const kept = rows.filter((r) => filter.show[reviewStateOf(r)])
+  return kept.sort((a, b) => {
+    if (a.addedByUser !== b.addedByUser) return a.addedByUser ? -1 : 1
+    const byDate = b.updatedAt.localeCompare(a.updatedAt)
+    return filter.sort === 'newest' ? byDate : -byDate
+  })
+}
+
+/** Counts per review state, for the filter chips. */
+export function countByReviewState(rows: InboxRow[]): Record<ReviewState, number> {
+  const counts: Record<ReviewState, number> = { approved: 0, commented: 0, pending: 0 }
+  for (const r of rows) counts[reviewStateOf(r)]++
+  return counts
 }

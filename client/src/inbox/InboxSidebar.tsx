@@ -1,7 +1,7 @@
 import { CaretDown } from '@phosphor-icons/react'
 import type { InboxRow, RepoSummary } from '@review/shared'
 import { AgentStatus } from './AgentStatus'
-import { fetchLine, relativeTime } from './inboxRows'
+import { REVIEW_STATE_LABEL, fetchLine, relativeTime, type InboxFilter, type ReviewState } from './inboxRows'
 import { ReviewedPill } from './ReviewedPill'
 import { StatePill } from './StatePill'
 
@@ -25,6 +25,11 @@ type InboxSidebarProps = {
   onDone: (prId: number) => void
   /** Jumps to Settings → Tracked repositories. */
   onManageRepos: () => void
+  filter: InboxFilter
+  /** Rows per review state before filtering, for the chip counts. */
+  counts: Record<ReviewState, number>
+  onToggleState: (state: ReviewState) => void
+  onToggleSort: () => void
   onStartResize: (e: React.PointerEvent<HTMLElement>) => void
 }
 
@@ -45,6 +50,10 @@ export function InboxSidebar({
   onRefresh,
   onDone,
   onManageRepos,
+  filter,
+  counts,
+  onToggleState,
+  onToggleSort,
   onStartResize,
 }: InboxSidebarProps) {
   return (
@@ -87,6 +96,22 @@ export function InboxSidebar({
       </div>
       <div className="inbox-fetch">
         {fetchLine({ syncedAt: repo.syncedAt, provider: repo.provider, assigned: repo.reviewRequestedCount, now })}
+      </div>
+      <div className="inbox-filters" role="group" aria-label="Filter by review state">
+        {(Object.keys(REVIEW_STATE_LABEL) as ReviewState[]).map((state) => (
+          <button
+            key={state}
+            type="button"
+            className={`chip${filter.show[state] ? ' chip-on' : ''}`}
+            aria-pressed={filter.show[state]}
+            onClick={() => onToggleState(state)}
+          >
+            {REVIEW_STATE_LABEL[state]} <span className="chip-count">{counts[state]}</span>
+          </button>
+        ))}
+        <button type="button" className="chip chip-sort" title="Toggle sort order" onClick={onToggleSort}>
+          {filter.sort === 'newest' ? 'Newest ↓' : 'Oldest ↑'}
+        </button>
       </div>
       <div className="pr-list">
         {rows.map((pr) => (
