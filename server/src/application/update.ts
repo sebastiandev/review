@@ -44,6 +44,25 @@ export async function updateApp(log: (line: string) => void, root: string = repo
   await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: root, maxBuffer: 16 * 1024 * 1024 })
   log('building…')
   await run('npm', ['run', 'build'], { cwd: root, maxBuffer: 16 * 1024 * 1024 })
+  await ensureLinked(log, root)
   log('done. Pending database migrations run automatically on the next start.')
   return 0
+}
+
+/** Make sure `review` on PATH points at this checkout's `server/dist/cli.js` (`npm link`). */
+async function ensureLinked(log: (line: string) => void, root: string): Promise<void> {
+  const wanted = resolve(root, 'server/dist/cli.js')
+  try {
+    const { stdout } = await run('sh', ['-c', 'command -v review'])
+    const { stdout: real } = await run('realpath', [stdout.trim()])
+    if (real.trim() === wanted) return
+  } catch {
+    // not on PATH yet
+  }
+  log('linking the `review` command…')
+  try {
+    await run('npm', ['link', '-w', 'server'], { cwd: root, maxBuffer: 16 * 1024 * 1024 })
+  } catch (e) {
+    log(`could not link: ${(e as Error).message.split('\n')[0]}; run \`npm link -w server\` yourself (may need sudo)`)
+  }
 }
