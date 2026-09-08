@@ -58,7 +58,17 @@ export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequ
     const target = draft ?? findOrCreateDraft(store.drafts, pr.id, pr.headSha, now)
     const agentVerdict = store.agentReviews.latest(pr.id, pr.headSha, 'ready')?.verdict ?? null
     const submission = store.submissions.insert(
-      { draftId: target.id, remoteReviewId, verdict: req.verdict, body: req.body, agentVerdict, submittedAt: now },
+      {
+        prId: pr.id,
+        headSha: pr.headSha,
+        draftId: target.id,
+        remoteReviewId,
+        source: 'app',
+        verdict: req.verdict,
+        body: req.body,
+        agentVerdict,
+        submittedAt: now,
+      },
       JSON.stringify(payload),
     )
     store.drafts.markSubmitted(target.id, now)

@@ -48,7 +48,7 @@ describe('refreshPullRequest', () => {
     const result = await refreshPullRequest(deps, { prId })
 
     expect(result).toMatchObject({ headMoved: false, worktreeDeferred: false })
-    expect(provider.calls).toEqual(['get:1', 'comments:1'])
+    expect(provider.calls).toEqual(['get:1', 'comments:1', 'myReviews:1'])
     expect(store.comments.list(prId).map((c) => c.body)).toEqual(['late remark'])
     expect(events.ofType('pr.refreshed')).toEqual([{ type: 'pr.refreshed', prId, headMoved: false }])
   })

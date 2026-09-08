@@ -19,11 +19,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002', '0003'])
+    expect(versions).toEqual(['0001', '0002', '0003', '0004'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(3)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(4)
     second.close()
   })
 
@@ -168,7 +168,7 @@ describe('sqliteStore', () => {
       expect(store.drafts.comments(draft.id)).toHaveLength(1)
 
       const sub = store.submissions.insert(
-        { draftId: draft.id, remoteReviewId: 'r1', verdict: 'COMMENT', body: 'lgtm-ish', agentVerdict: null, submittedAt: NOW },
+        { prId: pr.id, headSha: pr.headSha, draftId: draft.id, remoteReviewId: 'r1', source: 'app', verdict: 'COMMENT', body: 'lgtm-ish', agentVerdict: null, submittedAt: NOW },
         '{}',
       )
       store.drafts.markSubmitted(draft.id, NOW)
@@ -344,8 +344,15 @@ describe('sqliteStore', () => {
       const pr = store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
       const d1 = store.drafts.insert(pr.id, 'sha-x', NOW)
       const d2 = store.drafts.insert(pr.id, 'sha-y', NOW)
-      store.submissions.insert({ draftId: d1.id, remoteReviewId: 'r1', verdict: 'APPROVE', body: '', agentVerdict: 'APPROVE', submittedAt: NOW }, '{}')
-      store.submissions.insert({ draftId: d2.id, remoteReviewId: 'r2', verdict: 'REQUEST_CHANGES', body: '', agentVerdict: 'APPROVE', submittedAt: NOW }, '{}')
+      store.submissions.insert(
+        { prId: pr.id, headSha: 'sha-x', draftId: d1.id, remoteReviewId: 'r1', source: 'app', verdict: 'APPROVE', body: '', agentVerdict: 'APPROVE', submittedAt: NOW },
+        '{}',
+      )
+      store.submissions.insert(
+        { prId: pr.id, headSha: 'sha-y', draftId: d2.id, remoteReviewId: 'r2', source: 'app', verdict: 'REQUEST_CHANGES', body: '', agentVerdict: 'APPROVE', submittedAt: NOW },
+        '{}',
+      )
+      expect(store.submissions.remoteIds(pr.id)).toEqual(new Set(['r1', 'r2']))
       expect(store.views.pastReviews(null).map((r) => r.agentAgreement).sort()).toEqual(['agreed', 'disagreed'])
       expect(store.views.pastReviews('APPROVE')).toMatchObject([{ verdict: 'APPROVE', agentAgreement: 'agreed' }])
     })

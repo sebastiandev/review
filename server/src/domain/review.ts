@@ -32,8 +32,13 @@ export type DraftComment = {
 
 export type Submission = {
   id: number
-  draftId: number
+  prId: number
+  headSha: string
+  /** The draft it was built from; null for reviews submitted on GitHub directly. */
+  draftId: number | null
   remoteReviewId: string
+  /** `app` = submitted from here; `remote` = found on the provider during sync. */
+  source: 'app' | 'remote'
   verdict: Verdict
   body: string
   agentVerdict: Verdict | null

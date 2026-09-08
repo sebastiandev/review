@@ -1,5 +1,6 @@
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
 import { carryViewedMarks } from '../actions/carryViewedMarks.ts'
+import { recordRemoteReviews } from '../actions/recordRemoteReviews.ts'
 import { replaceComments } from '../actions/replaceComments.ts'
 import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import { NotFound } from '../errors.ts'
@@ -9,7 +10,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type RefreshPullRequestDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed' | 'submissions'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'exists' | 'headSha' | 'checkout'>
   events: Events
@@ -25,7 +26,7 @@ export type RefreshResult = { pr: PullRequest; headMoved: boolean; worktreeDefer
  * Pre-conditions:
  * - the PR and its repo exist (else `NotFound`); the PR still exists remotely (else `NotFound`)
  * Post-conditions:
- * - the row mirrors the remote; comments are replaced; a new head has its diff cached and, if a
+ * - the row mirrors the remote; comments are replaced; the user's provider-side reviews are recorded; a new head has its diff cached and, if a
  *   worktree is on disk, is checked out there (`worktree.progress`/`worktree.ready` emitted) —
  *   unless an agent review is running in it, which keeps the old checkout (`worktreeDeferred`)
  * - emits `pr.refreshed`
@@ -42,7 +43,11 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
   if (!remote) throw new NotFound('pull request', `${repo.owner}/${repo.name}#${before.number}`)
   const headMoved = remote.headSha !== before.headSha
   const needsDiff = headMoved || store.diffs.get(before.id, before.headSha) === null
-  const [patch, comments] = await Promise.all([needsDiff ? provider.diff(repo, before.number) : null, provider.comments(repo, before.number)])
+  const [patch, comments, reviews] = await Promise.all([
+    needsDiff ? provider.diff(repo, before.number) : null,
+    provider.comments(repo, before.number),
+    provider.myReviews(repo, before.number),
+  ])
 
   const now = deps.clock()
   const pr = store.transaction(() => {
@@ -54,6 +59,7 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
       if (previousDiff) carryViewedMarks(store.viewed, row.id, previousDiff, next)
     }
     replaceComments(store.comments, row.id, comments, now)
+    recordRemoteReviews(store, row, reviews)
     return row
   })
 

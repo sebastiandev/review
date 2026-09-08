@@ -35,6 +35,16 @@ export type RemotePullRequest = {
   updatedAt: string
 }
 
+/** A review the user left on the provider (from the browser or from here). */
+export type RemoteReview = {
+  remoteId: string
+  verdict: Verdict
+  /** Commit the review was submitted against. */
+  headSha: string
+  body: string
+  submittedAt: string
+}
+
 export type RemoteComment = {
   remoteId: string
   author: string
@@ -95,6 +105,8 @@ export type PullRequestProvider = {
   get(repo: RepoRef, number: number): Promise<RemotePullRequest | null>
   diff(repo: RepoRef, number: number): Promise<string>
   comments(repo: RepoRef, number: number): Promise<RemoteComment[]>
+  /** Reviews the authenticated user submitted on this PR, oldest first. */
+  myReviews(repo: RepoRef, number: number): Promise<RemoteReview[]>
   submitReview(repo: RepoRef, number: number, payload: ReviewPayload): Promise<{ remoteReviewId: string }>
   /** URL, `#n` or `n` → number, or null. Provider-specific URL grammar, so it lives here. */
   parseReference(input: string, repo: RepoRef): { repo: RepoRef; number: number } | null

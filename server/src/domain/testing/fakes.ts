@@ -10,6 +10,7 @@ import type {
   PullRequestProvider,
   RemoteComment,
   RemotePullRequest,
+  RemoteReview,
   RepoRef,
   ReviewPayload,
 } from '../pullRequests.ts'
@@ -67,6 +68,8 @@ export type FakeProvider = PullRequestProvider & {
   remote: Map<number, RemotePullRequest>
   patches: Map<number, string>
   remoteComments: Map<number, RemoteComment[]>
+  /** The viewer's reviews by PR number. */
+  reviews: Map<number, RemoteReview[]>
   /** Every method invocation, as `name:number` (or `name`). */
   calls: string[]
   submitted: { repo: RepoRef; number: number; payload: ReviewPayload }[]
@@ -81,6 +84,7 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
   const remote = new Map(prs.map((p) => [p.number, p]))
   const patches = new Map<number, string>()
   const remoteComments = new Map<number, RemoteComment[]>()
+  const reviews = new Map<number, RemoteReview[]>()
   const calls: string[] = []
   const submitted: FakeProvider['submitted'] = []
   const fake: FakeProvider = {
@@ -88,6 +92,7 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     remote,
     patches,
     remoteComments,
+    reviews,
     calls,
     submitted,
     viewer: 'me',
@@ -120,6 +125,10 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     async comments(_repo, number) {
       calls.push(`comments:${number}`)
       return remoteComments.get(number) ?? []
+    },
+    async myReviews(_repo, number) {
+      calls.push(`myReviews:${number}`)
+      return reviews.get(number) ?? []
     },
     async submitReview(repo, number, payload) {
       calls.push(`submitReview:${number}`)

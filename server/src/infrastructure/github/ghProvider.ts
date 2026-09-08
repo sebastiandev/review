@@ -3,10 +3,13 @@ import type { Runner } from '../process.ts'
 import {
   mapAccountRepo,
   mapComment,
+  mapMyReviews,
+  REVIEW_FIELDS,
   mapPullRequest,
   parseReference,
   PR_FIELDS,
   type GraphqlPullRequest,
+  type GraphqlReview,
   type GraphqlRepository,
   type RestReviewComment,
 } from './mapping.ts'
@@ -39,6 +42,12 @@ query($owner: String!, $name: String!, $number: Int!) {
 
 const VIEWER = `query { viewer { login } }`
 
+const MY_REVIEWS = `
+query($owner: String!, $name: String!, $number: Int!) {
+  viewer { login }
+  repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviews(last: 50) { nodes { ${REVIEW_FIELDS} } } } }
+}`
+
 const VIEWER_REPOS = `
 query {
   viewer {
@@ -49,6 +58,7 @@ query {
 }`
 
 type ViewerPage = { data: { viewer: { login: string } } }
+type ReviewsPage = { data: { viewer: { login: string }; repository: { pullRequest: { reviews: { nodes: GraphqlReview[] } } | null } } }
 type ViewerReposPage = { data: { viewer: { repositories: { nodes: GraphqlRepository[] } } } }
 type ListPage = { data: { viewer: { login: string }; repository: { pullRequests: { nodes: GraphqlPullRequest[] } } } }
 type SearchPage = { data: { viewer: { login: string }; search: { nodes: GraphqlPullRequest[] } } }
@@ -115,6 +125,15 @@ export function ghProvider(run: Runner): PullRequestProvider {
       const out = await run('gh', ['api', '--paginate', '--slurp', `repos/${slug(repo)}/pulls/${number}/comments?per_page=100`])
       const pages = JSON.parse(out) as RestReviewComment[][]
       return pages.flat().map(mapComment)
+    },
+
+    async myReviews(repo, number) {
+      const out = await run('gh', [
+        'api', 'graphql',
+        '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-F', `number=${number}`, '-f', `query=${MY_REVIEWS}`,
+      ])
+      const page = JSON.parse(out) as ReviewsPage
+      return mapMyReviews(page.data.repository.pullRequest?.reviews.nodes ?? [], page.data.viewer.login)
     },
 
     async submitReview(repo, number, payload) {

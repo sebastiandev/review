@@ -64,7 +64,8 @@ describe('submitReview', () => {
   it('submits a body-only review when no draft exists yet', async () => {
     const submission = await submitReview(deps, { prId: pr.id, verdict: 'APPROVE', body: 'LGTM', confirmApprove: true })
     expect(provider.submitted[0].payload.comments).toEqual([])
-    expect(store.drafts.comments(submission.draftId)).toEqual([])
+    expect(submission).toMatchObject({ prId: pr.id, headSha: pr.headSha, source: 'app' })
+    expect(store.drafts.comments(submission.draftId!)).toEqual([])
     expect(store.drafts.latestOpen(pr.id)).toBeNull()
   })
 

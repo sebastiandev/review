@@ -1,7 +1,16 @@
-import type { AccountRepo } from '@review/shared'
-import type { RemoteComment, RemotePullRequest, RepoRef } from '../../domain/pullRequests.ts'
+import type { AccountRepo, Verdict } from '@review/shared'
+import type { RemoteComment, RemotePullRequest, RemoteReview, RepoRef } from '../../domain/pullRequests.ts'
 
 /** The fields `PR_FIELDS` asks GraphQL for. */
+export type GraphqlReview = {
+  databaseId: number
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING'
+  author: { login: string } | null
+  commit: { oid: string } | null
+  body: string
+  submittedAt: string | null
+}
+
 export type GraphqlPullRequest = {
   number: number
   title: string
@@ -28,6 +37,9 @@ export const PR_FIELDS = `
   additions deletions changedFiles createdAt updatedAt
   reviewRequests(first: 50) { nodes { requestedReviewer { __typename ... on User { login } ... on Team { slug } } } }
 `
+
+/** The fields `MY_REVIEWS` asks for. */
+export const REVIEW_FIELDS = `databaseId state author { login } commit { oid } body submittedAt`
 
 /** A `viewer.repositories` node with its open-PR count. */
 export type GraphqlRepository = { owner: { login: string }; name: string; pullRequests: { totalCount: number } }
@@ -67,6 +79,24 @@ export function mapPullRequest(node: GraphqlPullRequest, viewer: string): Remote
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
   }
+}
+
+/** The viewer's submitted reviews as the domain sees them, oldest first. */
+export function mapMyReviews(nodes: GraphqlReview[], viewer: string): RemoteReview[] {
+  return nodes.filter((r) => r.author?.login === viewer).flatMap(mapReview)
+}
+
+const REVIEW_VERDICT: Partial<Record<GraphqlReview['state'], Verdict>> = {
+  APPROVED: 'APPROVE',
+  CHANGES_REQUESTED: 'REQUEST_CHANGES',
+  COMMENTED: 'COMMENT',
+}
+
+/** A submitted review as the domain sees it; pending/dismissed ones and those without a commit are dropped. */
+function mapReview(r: GraphqlReview): RemoteReview[] {
+  const verdict = REVIEW_VERDICT[r.state]
+  if (!verdict || !r.commit || !r.submittedAt) return []
+  return [{ remoteId: String(r.databaseId), verdict, headSha: r.commit.oid, body: r.body, submittedAt: r.submittedAt }]
 }
 
 /** A repository node as the tracking picker sees it. */

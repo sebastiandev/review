@@ -174,14 +174,14 @@ export function sqliteStore(db: DatabaseSync): Store {
     },
 
     submissions: {
-      insert(s, payloadJson) {
+      insert(sub, payloadJson) {
         const { lastInsertRowid } = q(
-          'INSERT INTO submission (draft_id, remote_review_id, verdict, body, agent_verdict, submitted_at, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ).run(s.draftId, s.remoteReviewId, s.verdict, s.body, s.agentVerdict, s.submittedAt, payloadJson)
+          'INSERT INTO submission (pr_id, head_sha, draft_id, remote_review_id, source, verdict, body, agent_verdict, submitted_at, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).run(sub.prId, sub.headSha, sub.draftId, sub.remoteReviewId, sub.source, sub.verdict, sub.body, sub.agentVerdict, sub.submittedAt, payloadJson)
         return toSubmission(q('SELECT * FROM submission WHERE id = ?').get(lastInsertRowid)!)
       },
+      remoteIds: (prId) => new Set(q('SELECT remote_review_id FROM submission WHERE pr_id = ?').all(prId).map((r) => str(r.remote_review_id))),
     },
-
     agentReviews: {
       get: (id) => nullable(q('SELECT * FROM agent_review WHERE id = ?').get(id), toAgentReview),
       latest: (prId, headSha, status) =>
@@ -317,8 +317,7 @@ export function sqliteStore(db: DatabaseSync): Store {
                   CASE WHEN s.agent_verdict IS NULL THEN 'not run'
                        WHEN s.agent_verdict = s.verdict THEN 'agreed' ELSE 'disagreed' END AS agent_agreement
            FROM submission s
-           JOIN review_draft d ON d.id = s.draft_id
-           JOIN pull_request pr ON pr.id = d.pr_id
+           JOIN pull_request pr ON pr.id = s.pr_id
            JOIN repo r ON r.id = pr.repo_id
            WHERE (? IS NULL OR s.verdict = ?)
            ORDER BY s.submitted_at DESC, s.id DESC`,
@@ -367,8 +366,8 @@ const INBOX_SELECT = `SELECT pr.*, r.owner || '/' || r.name AS repo,
          (SELECT COUNT(*) FROM remote_comment rc WHERE rc.pr_id = pr.id) AS remote_comment_count,
          (SELECT COUNT(*) FROM draft_comment dc JOIN review_draft d ON d.id = dc.draft_id
            WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha AND d.status = 'open') AS draft_comment_count,
-         (SELECT s.verdict FROM submission s JOIN review_draft d ON d.id = s.draft_id
-           WHERE d.pr_id = pr.id AND d.head_sha = pr.head_sha ORDER BY s.id DESC LIMIT 1) AS submitted_verdict,
+         (SELECT s.verdict FROM submission s
+           WHERE s.pr_id = pr.id AND s.head_sha = pr.head_sha ORDER BY s.submitted_at DESC, s.id DESC LIMIT 1) AS submitted_verdict,
          (SELECT ar.status FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_status,
          (SELECT ar.verdict FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_verdict
   FROM pull_request pr JOIN repo r ON r.id = pr.repo_id`
@@ -504,8 +503,11 @@ function toDraftComment(r: Row): DraftComment {
 function toSubmission(r: Row): Submission {
   return {
     id: num(r.id),
-    draftId: num(r.draft_id),
+    prId: num(r.pr_id),
+    headSha: str(r.head_sha),
+    draftId: r.draft_id === null ? null : num(r.draft_id),
     remoteReviewId: str(r.remote_review_id),
+    source: str(r.source) as Submission['source'],
     verdict: str(r.verdict) as Verdict,
     body: str(r.body),
     agentVerdict: (r.agent_verdict as Verdict | null) ?? null,

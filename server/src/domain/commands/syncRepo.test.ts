@@ -63,9 +63,26 @@ describe('syncRepo', () => {
     const result = await syncRepo(deps, { repoId })
 
     expect(result).toEqual({ added: 0, updated: 1, released: 0 })
-    expect(provider.calls).toEqual(['listReviewRequested', 'comments:1'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'comments:1', 'myReviews:1'])
     const [pr] = store.pullRequests.listByRepo(repoId, {})
     expect(store.comments.list(pr!.id).map((c) => c.body)).toEqual(['late remark'])
+  })
+
+  it('records reviews I submitted on GitHub and marks the head viewed when they target it', async () => {
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-a' }))
+    provider.reviews.set(1, [
+      { remoteId: 'gh-1', verdict: 'COMMENT', headSha: 'sha-old', body: 'earlier', submittedAt: '2026-09-01T00:00:00.000Z' },
+      { remoteId: 'gh-2', verdict: 'APPROVE', headSha: 'sha-a', body: 'LGTM', submittedAt: NOW },
+    ])
+
+    await syncRepo(deps, { repoId })
+    await syncRepo(deps, { repoId })
+
+    const pr = store.pullRequests.find(repoId, 1)!
+    expect(store.submissions.remoteIds(pr.id)).toEqual(new Set(['gh-1', 'gh-2']))
+    expect(store.views.inbox(repoId)[0]).toMatchObject({ submittedVerdict: 'APPROVE' })
+    expect(store.viewed.list(pr.id)).toEqual([{ path: 'src/a.py', headSha: 'sha-a' }])
+    expect(store.views.pastReviews(null).map((r) => r.verdict)).toEqual(['APPROVE', 'COMMENT'])
   })
 
   it('does not refetch comments of PRs marked done', async () => {
@@ -90,7 +107,7 @@ describe('syncRepo', () => {
 
     const pr = store.pullRequests.find(repoId, 1)!
     expect(pr.headSha).toBe('sha-b')
-    expect(provider.calls).toEqual(['listReviewRequested', 'diff:1', 'comments:1'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'diff:1', 'comments:1', 'myReviews:1'])
     expect(store.diffs.get(pr.id, 'sha-a')).not.toBeNull()
     expect(store.diffs.get(pr.id, 'sha-b')).not.toBeNull()
   })

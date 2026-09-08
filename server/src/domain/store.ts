@@ -57,6 +57,8 @@ export type Store = {
   }
   submissions: {
     insert(s: Omit<Submission, 'id'>, payloadJson: string): Submission
+    /** Remote review ids already recorded for the PR. */
+    remoteIds(prId: number): Set<string>
   }
   agentReviews: {
     get(id: number): AgentReview | null
