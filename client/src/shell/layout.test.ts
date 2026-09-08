@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampSidebarWidth, computeLayout } from './layout'
+import { clampDockWidth, clampSidebarWidth, computeLayout } from './layout'
 
 describe('clampSidebarWidth', () => {
   it.each([
@@ -40,5 +40,29 @@ describe('computeLayout', () => {
 
   it('flags compact when the centre is under 720', () => {
     expect(computeLayout(1000, false, 306).compact).toBe(true)
+  })
+})
+
+describe('clampDockWidth', () => {
+  it.each([
+    ['keeps a width inside the range', 400, 1440, 306, 400],
+    ['raises to the minimum', 100, 1440, 306, 280],
+    ['caps at 640 on a wide viewport', 900, 2000, 306, 640],
+    ['caps so the centre keeps 480px', 640, 1300, 306, 1300 - 48 - 306 - 480],
+    ['the minimum wins when the viewport cannot fit 480px of centre', 400, 900, 306, 280],
+  ])('%s', (_, width, viewportW, sidebarW, expected) => {
+    expect(clampDockWidth(width, viewportW, sidebarW)).toBe(expected)
+  })
+})
+
+describe('computeLayout with a resized dock', () => {
+  it('uses the stored open width for the dock and the centre', () => {
+    const layout = computeLayout(1600, true, 306, 500)
+    expect(layout.dockW).toBe(500)
+    expect(layout.centerW).toBe(1600 - 48 - 306 - 500)
+  })
+
+  it('ignores the open width while collapsed', () => {
+    expect(computeLayout(1000, true, 306, 500).dockW).toBe(44)
   })
 })

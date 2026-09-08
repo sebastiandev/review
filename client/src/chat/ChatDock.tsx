@@ -31,6 +31,9 @@ type ChatDockProps = {
   onPermission: (id: string, response: PermissionReply) => void
   onJumpTo: (path: string, start: number, end: number) => void
   onToggle: () => void
+  /** Open width in px; the dock is resizable from its left edge. */
+  width?: number
+  onStartResize?: (e: React.PointerEvent<HTMLElement>) => void
 }
 
 const EMPTY_CONFIG: Pick<AppConfig, 'agents' | 'models' | 'commands'> = { agents: [], models: [], commands: [] }
@@ -308,6 +311,8 @@ export function ChatDock({
   onPermission,
   onJumpTo,
   onToggle,
+  width,
+  onStartResize,
 }: ChatDockProps) {
   const list = useRef<HTMLDivElement>(null)
   const [picker, setPicker] = useState<LocalCommand | null>(null)
@@ -331,7 +336,10 @@ export function ChatDock({
   }
 
   return (
-    <aside className="dock">
+    <aside className="dock" style={width ? { width } : undefined}>
+      {onStartResize && (
+        <div className="dock-resize" role="separator" aria-orientation="vertical" title="Drag to resize" onPointerDown={onStartResize} />
+      )}
       <div className="dock-head">
         <span className="dock-title">Chat</span>
         {scope && <span className="dock-scope">{scope}</span>}

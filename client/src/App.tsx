@@ -241,13 +241,17 @@ export function App() {
         <Rail prMode={mode === 'pr'} view={view} onInbox={goInbox} onPast={goPast} onSettings={() => goSettings()} />
         {view === 'past' && (
           <>
-            {!layout.tight && <PastSidebar filter={pastFilter} width={layout.sidebarW} onFilter={setPastFilter} onStartResize={layout.startSidebarResize} />}
+            {!layout.tight && (
+              <PastSidebar filter={pastFilter} width={layout.sidebarW} onFilter={setPastFilter} onStartResize={layout.startSidebarResize} />
+            )}
             <PastReviews filter={pastFilter} onManageWorktrees={() => goSettings('worktrees')} onFlash={setFlash} />
           </>
         )}
         {view === 'settings' && (
           <>
-            {!layout.tight && <SettingsSidebar section={section} width={layout.sidebarW} onSection={goSettings} onStartResize={layout.startSidebarResize} />}
+            {!layout.tight && (
+              <SettingsSidebar section={section} width={layout.sidebarW} onSection={goSettings} onStartResize={layout.startSidebarResize} />
+            )}
             {settings.data ? (
               <Settings
                 settings={settings.data}
@@ -348,6 +352,8 @@ export function App() {
               onPermission={() => {}}
               onJumpTo={() => {}}
               onToggle={layout.toggleDock}
+              width={layout.dockOpenW}
+              onStartResize={layout.startDockResize}
             />
           </>
         )}

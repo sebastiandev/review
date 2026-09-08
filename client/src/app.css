@@ -991,12 +991,28 @@ button {
 /* ── Chat dock ─────────────────────────────────────────────────────────── */
 
 .dock {
+  position: relative;
   flex: none;
   width: 344px;
   display: flex;
   flex-direction: column;
   min-height: 0;
   border-left: 1px solid var(--color-divider);
+}
+
+.dock-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 35;
+}
+
+.dock-resize:hover {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
 }
 
 .dock-collapsed {

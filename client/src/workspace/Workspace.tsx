@@ -492,6 +492,8 @@ export function Workspace({
         onPermission={(id, reply) => chat.respondPermission(DOCK_THREAD, id, reply)}
         onJumpTo={onJumpTo}
         onToggle={layout.toggleDock}
+        width={layout.dockOpenW}
+        onStartResize={layout.startDockResize}
       />
     </>
   )
