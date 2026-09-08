@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util'
 import { exec } from 'node:child_process'
 import { DEFAULT_CACHE_DIR, startDiffMode, startPrMode } from './application/main.ts'
+import { ensureOpencode } from './infrastructure/opencodeServer.ts'
 
 const USAGE = `usage:
   review                                   PR inbox (tracked repos, worktrees, reviews)
@@ -10,7 +11,7 @@ const USAGE = `usage:
 
 options:
   --port <n>          server port (default 5178)
-  --opencode <url>    opencode serve url (default http://localhost:4096)
+  --opencode <url>    opencode serve url (default http://localhost:4096); started if not running
   --cache-dir <dir>   store, clones and worktrees (default ~/.cache/review)
   --dev               do not serve the built client (use Vite on :5177)
   --no-open           do not open the browser`
@@ -38,6 +39,7 @@ if (values.help || !(prMode || diffMode)) {
 
 const port = Number(values.port)
 const common = { port, opencodeUrl: values.opencode, cacheDir: values['cache-dir'], serveBuiltClient: !values.dev }
+await ensureOpencode(values.opencode, console.error)
 if (diffMode) await startDiffMode({ ...common, target, base: values.base ?? null })
 else await startPrMode(common)
 
