@@ -142,6 +142,10 @@ export function memoryPayloads(): MemoryPayloads {
   return {
     files,
     pathFor: (r) => `/payloads/pr-${r.prId}-${r.headSha}-${r.id}.json`,
+    diffPathFor: (r) => `/payloads/pr-${r.prId}-${r.headSha}-${r.id}.diff`,
+    async write(path, text) {
+      files.set(path, text)
+    },
     async read(path) {
       return files.get(path) ?? null
     },
@@ -194,7 +198,10 @@ export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehavi
 export type FakeWorktrees = Worktrees & {
   /** Paths currently on "disk". */
   paths: Set<string>
+  /** Checked-out sha by path. */
+  heads: Map<string, string>
   created: WorktreeRequest[]
+  checkedOut: { path: string; headSha: string }[]
   removed: string[]
   /** When set, `create` waits on it before finishing; lets a test hold a creation open. */
   gate: Promise<void> | null
@@ -207,7 +214,9 @@ export function fakeWorktrees(): FakeWorktrees {
   const stages: WorktreeStage[] = ['cloning', 'fetching', 'checking-out', 'ready']
   const fake: FakeWorktrees = {
     paths: new Set(),
+    heads: new Map(),
     created: [],
+    checkedOut: [],
     removed: [],
     gate: null,
     failWith: null,
@@ -218,7 +227,16 @@ export function fakeWorktrees(): FakeWorktrees {
       if (fake.failWith) throw fake.failWith
       const path = `/wt/${req.repo.owner}/${req.repo.name}/${req.number}`
       fake.paths.add(path)
+      fake.heads.set(path, req.headSha)
       return { path }
+    },
+    async headSha(path) {
+      return fake.heads.get(path) ?? 'unknown'
+    },
+    async checkout(path, req, onStage) {
+      for (const s of ['fetching', 'checking-out', 'ready'] as const) onStage(s)
+      fake.heads.set(path, req.headSha)
+      fake.checkedOut.push({ path, headSha: req.headSha })
     },
     async remove(path) {
       fake.removed.push(path)

@@ -36,6 +36,19 @@ export function gitWorktrees(opts: GitWorktreesOptions): Worktrees {
       return { path }
     },
 
+    async headSha(path) {
+      return (await run('git', ['rev-parse', 'HEAD'], { cwd: path })).trim()
+    },
+
+    async checkout(path, req, onStage) {
+      const repoDir = join(reposDir, req.repo.owner, req.repo.name)
+      onStage('fetching')
+      await run('git', ['fetch', '--quiet', 'origin', `pull/${req.number}/head:refs/review/pr/${req.number}`], { cwd: repoDir })
+      onStage('checking-out')
+      await run('git', ['checkout', '--quiet', '--detach', req.headSha], { cwd: path })
+      onStage('ready')
+    },
+
     async remove(path) {
       // `<worktreesDir>/<owner>/<name>/<n>` → `<reposDir>/<owner>/<name>`.
       const [owner, name] = relative(worktreesDir, path).split(sep)

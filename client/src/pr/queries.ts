@@ -94,6 +94,11 @@ export function useSyncInvalidation(): void {
       case 'sync.failed':
         void client.invalidateQueries({ queryKey: keys.repos })
         break
+      case 'pr.refreshed':
+        void client.invalidateQueries({ queryKey: keys.pr(event.prId) })
+        void client.invalidateQueries({ queryKey: ['file', `pr:${event.prId}`] })
+        void client.invalidateQueries({ queryKey: ['inbox'] })
+        break
       case 'review.submitted':
         void client.invalidateQueries({ queryKey: keys.pr(event.prId) })
         void client.invalidateQueries({ queryKey: ['past-reviews'] })

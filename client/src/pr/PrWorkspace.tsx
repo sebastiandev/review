@@ -10,10 +10,12 @@ import {
   openPr,
   patchComment,
   prScope,
+  refreshPr,
   runReview,
   submitReview,
   unkeepFinding,
   type NewComment,
+  type RunReviewOptions,
 } from '../api'
 import type { DiffMode } from '../diff/DiffView'
 import { useNow } from '../inbox/useNow'
@@ -25,6 +27,7 @@ import { countByPath, groupThreads } from './comments'
 import { useDismissedFindings } from './dismissedFindings'
 import { PrTreeFooter, PrTreeHeader } from './PrTreeChrome'
 import { keys, usePrDetail } from './queries'
+import { RunReviewModal } from './RunReviewModal'
 import { SubmitModal, verdictLabel } from './SubmitModal'
 import type { PrCommentActions, PrWorkspaceData } from './usePrArtifacts'
 import { useServerViewed } from './useServerViewed'
@@ -118,12 +121,23 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
 
   const agentReview = detail.data?.agentReview ?? null
   const review = agentReview?.review ?? null
-  const findings = useMemo<AgentFinding[]>(() => (review?.status === 'ready' ? agentReview?.findings ?? [] : []), [agentReview, review])
+  const findings = useMemo<AgentFinding[]>(() => (review?.status === 'ready' ? (agentReview?.findings ?? []) : []), [agentReview, review])
 
+  const refresh = useMutation({
+    mutationFn: () => refreshPr(prId),
+    onSuccess: ({ headMoved }) => {
+      void refetchDetail()
+      onFlash(headMoved ? 'PR updated · new commits, diff and worktree refreshed' : 'PR updated · comments refreshed')
+    },
+    onError: (e) => onFlash(`could not refresh: ${e instanceof Error ? e.message : String(e)}`),
+  })
+
+  const [runOpen, setRunOpen] = useState(false)
   const run = useMutation({
-    mutationFn: () => runReview(prId),
+    mutationFn: (options: RunReviewOptions) => runReview(prId, options),
     onSuccess: ({ status }) => {
       setPanelOpen(false)
+      setRunOpen(false)
       if (status === 'busy') onFlash('another review is running')
     },
     onError: (e) => onFlash(`could not start the review: ${e instanceof Error ? e.message : String(e)}`),
@@ -147,13 +161,17 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
 
   const button = labelFor(review, findings.length)
   const onReviewButton = useCallback(() => {
-    if (button.action === 'run') run.mutate()
+    if (button.action === 'run') setRunOpen(true)
     else setPanelOpen(true)
-  }, [button.action, run])
+  }, [button.action])
 
   const submit = useMutation({
     mutationFn: ({ verdict, body }: { verdict: Verdict; body: string }) =>
-      submitReview(prId, { verdict, body, confirmApprove: verdict === 'APPROVE' }),
+      submitReview(prId, {
+        verdict,
+        body,
+        confirmApprove: verdict === 'APPROVE',
+      }),
     onSuccess: (submission) => {
       setSubmitOpen(false)
       setSubmitError(null)
@@ -175,25 +193,37 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         e.stopPropagation()
         setSubmitOpen(false)
         setSubmitError(null)
+      } else if (e.key === 'Escape' && runOpen) {
+        e.stopPropagation()
+        setRunOpen(false)
       } else if (e.key === 'Escape' && panelOpen) {
         e.stopPropagation()
         setPanelOpen(false)
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isEditing(e.target)) {
         e.preventDefault()
         setSubmitOpen(true)
-      } else if (e.key === 'r' && !isEditing(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey && !submitOpen) {
+      } else if (e.key === 'r' && !isEditing(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey && !submitOpen && !runOpen) {
         if (!button.disabled) onReviewButton()
       }
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [submitOpen, panelOpen, button.disabled, onReviewButton])
+  }, [submitOpen, panelOpen, runOpen, button.disabled, onReviewButton])
 
   const drafts = useMemo(() => withInvalid(detail.data?.draft?.comments ?? [], invalidIds), [detail.data?.draft?.comments, invalidIds])
   const threads = useMemo(() => groupThreads(detail.data?.comments ?? []), [detail.data?.comments])
   const badges = useMemo(() => countByPath([...(detail.data?.comments ?? []), ...drafts]), [detail.data?.comments, drafts])
   const prData = useMemo<PrWorkspaceData>(
-    () => ({ threads, drafts, badges, now, agentReview, findings, dismissed, actions }),
+    () => ({
+      threads,
+      drafts,
+      badges,
+      now,
+      agentReview,
+      findings,
+      dismissed,
+      actions,
+    }),
     [threads, drafts, badges, now, agentReview, findings, dismissed, actions],
   )
   const hints = useMemo(() => submitHints({ agentReview, drafts }), [agentReview, drafts])
@@ -253,9 +283,27 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         }
         pr={prData}
         headerActions={
-          <button type="button" className="btn btn-secondary toolbar-btn" disabled={button.disabled || run.isPending} onClick={onReviewButton}>
-            {button.label}
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary toolbar-btn"
+              title="Fetch the latest commits and comments for this PR"
+              disabled={refresh.isPending}
+              onClick={() => refresh.mutate()}
+            >
+              {refresh.isPending && <span className="spinner" aria-hidden />}
+              {refresh.isPending ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary toolbar-btn"
+              disabled={button.disabled || run.isPending}
+              onClick={onReviewButton}
+            >
+              {isActive(review?.status) && <span className="spinner" aria-hidden />}
+              {button.label}
+            </button>
+          </>
         }
         centerOverlay={(jumpTo) =>
           panelOpen &&
@@ -272,11 +320,31 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
               }}
               onKeepAll={() => keepMany.mutate('all')}
               onKeepSelected={(ids) => keepMany.mutate(ids)}
-              onRerun={() => run.mutate()}
+              onRerun={() => {
+                setPanelOpen(false)
+                setRunOpen(true)
+              }}
             />
           )
         }
       />
+      {runOpen && (
+        <RunReviewModal
+          prNumber={pr.number}
+          previous={
+            review
+              ? {
+                  agent: review.agent,
+                  model: review.model,
+                  variant: review.variant,
+                }
+              : null
+          }
+          busy={run.isPending}
+          onRun={(options) => run.mutate(options)}
+          onClose={() => setRunOpen(false)}
+        />
+      )}
       {submitOpen && (
         <SubmitModal
           prNumber={pr.number}

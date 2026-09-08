@@ -10,6 +10,7 @@ import type {
   DiffSelection,
   DraftCommentRow,
   InboxRow,
+  ModelRef,
   PastReviewRow,
   PermissionReply,
   PrDetail,
@@ -215,6 +216,11 @@ export function markPrDone(prId: number): Promise<void> {
   return requestVoid(`/api/prs/${prId}/done`, { method: 'POST' })
 }
 
+/** Fetches the PR now: row, comments, and a moved head's diff + worktree checkout. */
+export function refreshPr(prId: number): Promise<{ headMoved: boolean }> {
+  return requestJson<{ headMoved: boolean }>(`/api/prs/${prId}/refresh`, { method: 'POST' })
+}
+
 /** Puts a done PR back in the inbox. */
 export function reopenPr(prId: number): Promise<void> {
   return requestVoid(`/api/prs/${prId}/done`, { method: 'DELETE' })
@@ -279,9 +285,12 @@ export function submitReview(prId: number, body: { verdict: Verdict; body: strin
 
 // ── Agent review ─────────────────────────────────────────────────────────
 
-/** Starts an agent run with the settings defaults; `busy` while another run is in progress. Progress arrives as `review.*` events. */
-export function runReview(prId: number): Promise<{ status: 'queued' | 'busy' }> {
-  return requestJson<{ status: 'queued' | 'busy' }>(`/api/prs/${prId}/review`, { method: 'POST' })
+/** Who runs the review. `model: null` lets opencode pick; `variant: null` is the model's default. */
+export type RunReviewOptions = { agent: string; model: ModelRef | null; variant: string | null }
+
+/** Starts an agent run; `busy` while another run is in progress. Progress arrives as `review.*` events. */
+export function runReview(prId: number, options: RunReviewOptions): Promise<{ status: 'queued' | 'busy' }> {
+  return requestJson<{ status: 'queued' | 'busy' }>(`/api/prs/${prId}/review`, jsonInit('POST', options))
 }
 
 /** Copies one finding into the draft; idempotent. 409 `draft_stale` when the run is for an older head. */

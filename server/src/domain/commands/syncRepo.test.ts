@@ -54,14 +54,29 @@ describe('syncRepo', () => {
     expect(events.events.map((e) => e.type)).toEqual(['sync.started', 'sync.finished'])
   })
 
-  it('does not refetch diff or comments when the head is unchanged', async () => {
+  it('keeps the diff but refreshes comments when the head is unchanged', async () => {
     provider.remote.set(1, remotePr({ number: 1 }))
     await syncRepo(deps, { repoId })
     provider.calls.length = 0
+    provider.remoteComments.set(1, [{ remoteId: 'c9', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'late remark', inReplyTo: null, createdAt: NOW }])
 
     const result = await syncRepo(deps, { repoId })
 
     expect(result).toEqual({ added: 0, updated: 1, released: 0 })
+    expect(provider.calls).toEqual(['listReviewRequested', 'comments:1'])
+    const [pr] = store.pullRequests.listByRepo(repoId, {})
+    expect(store.comments.list(pr!.id).map((c) => c.body)).toEqual(['late remark'])
+  })
+
+  it('does not refetch comments of PRs marked done', async () => {
+    provider.remote.set(1, remotePr({ number: 1 }))
+    await syncRepo(deps, { repoId })
+    const [pr] = store.pullRequests.listByRepo(repoId, {})
+    store.transaction(() => store.pullRequests.update(pr!.id, { doneAt: NOW }))
+    provider.calls.length = 0
+
+    await syncRepo(deps, { repoId })
+
     expect(provider.calls).toEqual(['listReviewRequested'])
   })
 

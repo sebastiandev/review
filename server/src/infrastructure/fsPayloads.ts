@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { PayloadFiles } from '../domain/agentRunner.ts'
 
@@ -8,6 +8,8 @@ export function fsPayloads(dir: string): PayloadFiles {
   mkdirSync(dir, { recursive: true })
   return {
     pathFor: (r) => join(dir, `pr-${r.prId}-${r.headSha}-${r.id}.json`),
+    diffPathFor: (r) => join(dir, `pr-${r.prId}-${r.headSha}-${r.id}.diff`),
+    write: (path, text) => writeFile(path, text, 'utf8'),
     async read(path) {
       try {
         return await readFile(path, 'utf8')

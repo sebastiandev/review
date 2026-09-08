@@ -45,8 +45,8 @@ export function AgentReviewPanel({ detail, now, busy, error, onClose, onJump, on
 
         {(review.status === 'queued' || review.status === 'running') && (
           <p className="panel-running">
-            <span className="dot-pulse" aria-hidden />
-            Reviewing…
+            <span className="spinner" aria-hidden />
+            {review.status === 'queued' ? 'Queued — waiting for the previous run…' : 'Reviewing — the agent is reading the diff…'}
           </p>
         )}
 

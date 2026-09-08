@@ -5,7 +5,7 @@ import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import { NotFound } from '../errors.ts'
 import type { Clock, Events } from '../ports.ts'
 import type { ProviderKind, PullRequestProvider, RemoteComment, RemotePullRequest } from '../pullRequests.ts'
-import { shouldReleaseWorktree } from '../rules.ts'
+import { isActive, shouldReleaseWorktree } from '../rules.ts'
 import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
@@ -21,7 +21,8 @@ export type SyncRepoResult = { added: number; updated: number; released: number 
 
 /**
  * Refresh one repo from its provider: review-requested and locally known PRs are upserted,
- * new heads get their diff and comments cached, worktrees of finished PRs are released.
+ * new heads get their diff cached, active PRs get their comments replaced, worktrees of finished
+ * PRs are released.
  * Pre-conditions:
  * - the repo exists (else `NotFound`)
  * Post-conditions:
@@ -48,13 +49,21 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
     )
     const remotes = [...wanted, ...refreshed]
 
-    const needsContent = remotes.filter((r) => {
+    // Diffs are per head, so only new heads fetch one; comments move without the head, so every
+    // active PR refetches them.
+    const needsDiff = (r: RemotePullRequest) => {
       const existing = localByNumber.get(r.number)
       return !existing || existing.headSha !== r.headSha || store.diffs.get(existing.id, existing.headSha) === null
-    })
-    const content = new Map<number, { patch: string; comments: RemoteComment[] }>()
-    for (const r of needsContent) {
-      content.set(r.number, { patch: await provider.diff(repo, r.number), comments: await provider.comments(repo, r.number) })
+    }
+    const needsComments = (r: RemotePullRequest) => {
+      const existing = localByNumber.get(r.number)
+      return !existing || isActive(existing)
+    }
+    const content = new Map<number, { patch: string | null; comments: RemoteComment[] | null }>()
+    for (const r of remotes) {
+      const patch = needsDiff(r) ? await provider.diff(repo, r.number) : null
+      const comments = needsComments(r) ? await provider.comments(repo, r.number) : null
+      if (patch !== null || comments !== null) content.set(r.number, { patch, comments })
     }
 
     const now = clock()
@@ -63,8 +72,8 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
       for (const pr of rows) {
         const fetched = content.get(pr.number)
         if (!fetched) continue
-        cachePrDiff(store.diffs, repo, pr, fetched.patch, now)
-        replaceComments(store.comments, pr.id, fetched.comments, now)
+        if (fetched.patch !== null) cachePrDiff(store.diffs, repo, pr, fetched.patch, now)
+        if (fetched.comments !== null) replaceComments(store.comments, pr.id, fetched.comments, now)
       }
       store.repos.update(repo.id, { syncedAt: now, syncError: null })
       return { rows, added: rows.filter((p) => !localByNumber.has(p.number)).length }

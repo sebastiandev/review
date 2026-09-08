@@ -93,12 +93,39 @@ export function severityOf(body: string): AgentFinding['severity'] {
  * comments the viewer already left on the PR; `specPath` is the linked spec when it exists in
  * the worktree.
  */
-export function buildReviewPrompt(pr: PullRequest, repo: RepoRef, payloadPath: string, priorComments: string[], specPath: string | null): string {
+export type ReviewPromptInput = {
+  pr: PullRequest
+  repo: RepoRef
+  /** The PR's worktree; the agent's cwd, with the head commit checked out. */
+  worktreePath: string
+  /** Where the Command wrote the cached unified diff for this head. */
+  diffPath: string
+  payloadPath: string
+  priorComments: string[]
+  specPath: string | null
+}
+
+/**
+ * The reviewer's instructions. The PR is already fetched: metadata inline, the diff on disk,
+ * the head checked out in the cwd, so the agent spends its budget reading code, not `gh`.
+ */
+export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPath, priorComments, specPath }: ReviewPromptInput): string {
   const slug = repoLabel(repo)
   const lines = [
     `Review PR ${pr.number} in repo ${slug} in github mode.`,
     '',
-    `Read it with: gh pr view ${pr.number} --repo ${slug} --json title,body,files and gh pr diff ${pr.number} --repo ${slug}`,
+    `You are running inside the PR's worktree at ${worktreePath}: the head commit ${pr.headSha} of`,
+    `branch ${pr.headRef} is checked out, targeting ${pr.baseRef}. Everything is already fetched; do`,
+    'not run gh to read the PR again.',
+    '',
+    `PR: ${pr.url}`,
+    `Title: ${pr.title}`,
+    `Author: ${pr.author}`,
+    `The unified diff is at ${diffPath}; read it from there (git diff against ${pr.baseSha} shows the same).`,
+    '',
+    'Description:',
+    pr.body.trim() ? pr.body.trim() : '(none)',
+    '',
     'Read surrounding code before flagging anything. Do not judge from diff lines alone.',
   ]
   if (specPath) {

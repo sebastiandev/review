@@ -2141,6 +2141,8 @@ button {
 
 .agent-status {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
 }
 .agent-status-running { color: var(--color-neutral-400); }
 .agent-status-ready { color: var(--color-accent-300); }
@@ -2686,4 +2688,44 @@ button {
   width: 100%;
   justify-content: center;
   font-size: 12.5px;
+}
+
+/* ── Spinner (agent runs) ──────────────────────────────────────────────── */
+
+.spinner {
+  flex: none;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 7px;
+  vertical-align: -2px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+  border-top-color: var(--color-accent);
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-xs {
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.panel-running .spinner {
+  width: 14px;
+  height: 14px;
+  margin-right: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.run-variant {
+  margin-top: 12px;
+}
+
+.run-variant + .check-label {
+  margin-top: 12px;
 }

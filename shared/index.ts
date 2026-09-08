@@ -90,6 +90,7 @@ export type ServerEvent =
   | { type: 'worktree.ready'; prId: number; path: string }
   | { type: 'worktree.failed'; prId: number; message: string }
   | { type: 'worktree.removed'; prId: number }
+  | { type: 'pr.refreshed'; prId: number; headMoved: boolean }
   | { type: 'review.submitted'; prId: number; verdict: Verdict; remoteReviewId: string }
   // Agent runs. `agentReviewId` is the `agent_review` row the run writes to.
   | { type: 'review.queued'; prId: number; agentReviewId: number }

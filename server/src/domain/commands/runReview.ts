@@ -61,7 +61,9 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
     const spec = specPath && (await deps.fileExists(specPath)) ? specPath : null
 
     const payloadPath = deps.payloads.pathFor(review)
-    const prompt = buildReviewPrompt(pr, repo, payloadPath, priorComments, spec)
+    const diffPath = deps.payloads.diffPathFor(review)
+    await deps.payloads.write(diffPath, diff.patch)
+    const prompt = buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPath, priorComments, specPath: spec })
     await withTimeout(
       deps.runner.run(
         { directory: worktreePath, title: `review ${repoLabel(repo)}#${pr.number}`, agent: req.agent, model: req.model, variant: req.variant, prompt },

@@ -5,6 +5,7 @@ import { dismissFinding, keepAllFindings, keepFinding } from '../domain/commands
 import { addDraftComment, deleteDraftComment, editDraftComment } from '../domain/commands/draftComments.ts'
 import { markDone, reopenPullRequest } from '../domain/commands/markDone.ts'
 import type { OpenPullRequest } from '../domain/commands/openPullRequest.ts'
+import { refreshPullRequest } from '../domain/commands/refreshPullRequest.ts'
 import { removeMergedWorktrees, removeWorktrees } from '../domain/commands/removeWorktrees.ts'
 import { submitReview } from '../domain/commands/submitReview.ts'
 import { trackRepo, untrackRepo, updateRepo } from '../domain/commands/trackRepos.ts'
@@ -107,6 +108,9 @@ export function prRoutes(deps: PrRoutesDeps) {
     deps.openPullRequest({ prId }).catch((e: unknown) => console.error(`open pr ${prId}:`, e))
     return c.body(null, 202)
   })
+
+  /** Fetch this PR now: row, comments, and a moved head's diff + checkout. */
+  app.post('/api/prs/:id/refresh', async (c) => c.json(await refreshPullRequest(deps, { prId: id(c.req.param('id')) })))
 
   app.post('/api/prs/:id/done', async (c) => {
     await markDone(deps, { prId: id(c.req.param('id')) })

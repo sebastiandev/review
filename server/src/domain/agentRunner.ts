@@ -19,10 +19,13 @@ export type AgentRunner = {
   run(req: AgentRunRequest, onSession: (sessionId: string) => void): Promise<void>
 }
 
-/** Where the agent writes its payload, and how the Command reads it back. */
+/** Files exchanged with the agent: the diff the Command hands it, the payload it writes back. */
 export type PayloadFiles = {
   /** Unique per run so a re-run on the same head can never read a stale file. */
   pathFor(review: Pick<AgentReview, 'id' | 'prId' | 'headSha'>): string
+  /** Where the Command writes the cached diff for the agent to read. */
+  diffPathFor(review: Pick<AgentReview, 'id' | 'prId' | 'headSha'>): string
+  write(path: string, text: string): Promise<void>
   /** File contents, or null when the agent wrote nothing. */
   read(path: string): Promise<string | null>
 }

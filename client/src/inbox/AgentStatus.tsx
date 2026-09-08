@@ -7,5 +7,10 @@ type AgentStatusProps = { status: AgentReviewStatus | null; verdict: Verdict | n
 export function AgentStatus({ status, verdict }: AgentStatusProps) {
   const label = agentStatusLabel(status, verdict)
   if (!label) return null
-  return <span className={`agent-status agent-status-${label.tone}`}>{label.text}</span>
+  return (
+    <span className={`agent-status agent-status-${label.tone}`}>
+      {label.tone === 'running' && <span className="spinner spinner-xs" aria-hidden />}
+      {label.text}
+    </span>
+  )
 }

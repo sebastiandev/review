@@ -57,10 +57,16 @@ describe('severityOf', () => {
 describe('buildReviewPrompt', () => {
   const pr = { ...remotePr({ number: 415 }), id: 1, repoId: 1, addedByUser: false, reviewOnOpen: false, specRef: null, doneAt: null, worktreePath: '/wt', syncedAt: NOW }
 
-  it('names the PR, the payload path and the github-mode rules', () => {
-    const prompt = buildReviewPrompt(pr, GITHUB_REPO, '/payloads/p.json', [], null)
+  const input = { pr, repo: GITHUB_REPO, worktreePath: '/wt', diffPath: '/payloads/p.diff', payloadPath: '/payloads/p.json', priorComments: [], specPath: null }
+
+  it('names the PR, the worktree, the diff file, the payload path and the github-mode rules', () => {
+    const prompt = buildReviewPrompt(input)
     expect(prompt).toContain('Review PR 415 in repo acme/widgets in github mode.')
-    expect(prompt).toContain('gh pr view 415 --repo acme/widgets --json title,body,files and gh pr diff 415 --repo acme/widgets')
+    expect(prompt).toContain("worktree at /wt: the head commit sha-415-a of\nbranch feature-415 is checked out, targeting main")
+    expect(prompt).toContain('PR: https://github.com/acme/widgets/pull/415')
+    expect(prompt).toContain('Title: PR 415')
+    expect(prompt).toContain('The unified diff is at /payloads/p.diff')
+    expect(prompt).not.toContain('gh pr diff')
     expect(prompt).toContain('Write the review payload to /payloads/p.json using the github-mode schema.')
     expect(prompt).toContain('use REQUEST_CHANGES if you have any Block, otherwise COMMENT.')
     expect(prompt).not.toContain('ALREADY')
@@ -68,7 +74,7 @@ describe('buildReviewPrompt', () => {
   })
 
   it('lists prior comments and the linked spec when given', () => {
-    const prompt = buildReviewPrompt(pr, GITHUB_REPO, '/payloads/p.json', ['src/a.py:2: rename this'], '/wt/docs/SPEC.md')
+    const prompt = buildReviewPrompt({ ...input, priorComments: ['src/a.py:2: rename this'], specPath: '/wt/docs/SPEC.md' })
     expect(prompt).toContain('You have ALREADY left these comments')
     expect(prompt).toContain('- src/a.py:2: rename this')
     expect(prompt).toContain('The PR references a spec at /wt/docs/SPEC.md; read it before reviewing.')
