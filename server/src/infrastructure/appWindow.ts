@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 /** Chromium-based browsers that honour `--app=<url>`, in preference order. */
@@ -14,12 +15,35 @@ export function findChromiumApp(): string | null {
 }
 
 /**
- * Open the UI. `window` = a standalone app window (Chromium `--app`, its own profile under the
- * cache dir so it gets its own Dock icon and never merges into your browsing session);
- * falls back to the default browser when no Chromium app is installed. `tab` = default browser.
+ * The app bundle Chrome/Vivaldi create when the user picks "Install Review" (a PWA shim under
+ * `~/Applications/<Browser> Apps.localized/Review.app`). Its windows carry the Review icon in the Dock.
+ */
+export function findInstalledPwa(): string | null {
+  if (process.platform !== 'darwin') return null
+  const root = join(homedir(), 'Applications')
+  if (!existsSync(root)) return null
+  for (const dir of readdirSync(root)) {
+    if (!/Apps(\.localized)?$/.test(dir)) continue
+    const bundle = join(root, dir, 'Review.app')
+    if (existsSync(bundle)) return bundle
+  }
+  return null
+}
+
+/**
+ * Open the UI. `window` = the installed PWA when there is one (own Dock icon), else a Chromium
+ * `--app` window with its own profile under the cache dir (a Chrome-branded window, never merged
+ * into your browsing session); falls back to the default browser when neither exists. `tab` = default browser.
  */
 export function openUi(url: string, mode: OpenMode, cacheDir: string, log: (line: string) => void = () => {}): void {
   if (mode === 'none') return
+  if (mode === 'window') {
+    const pwa = findInstalledPwa()
+    if (pwa) {
+      execFile('open', ['-a', pwa, url])
+      return
+    }
+  }
   const app = mode === 'window' ? findChromiumApp() : null
   if (!app) {
     if (mode === 'window') log('no Chromium-based browser found for an app window; opening a tab')
@@ -28,4 +52,5 @@ export function openUi(url: string, mode: OpenMode, cacheDir: string, log: (line
   }
   const profile = join(cacheDir, 'app-window-profile')
   execFile('open', ['-na', app, '--args', `--app=${url}`, `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check'])
+  log(`tip: for a Review icon in the Dock, open ${url} in ${app} once and pick "Install Review" (address-bar install icon); \`review\` uses it from then on`)
 }

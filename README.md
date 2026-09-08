@@ -18,6 +18,11 @@ review
 
 `review update` does pull → install → build (and re-links) from then on.
 
+**Dock icon.** `review` opens a Chromium app window; macOS shows it with the browser's icon.
+For a Review icon: open http://localhost:5178 in Chrome/Vivaldi once and choose *Install Review*
+(the install icon in the address bar). That creates `~/Applications/<Browser> Apps/Review.app`,
+and `review` launches it from then on.
+
 ## Commands
 
 ```
