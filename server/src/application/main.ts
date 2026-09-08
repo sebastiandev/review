@@ -8,6 +8,7 @@ import { prMode } from './prMode.ts'
 import { fixedScope, LOCAL_SCOPE } from './scopes.ts'
 import { localRepoSource, patchFileSource } from '../infrastructure/diffSources.ts'
 import { eventBus } from '../infrastructure/events.ts'
+import { fileLog, logEvents, teeConsole } from '../infrastructure/fileLog.ts'
 import { fileExists, fsPayloads } from '../infrastructure/fsPayloads.ts'
 import { ghProvider } from '../infrastructure/github/ghProvider.ts'
 import { ghCliCredentials, githubDeviceFlow, withGithubToken } from '../infrastructure/github/oauthDeviceFlow.ts'
@@ -45,6 +46,7 @@ export async function startDiffMode(opts: DiffModeOptions) {
   const source = isDir ? localRepoSource(target, opts.base) : patchFileSource(target)
   const store = sqliteStore(await openCacheDatabase(opts.cacheDir))
   const events = eventBus()
+  await startLogging(opts.cacheDir, events)
 
   const directory = isDir ? target : process.cwd()
   const chat = await openOpencodeChat({
@@ -72,6 +74,8 @@ export async function startDiffMode(opts: DiffModeOptions) {
 /** Composition root for PR mode: store, providers, worktrees, scheduler, serve. */
 export async function startPrMode(opts: PrModeOptions) {
   const store = sqliteStore(await openCacheDatabase(opts.cacheDir))
+  const events = eventBus()
+  await startLogging(opts.cacheDir, events)
   // The account session is created inside prMode; the runner reads its token lazily.
   let token: () => string | null = () => null
   const run = withGithubToken(execFileRunner, () => token())
@@ -88,7 +92,7 @@ export async function startPrMode(opts: PrModeOptions) {
     runner: opencodeRunner({ baseUrl: opts.opencodeUrl }),
     payloads: fsPayloads(join(opts.cacheDir, 'payloads')),
     fileExists,
-    events: eventBus(),
+    events,
     clock: () => new Date().toISOString(),
     opencodeUrl: opts.opencodeUrl,
     directory: process.cwd(),
@@ -98,6 +102,15 @@ export async function startPrMode(opts: PrModeOptions) {
   await accounts.load()
   scheduler.start()
   return serve({ fetch: app.fetch, port: opts.port })
+}
+
+/** `<cacheDir>/logs/review-YYYY-MM-DD.log`: console output and every bus event; seven days kept. */
+async function startLogging(cacheDir: string, events: ReturnType<typeof eventBus>) {
+  const log = fileLog(join(cacheDir, 'logs'))
+  await log.prune()
+  teeConsole(log)
+  logEvents(events, log)
+  console.log(`logging to ${log.dir}`)
 }
 
 async function openCacheDatabase(cacheDir: string) {
