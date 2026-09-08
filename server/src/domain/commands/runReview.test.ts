@@ -143,8 +143,17 @@ describe('runReview', () => {
     else expect(prompt).not.toContain('spec at')
   })
 
+  it('accepts the payload from the reply when the agent could not write the file', async () => {
+    runner.behaviour = { kind: 'reply', text: `Here it is:\n\`\`\`json\n${PAYLOAD}\n\`\`\`\n/payloads/x.json REQUEST_CHANGES 2` }
+    const result = await runReview(deps, { prId: pr.id, ...request })
+    expect(result.review).toMatchObject({ status: 'ready', verdict: 'REQUEST_CHANGES' })
+    expect(result.findings).toHaveLength(2)
+    expect(await payloads.read(payloads.pathFor(result.review))).toBe(PAYLOAD)
+  })
+
   it.each([
     ['the runner fails', { kind: 'fail', error: new Error('opencode down') } as const, 'opencode down'],
+    ['the agent replies without JSON', { kind: 'reply', text: 'Looks fine to me.' } as const, /agent wrote nothing/],
     ['the agent writes nothing', { kind: 'silent' } as const, /agent wrote nothing/],
     ['the payload is malformed', { kind: 'write', text: '{"event":"MAYBE"}' } as const, /event must be/],
   ])('marks the run failed and emits review.failed when %s', async (_label, behaviour, message) => {

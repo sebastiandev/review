@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { buildReviewPrompt, InvalidPayload, parsePayload, type RunReviewRequest, type RunReviewResult } from '../agentReview.ts'
+import { buildReviewPrompt, extractInlinePayload, InvalidPayload, parsePayload, type RunReviewRequest, type RunReviewResult } from '../agentReview.ts'
 import type { AgentRunner, PayloadFiles } from '../agentRunner.ts'
 import { NotFound, WorktreeMissing } from '../errors.ts'
 import type { Clock, Events } from '../ports.ts'
@@ -65,7 +65,7 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
     const diffPath = deps.payloads.diffPathFor(review)
     await deps.payloads.write(diffPath, diff.patch)
     const prompt = buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPath, priorComments, specPath: spec })
-    await withTimeout(
+    const outcome = await withTimeout(
       deps.runner.run(
         { directory: worktreePath, title: `review ${repoLabel(repo)}#${pr.number}`, agent: req.agent, model: req.model, variant: req.variant, prompt },
         (sessionId) => store.transaction(() => store.agentReviews.update(review.id, { sessionId })),
@@ -74,8 +74,13 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
       deps.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
     )
 
-    const text = await deps.payloads.read(payloadPath)
-    if (text === null) throw new InvalidPayload(`agent wrote nothing to ${payloadPath}`)
+    // Agents without write permission answer with the JSON inline; keep a copy where the file would be.
+    let text = await deps.payloads.read(payloadPath)
+    if (text === null) {
+      text = extractInlinePayload(outcome.finalText)
+      if (text !== null) await deps.payloads.write(payloadPath, text)
+    }
+    if (text === null) throw new InvalidPayload(`agent wrote nothing to ${payloadPath} and replied without a JSON payload`)
     const parsed = parsePayload(text, diff.anchors)
 
     const result = store.transaction(() => {
@@ -99,7 +104,7 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
   }
 }
 
-function withTimeout(run: Promise<void>, ms: number): Promise<void> {
+function withTimeout<T>(run: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`agent did not finish within ${Math.round(ms / 60_000)} min`)), ms)

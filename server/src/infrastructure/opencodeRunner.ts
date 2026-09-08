@@ -28,6 +28,7 @@ export function opencodeRunner(opts: { baseUrl: string }): AgentRunner {
       if (res.error) throw new Error(`opencode: prompt failed: ${JSON.stringify(res.error)}`)
 
       await settled(sse.stream, sessionID, onStep)
+      return { finalText: await lastAssistantText(client, query, sessionID) }
     },
   }
 }
@@ -67,4 +68,18 @@ function describeError(err: unknown): string {
 function completedStep(part: Part): { callID: string; tool: string; title: string } | null {
   if (part.type !== 'tool' || part.state.status !== 'completed') return null
   return { callID: part.callID, tool: part.tool, title: part.state.title || part.tool }
+}
+
+/** The text of the assistant's last message in the session, or null. */
+async function lastAssistantText(client: ReturnType<typeof createOpencodeClient>, query: { directory: string }, sessionID: string): Promise<string | null> {
+  const res = await client.session.messages({ path: { id: sessionID }, query })
+  const assistant = (res.data ?? []).filter((m) => m.info.role === 'assistant')
+  const last = assistant[assistant.length - 1]
+  if (!last) return null
+  const text = last.parts
+    .filter((p): p is Extract<Part, { type: 'text' }> => p.type === 'text')
+    .map((p) => p.text)
+    .join('\n')
+    .trim()
+  return text || null
 }

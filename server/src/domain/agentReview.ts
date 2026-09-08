@@ -136,13 +136,53 @@ export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPat
   }
   lines.push(
     '',
-    `Write the review payload to ${payloadPath} using the github-mode schema. Verify every line you`,
-    'cite is a line the diff actually touches. Do not submit it. Approving is not permitted:',
-    'use REQUEST_CHANGES if you have any Block, otherwise COMMENT.',
+    '## Output contract',
+    '',
+    `Your review is a JSON file. Write it to ${payloadPath} with exactly this shape:`,
+    '',
+    '```json',
+    '{',
+    `  "pr": ${pr.number},`,
+    `  "repo": "${slug}",`,
+    '  "event": "COMMENT" | "REQUEST_CHANGES",',
+    '  "body": "<overall feedback: two or three sentences, no list of the inline comments>",',
+    '  "comments": [',
+    '    { "path": "path/in/repo.py", "line": 42, "side": "RIGHT", "body": "Question: <finding>" },',
+    '    { "path": "path/in/repo.py", "start_line": 40, "line": 44, "side": "RIGHT", "body": "Block: <multi-line finding>" }',
+    '  ]',
+    '}',
+    '```',
+    '',
+    'Rules:',
+    '- Every finding that belongs to a line goes in `comments`, one object per finding, whatever its severity.',
+    '- Start each comment body with `Block:`, `Question:` or `Note:`. Block = correctness, data leakage,',
+    '  transaction or security problems; Question = design / naming you want answered; Note = minor.',
+    '- `line` is the line number in the post-change file (`side: "RIGHT"`) and MUST be a line the diff',
+    '  adds or shows as context. For a removed line use the old-file number with `side: "LEFT"`. A',
+    '  comment on a line the diff does not touch is dropped.',
+    '- `event` is REQUEST_CHANGES when you have any Block, otherwise COMMENT. Never APPROVE: the human',
+    '  decides that.',
+    '- No findings at all? Write an empty `comments` array and one honest line in `body`.',
+    '- Do not submit anything to GitHub and do not edit files in the worktree.',
+    '- If you are not allowed to write files, reply with the JSON itself in a ```json block instead.',
     '',
     'Reply with only: the payload path, the event, and the inline comment count.',
   )
   return lines.join('\n')
+}
+
+/** The payload JSON embedded in an agent's reply (a ```json block, or a bare object), or null. */
+export function extractInlinePayload(text: string | null): string | null {
+  if (!text) return null
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text)
+  const candidate = fenced ? fenced[1]! : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)
+  if (!candidate.trim().startsWith('{')) return null
+  try {
+    JSON.parse(candidate)
+    return candidate.trim()
+  } catch {
+    return null
+  }
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)

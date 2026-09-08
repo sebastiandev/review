@@ -164,6 +164,8 @@ export function memoryPayloads(): MemoryPayloads {
 export type FakeRunnerBehaviour =
   /** Write `text` where the prompt says, then go idle. */
   | { kind: 'write'; text: string }
+  /** Answer with `text` instead of writing a file (a read-only agent). */
+  | { kind: 'reply'; text: string }
   /** Go idle without writing anything. */
   | { kind: 'silent' }
   | { kind: 'fail'; error: Error }
@@ -187,15 +189,17 @@ export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehavi
       const b = fake.behaviour
       switch (b.kind) {
         case 'write': {
-          const m = /Write the review payload to (\S+) using/.exec(req.prompt)
+          const m = /Write it to (\S+) with exactly this shape/.exec(req.prompt)
           if (!m) throw new Error('fake runner: prompt names no payload path')
           onStep({ tool: 'read', title: 'Read src/a.py' })
           payloads.files.set(m[1], b.text)
           onStep({ tool: 'write', title: `Write ${m[1]}` })
-          return
+          return { finalText: `${m[1]} written` }
         }
+        case 'reply':
+          return { finalText: b.text }
         case 'silent':
-          return
+          return { finalText: null }
         case 'fail':
           throw b.error
         case 'hang':

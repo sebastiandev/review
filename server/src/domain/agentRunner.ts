@@ -20,8 +20,11 @@ export type AgentRunner = {
    * Rejects when the session reports an error. `onSession` fires as soon as the id is known;
    * `onStep` fires for each tool call the agent completes.
    */
-  run(req: AgentRunRequest, onSession: (sessionId: string) => void, onStep?: (step: AgentStep) => void): Promise<void>
+  run(req: AgentRunRequest, onSession: (sessionId: string) => void, onStep?: (step: AgentStep) => void): Promise<AgentRunOutcome>
 }
+
+/** What the session ended with: the assistant's last text, for agents that answer inline instead of writing the file. */
+export type AgentRunOutcome = { finalText: string | null }
 
 /** Files exchanged with the agent: the diff the Command hands it, the payload it writes back. */
 export type PayloadFiles = {
