@@ -5,7 +5,7 @@ import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp } from './app.ts'
 import { prMode } from './prMode.ts'
-import { fixedScope, LOCAL_SCOPE } from './scopes.ts'
+import { fixedScope, LOCAL_SCOPE, localContext } from './scopes.ts'
 import { localRepoSource, patchFileSource } from '../infrastructure/diffSources.ts'
 import { eventBus } from '../infrastructure/events.ts'
 import { fileLog, logEvents, teeConsole } from '../infrastructure/fileLog.ts'
@@ -53,7 +53,7 @@ export async function startDiffMode(opts: DiffModeOptions) {
     baseUrl: opts.opencodeUrl,
     directory,
     title: `review: ${target}`,
-    systemContext: await diffContext(source),
+    systemContext: localContext(source),
     defaultAgent: null,
   })
 
@@ -122,23 +122,3 @@ function clientDist(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '../../../client/dist')
 }
 
-async function diffContext(source: Awaited<ReturnType<typeof localRepoSource>>): Promise<string> {
-  const patch = await source.read()
-  const where =
-    source.ref.kind === 'repo'
-      ? `the working tree at ${source.ref.path}${source.ref.base ? ` compared against ${source.ref.base}` : ' (uncommitted changes)'}`
-      : source.ref.kind === 'patch'
-        ? `the patch file ${source.ref.path}`
-        : `pull request ${source.ref.repo}#${source.ref.number}`
-  return [
-    `You are a chat assistant sitting next to a human who is reading a diff from ${where}. They will select ranges of it and ask questions.`,
-    'Answer briefly and conversationally. Do NOT perform a code review or produce findings unless they explicitly ask for that; a greeting gets a one-line greeting back.',
-    `Ranges are given as path:start-end on the new side unless marked LEFT. Read surrounding files when it helps.`,
-    `Do not edit files unless explicitly asked.`,
-    '',
-    'The full diff:',
-    '```diff',
-    patch,
-    '```',
-  ].join('\n')
-}

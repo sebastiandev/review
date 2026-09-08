@@ -8,6 +8,7 @@ import type {
   DiffDocument,
   DeviceCodeInfo,
   DiffSelection,
+  DiffSourceRef,
   DraftCommentRow,
   InboxRow,
   ModelRef,
@@ -73,6 +74,13 @@ const scopePath = (scope: string) => `/api/scopes/${encodeURIComponent(scope)}`
 
 /** Thread ids contain `/` and `:`; they travel as one path segment. */
 const threadPath = (scope: string, thread: string) => `${scopePath(scope)}/chat/${encodeURIComponent(thread)}`
+
+export type OpenLocalScopeRequest = { target: string; base?: string | null }
+
+/** PR-mode server: make `local` show a folder's working tree (optionally vs `base`) or a patch file. */
+export function openLocalScope(req: OpenLocalScopeRequest): Promise<{ source: DiffSourceRef }> {
+  return requestJson<{ source: DiffSourceRef }>('/api/scopes/local', jsonInit('POST', req))
+}
 
 /** The diff the scope is reviewing. */
 export function fetchDiff(scope = LOCAL_SCOPE): Promise<DiffDocument> {

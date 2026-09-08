@@ -4,7 +4,9 @@ import { NotFound, WorktreeMissing } from '../domain/errors.ts'
 import type { Events } from '../domain/ports.ts'
 import { repoLabel, type PrDiff, type PullRequest, type Repo } from '../domain/pullRequests.ts'
 import type { Store } from '../domain/store.ts'
-import { prDiffSource } from '../infrastructure/diffSources.ts'
+import { stat } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { localRepoSource, patchFileSource, prDiffSource } from '../infrastructure/diffSources.ts'
 import { openOpencodeChat, type OpencodeChatOptions } from '../infrastructure/opencodeChat.ts'
 
 /** What one `/api/scopes/:scope` serves: the diff and the conversations about it. */
@@ -28,6 +30,72 @@ export function fixedScope(id: string, source: DiffSource, chat: ChatHub, events
       return scope
     },
   }
+}
+
+export type LocalScopeRequest = { target: string; base: string | null }
+
+export type LocalScopes = ScopeRegistry & {
+  /** Replace the `local` scope with a diff of `target` (a repo dir or a patch file) and a chat rooted there. */
+  open(req: LocalScopeRequest): Promise<DiffSource>
+  /** The current local scope's source, or null when none was opened. */
+  current(): DiffSource | null
+}
+
+/**
+ * The `local` scope of a PR-mode server: absent until the user opens a folder or patch from the UI,
+ * then one at a time. Chat events reach the bus stamped `local`.
+ */
+export function localScopes(deps: { opencodeUrl: string; events: Events; openChat?: (opts: OpencodeChatOptions) => Promise<ChatHub> }): LocalScopes {
+  const openChat = deps.openChat ?? openOpencodeChat
+  let scope: Scope | null = null
+  let unsubscribe: (() => void) | null = null
+  return {
+    async resolve(id) {
+      if (id !== LOCAL_SCOPE) throw new NotFound('scope', id)
+      if (!scope) throw new NotFound('scope', `${LOCAL_SCOPE} (open a folder or .diff first)`)
+      return scope
+    },
+    current: () => scope?.source ?? null,
+    async open(req) {
+      const target = resolve(req.target)
+      const isDir = (await stat(target).catch(() => null))?.isDirectory()
+      if (isDir === undefined) throw new NotFound('path', target)
+      const source = isDir ? localRepoSource(target, req.base) : patchFileSource(target)
+      const chat = await openChat({
+        baseUrl: deps.opencodeUrl,
+        directory: isDir ? target : process.cwd(),
+        title: `review: ${target}`,
+        systemContext: localContext(source),
+        defaultAgent: null,
+      })
+      unsubscribe?.()
+      unsubscribe = chat.subscribe((e) => deps.events.emit({ ...e, scope: LOCAL_SCOPE }))
+      scope = { source, chat }
+      return source
+    },
+  }
+}
+
+/** A registry that answers `local` from `local` and everything else from `rest`. */
+export function combinedScopes(local: ScopeRegistry, rest: ScopeRegistry): ScopeRegistry {
+  return { resolve: (id) => (id === LOCAL_SCOPE ? local.resolve(id) : rest.resolve(id)) }
+}
+
+/** Dock preamble for a working tree or patch: Q&A about the diff, no review unless asked. */
+export function localContext(source: DiffSource): string {
+  const ref = source.ref
+  const where =
+    ref.kind === 'repo'
+      ? `the working tree at ${ref.path}${ref.base ? ` compared against ${ref.base}` : ' (uncommitted changes)'}`
+      : ref.kind === 'patch'
+        ? `the patch file ${ref.path}`
+        : `pull request ${ref.repo}#${ref.number}`
+  return [
+    `You are a chat assistant sitting next to a human who is reading a diff from ${where}. They will select ranges of it and ask questions.`,
+    'Answer briefly and conversationally. Do NOT perform a code review or produce findings unless they explicitly ask for that; a greeting gets a one-line greeting back.',
+    'Ranges are given as path:start-end on the new side unless marked LEFT. Read the files in the working directory when it helps.',
+    'Do not edit files unless explicitly asked.',
+  ].join('\n')
 }
 
 export type PrScopesDeps = {

@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentReviewDetail, InboxRow, PastReviewRow, PrDetail, RepoSummary, ServerEvent, UserSettings } from '@review/shared'
 import type { DraftComment, Submission } from '../domain/review.ts'
@@ -17,6 +20,7 @@ import {
   noSleep,
   openTestStore,
   remotePr,
+  SAMPLE_PATCH,
   type FakeCredentialStore,
   type FakeDeviceFlow,
   type FakeProvider,
@@ -241,6 +245,30 @@ describe('PR mode app', () => {
   it('lists the repositories on the account', async () => {
     provider.accountRepos = [{ owner: 'acme', name: 'widgets', openPrCount: 2 }]
     expect(await (await app.request('/api/account/repos')).json()).toEqual([{ owner: 'acme', name: 'widgets', openPrCount: 2 }])
+  })
+
+  describe('local scope in PR mode', () => {
+    it('is absent until a folder or patch is opened, then serves its diff and chat', async () => {
+      expect((await app.request('/api/scopes/local')).status).toBe(404)
+      expect((await app.request('/api/scopes/local/diff')).status).toBe(404)
+
+      const dir = await mkdtemp(join(tmpdir(), 'review-local-'))
+      try {
+        await writeFile(join(dir, 'change.diff'), SAMPLE_PATCH)
+        const opened = await app.request('/api/scopes/local', json('POST', { target: join(dir, 'change.diff') }))
+        expect(opened.status).toBe(201)
+        expect(await opened.json()).toEqual({ source: { kind: 'patch', path: join(dir, 'change.diff') } })
+        const diff = await (await app.request('/api/scopes/local/diff')).json()
+        expect(diff).toMatchObject({ source: { kind: 'patch' }, files: [{ path: 'src/a.py' }] })
+        expect(await (await app.request('/api/scopes/local/threads')).json()).toEqual([{ id: 'dock', anchor: null }])
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('rejects a path that does not exist', async () => {
+      expect((await app.request('/api/scopes/local', json('POST', { target: '/nope/none.diff' }))).status).toBe(404)
+    })
   })
 
   describe('accounts', () => {

@@ -6,10 +6,12 @@ type ScopeSelectorProps = {
   document: DiffDocument
   menuOpen: boolean
   onToggleMenu: () => void
+  /** Show the open-folder-or-patch form. */
+  onOpenOther: () => void
 }
 
 /** Diff-mode sidebar header: the scope selector with its one-scope menu, then the scope name and change count. */
-export function ScopeSelector({ document, menuOpen, onToggleMenu }: ScopeSelectorProps) {
+export function ScopeSelector({ document, menuOpen, onToggleMenu, onOpenOther }: ScopeSelectorProps) {
   const { source, files } = document
   const label = scopeLabel(source)
   const meta = [source.kind === 'repo' && source.base ? `vs ${source.base}` : null, `${files.length} changed files`]
@@ -28,7 +30,7 @@ export function ScopeSelector({ document, menuOpen, onToggleMenu }: ScopeSelecto
             <span className="menu-row-label mono">{label}</span>
             <span className="menu-row-note">{scopeKind(source)}</span>
           </button>
-          <button type="button" role="menuitem" className="menu-footer-row" disabled title="coming soon">
+          <button type="button" role="menuitem" className="menu-footer-row" onClick={onOpenOther}>
             Open folder or .diff…
           </button>
         </div>

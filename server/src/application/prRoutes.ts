@@ -16,6 +16,7 @@ import type { Anchor } from '../domain/review.ts'
 import type { Store } from '../domain/store.ts'
 import type { Worktrees } from '../domain/worktrees.ts'
 import type { AccountSession } from './accounts.ts'
+import type { LocalScopes } from './scopes.ts'
 import type { ReviewQueue } from './reviewQueue.ts'
 import type { Scheduler } from './scheduler.ts'
 
@@ -29,6 +30,7 @@ export type PrRoutesDeps = {
   scheduler: Pick<Scheduler, 'runNow'>
   reviewQueue: ReviewQueue
   accounts: AccountSession
+  local: LocalScopes
 }
 
 /** PR-mode routes. Each one parses input, calls one Command or one read model, and maps the result. */
@@ -38,6 +40,19 @@ export function prRoutes(deps: PrRoutesDeps) {
   const id = (value: string) => Number(value)
 
   app.get('/api/repos', (c) => c.json(store.views.repoCounts()))
+
+  /** Diff mode inside a PR-mode server: open a folder (working tree, optionally vs `base`) or a patch file as the `local` scope. */
+  app.post('/api/scopes/local', async (c) => {
+    const body = (await c.req.json()) as { target: string; base?: string | null }
+    const source = await deps.local.open({ target: body.target, base: body.base ?? null })
+    return c.json({ source: source.ref }, 201)
+  })
+
+  /** What `local` currently shows, or 404. */
+  app.get('/api/scopes/local', (c) => {
+    const source = deps.local.current()
+    return source ? c.json({ source: source.ref }) : c.json({ code: 'not_found' }, 404)
+  })
 
   app.post('/api/repos', async (c) => {
     const body = (await c.req.json()) as RepoRef & { autoReview?: boolean }

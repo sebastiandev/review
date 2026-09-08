@@ -14,7 +14,7 @@ import { accountSession, type AccountSession } from './accounts.ts'
 import { createApp } from './app.ts'
 import { prRoutes } from './prRoutes.ts'
 import { reviewQueue } from './reviewQueue.ts'
-import { prScopes } from './scopes.ts'
+import { combinedScopes, localScopes, prScopes } from './scopes.ts'
 import { scheduler, type Scheduler } from './scheduler.ts'
 
 export type PrModeDeps = {
@@ -70,14 +70,15 @@ export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; s
       if (pr.worktreePath !== null) enqueueUnreviewed(pr)
     }
   })
+  const local = localScopes({ opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat })
   const app = createApp({
-    scopes: prScopes({ store: deps.store, opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat }),
+    scopes: combinedScopes(local, prScopes({ store: deps.store, opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat })),
     store: deps.store,
     events: deps.events,
     settingsChanged: sync.reschedule,
     opencodeUrl: deps.opencodeUrl,
     directory: deps.directory,
-    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews, accounts })],
+    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews, accounts, local })],
     staticDir: deps.staticDir,
   })
   return { app, scheduler: sync, accounts }

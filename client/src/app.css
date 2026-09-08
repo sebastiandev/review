@@ -3104,3 +3104,28 @@ button {
   color: var(--color-neutral-500);
   margin-bottom: 4px;
 }
+
+/* ── Diff mode: open a folder or patch ─────────────────────────────────── */
+
+.open-scope {
+  max-width: 640px;
+}
+
+.open-scope-form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.open-scope-form .field > label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+
+.open-scope .modal-actions {
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
