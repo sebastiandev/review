@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 import { parseArgs } from 'node:util'
 import { exec } from 'node:child_process'
 import { DEFAULT_CACHE_DIR, startDiffMode, startPrMode } from './application/main.ts'

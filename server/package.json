@@ -3,11 +3,13 @@
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "review": "./src/cli.ts"
+    "review": "./dist/cli.js"
   },
   "scripts": {
     "dev": "tsx watch src/cli.ts --dev --no-open",
     "start": "tsx src/cli.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R src/infrastructure/sqlite/migrations dist/infrastructure/sqlite/migrations",
+    "start:built": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
