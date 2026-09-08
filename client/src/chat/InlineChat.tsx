@@ -89,7 +89,11 @@ export function InlineChat({ thread, state, seed, onSend, onPermission, onMinimi
       e.preventDefault()
       submit()
     }
-    // Escape is handled by the app-level key handler: menu → this card → overlays.
+    // The workspace ignores Esc from inputs, so the card minimizes itself.
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onMinimize()
+    }
   }
 
   return (

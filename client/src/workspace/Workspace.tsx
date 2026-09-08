@@ -278,6 +278,8 @@ export function Workspace({
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Inputs own their Esc (the chat composer stops the agent / clears its draft).
+        if (isEditing(e.target)) return
         // One layer per press: line menu, then the composer, then the inline chat card. Overlays are the shell's.
         clearSelection()
         if (openMenu) setOpenMenu(null)
