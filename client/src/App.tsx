@@ -18,6 +18,8 @@ import { Settings, SettingsSidebar } from './settings/Settings'
 import type { SectionId } from './settings/sections'
 import { TrackRepoModal } from './settings/TrackRepoModal'
 import { Rail, type RailView } from './shell/Rail'
+import { SearchModal } from './shell/SearchModal'
+import { usePublishSearchTargets, useSearchTargets, type SearchTargets } from './shell/searchTargets'
 import { ShortcutsSheet } from './shell/ShortcutsSheet'
 import { StatusBar } from './shell/StatusBar'
 import { TopBar } from './shell/TopBar'
@@ -29,7 +31,7 @@ import { isEditing } from './workspace/Workspace'
 
 const FLASH_MS = 5_000
 
-type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | null
+type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | 'search' | null
 
 /** Which sidebar/center pair shows. */
 type View = RailView
@@ -173,6 +175,21 @@ export function App() {
     onError: (e) => setFlash(`could not mark done: ${e instanceof Error ? e.message : String(e)}`),
   })
 
+  // While the inbox shows, ⌘K searches its PRs; an open diff publishes its files instead.
+  const inboxTargets = useMemo<SearchTargets | null>(
+    () =>
+      mode === 'pr' && view === 'inbox'
+        ? {
+            placeholder: `Open a pull request · ${rows.length} pending`,
+            items: rows.map((r) => ({ id: String(r.id), label: `#${r.number} ${r.title}`, hint: r.author })),
+            onPick: (item) => openPr(Number(item.id)),
+          }
+        : null,
+    [mode, view, rows, openPr],
+  )
+  usePublishSearchTargets(inboxTargets)
+  const searchTargets = useSearchTargets()
+
   const stepInbox = useCallback(
     (direction: 1 | -1) => {
       if (rows.length === 0) return
@@ -191,6 +208,11 @@ export function App() {
           e.stopPropagation()
           setOverlay(null)
         }
+        return
+      }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        if (searchTargets) toggleOverlay('search')
         return
       }
       if (isEditing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
@@ -214,7 +236,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [overlay, toggleOverlay, layout.toggleDock, view, stepInbox, inboxCursor, mode, openPr])
+  }, [overlay, toggleOverlay, layout.toggleDock, view, stepInbox, inboxCursor, mode, openPr, searchTargets])
 
   const status = (() => {
     if (flash) return flash
@@ -234,6 +256,8 @@ export function App() {
         mode={mode}
         modeLocked={probed && !prAvailable}
         onMode={switchMode}
+        searchHint={searchTargets?.placeholder ?? null}
+        onSearch={() => searchTargets && toggleOverlay('search')}
         onToggleShortcuts={() => toggleOverlay('shortcuts')}
         onToggleDock={layout.toggleDock}
       />
@@ -376,6 +400,7 @@ export function App() {
       </div>
       <StatusBar text={status} />
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={() => setOverlay(null)} />}
+      {overlay === 'search' && searchTargets && <SearchModal targets={searchTargets} onClose={() => setOverlay(null)} />}
       {overlay === 'connect' && account.data && (
         <ConnectModal
           account={account.data}

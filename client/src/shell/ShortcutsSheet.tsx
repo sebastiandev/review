@@ -11,7 +11,8 @@ const SHORTCUTS: [key: string, label: string][] = [
   ['d', 'toggle the chat dock'],
   ['v', 'mark file viewed'],
   ['⌘⏎', 'submit review'],
-  ['r', 'run the automatic review'],
+  ['⌘R', 'run the automatic review'],
+  ['⌘K', 'search files / pull requests'],
   ['?', 'this sheet'],
 ]
 

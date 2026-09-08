@@ -13,6 +13,7 @@ import { parsePatch } from '../diff/parsePatch'
 import { useDiffSelection } from '../diff/useDiffSelection'
 import { FileTree } from '../files/FileTree'
 import { basename, scopeKind } from '../files/scope'
+import { usePublishSearchTargets, type SearchTargets } from '../shell/searchTargets'
 import { TopPrBar } from '../files/TopPrBar'
 import type { ViewedState } from '../files/useViewed'
 import { MarkdownView, type MarkdownThread } from '../markdown/MarkdownView'
@@ -25,7 +26,8 @@ import { SelectionComposer } from './SelectionComposer'
 const FLASH_MS = 200
 
 export function isEditing(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')
+  if (!(target instanceof HTMLElement)) return false
+  return target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.isContentEditable
 }
 
 /** Scrolls the diff body to `path:start` and flashes rows start..end. */
@@ -168,6 +170,16 @@ export function Workspace({
     setOpenMenu(null)
     setComposer(null)
   }, [])
+
+  const searchTargets = useMemo<SearchTargets>(
+    () => ({
+      placeholder: `Jump to a file · ${files.length} in this diff`,
+      items: files.map((f) => ({ id: f.path, label: basename(f.path), hint: f.path })),
+      onPick: (item) => selectFile(item.id),
+    }),
+    [files, selectFile],
+  )
+  usePublishSearchTargets(searchTargets)
 
   const stepFile = useCallback(
     (direction: 1 | -1) => {

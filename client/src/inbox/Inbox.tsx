@@ -47,6 +47,7 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
             </div>
             <div className="inbox-card-title">{pr.title}</div>
             <div className="inbox-card-stats">
+              <span className="pr-row-author">{pr.author}</span>
               <span className="mono">{pr.headRef}</span>
               <span>{pr.changedFiles} files</span>
               <span className="count-add">+{pr.additions}</span>

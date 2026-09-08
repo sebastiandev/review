@@ -2834,3 +2834,48 @@ button {
 .pr-head-link:hover {
   text-decoration: underline;
 }
+
+.pr-row-author {
+  color: var(--color-neutral-300);
+}
+
+.search {
+  font: inherit;
+  font-size: 13px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.search:hover:not(:disabled) {
+  border-color: var(--color-neutral-600);
+  color: var(--color-neutral-300);
+}
+
+.search:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.search-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-modal .picker {
+  position: static;
+  width: 100%;
+  max-height: 60vh;
+  box-shadow: none;
+  border: 0;
+}
+
+.search-modal-hint {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.search-modal .picker-list {
+  max-height: 50vh;
+}

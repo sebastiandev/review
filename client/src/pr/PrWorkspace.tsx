@@ -205,7 +205,9 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isEditing(e.target)) {
         e.preventDefault()
         setSubmitOpen(true)
-      } else if (e.key === 'r' && !isEditing(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey && !submitOpen && !runOpen) {
+      } else if (e.key === 'r' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !isEditing(e.target) && !submitOpen && !runOpen) {
+        // ⌘R: the browser's reload is not wanted inside the app; the agent review is.
+        e.preventDefault()
         if (!button.disabled) onReviewButton()
       }
     }

@@ -123,6 +123,7 @@ export function InboxSidebar({
             </div>
             <div className="pr-row-title">{pr.title}</div>
             <div className="pr-row-stats">
+              <span className="pr-row-author">{pr.author}</span>
               <span>{pr.changedFiles} files</span>
               <span className="count-add">+{pr.additions}</span>
               <span className="count-del">−{pr.deletions}</span>
