@@ -59,3 +59,17 @@ describe('updateRepo', () => {
     expect(() => updateRepo({ store }, { repoId: 42, autoReview: true })).toThrow(NotFound)
   })
 })
+
+describe('trackRepo casing', () => {
+  it('treats owner/name case-insensitively, re-using the existing row', async () => {
+    const { store, close } = await openTestStore()
+    try {
+      const first = trackRepo({ store }, { provider: 'github', owner: 'acme', name: 'widgets', autoReview: false })
+      const again = trackRepo({ store }, { provider: 'github', owner: 'Acme', name: 'Widgets', autoReview: true })
+      expect(again.id).toBe(first.id)
+      expect(store.repos.list().filter((r) => r.name.toLowerCase() === 'widgets')).toHaveLength(1)
+    } finally {
+      await close()
+    }
+  })
+})

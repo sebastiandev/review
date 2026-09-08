@@ -144,6 +144,19 @@ export function App() {
     setOverlay(null)
   }, [])
 
+  // `?pr=<id>` (from `review pr …`) lands on that PR; the param is dropped once consumed.
+  useEffect(() => {
+    if (!probed || mode !== 'pr' || !repos.data) return
+    const url = new URL(window.location.href)
+    const id = Number(url.searchParams.get('pr'))
+    if (!Number.isInteger(id) || id <= 0) return
+    url.searchParams.delete('pr')
+    window.history.replaceState(null, '', url.pathname + (url.search || ''))
+    const inboxRow = (inbox.data ?? []).find((r) => r.id === id)
+    if (inboxRow) setRepoId(inboxRow.repoId)
+    openPr(id)
+  }, [probed, mode, repos.data, inbox.data, openPr])
+
   const switchMode = useCallback(
     (next: Mode) => {
       setMode(next)

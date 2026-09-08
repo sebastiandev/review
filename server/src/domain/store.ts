@@ -13,6 +13,7 @@ export type Store = {
   repos: {
     list(): Repo[]
     get(id: number): Repo | null
+    /** Case-insensitive on owner and name (GitHub semantics). */
     find(ref: RepoRef): Repo | null
     insert(r: Omit<Repo, 'id'>): Repo
     update(id: number, patch: Partial<Omit<Repo, 'id'>>): void

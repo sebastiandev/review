@@ -30,7 +30,8 @@ export function sqliteStore(db: DatabaseSync): Store {
       list: () => q('SELECT * FROM repo ORDER BY owner, name').all().map(toRepo),
       get: (id) => nullable(q('SELECT * FROM repo WHERE id = ?').get(id), toRepo),
       find: (ref) =>
-        nullable(q('SELECT * FROM repo WHERE provider = ? AND owner = ? AND name = ?').get(ref.provider, ref.owner, ref.name), toRepo),
+        // GitHub owners and repo names are case-insensitive; URLs and typed slugs vary in casing.
+        nullable(q('SELECT * FROM repo WHERE provider = ? AND owner = ? COLLATE NOCASE AND name = ? COLLATE NOCASE').get(ref.provider, ref.owner, ref.name), toRepo),
       insert(r) {
         const { lastInsertRowid } = q(
           'INSERT INTO repo (provider, owner, name, tracked, auto_review, synced_at, sync_error) VALUES (?, ?, ?, ?, ?, ?, ?)',
