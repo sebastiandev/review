@@ -1,3 +1,4 @@
+import type { AccountRepo } from '@review/shared'
 import type { RemoteComment, RemotePullRequest, RepoRef } from '../../domain/pullRequests.ts'
 
 /** The fields `PR_FIELDS` asks GraphQL for. */
@@ -27,6 +28,9 @@ export const PR_FIELDS = `
   additions deletions changedFiles createdAt updatedAt
   reviewRequests(first: 50) { nodes { requestedReviewer { __typename ... on User { login } ... on Team { slug } } } }
 `
+
+/** A `viewer.repositories` node with its open-PR count. */
+export type GraphqlRepository = { owner: { login: string }; name: string; pullRequests: { totalCount: number } }
 
 /** `GET /repos/:o/:r/pulls/:n/comments` item. */
 export type RestReviewComment = {
@@ -63,6 +67,11 @@ export function mapPullRequest(node: GraphqlPullRequest, viewer: string): Remote
     createdAt: node.createdAt,
     updatedAt: node.updatedAt,
   }
+}
+
+/** A repository node as the tracking picker sees it. */
+export function mapAccountRepo(node: GraphqlRepository): AccountRepo {
+  return { owner: node.owner.login, name: node.name, openPrCount: node.pullRequests.totalCount }
 }
 
 /** A REST review comment as the domain sees it. Ids are stringified so `in_reply_to` round-trips. */

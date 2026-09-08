@@ -82,11 +82,11 @@ Server first, then UI.
 
 ## Phase 5 — Past reviews, worktree management, settings polish  ~1 day
 
-- [ ] Past reviews table with verdict pill, agent agreed / disagreed / not run, worktree column,
+- [x] Past reviews table with verdict pill, agent agreed / disagreed / not run, worktree column,
       Remove worktree / Reopen; totals line with size on disk.
-- [ ] Settings → Worktrees list with sizes; Remove selected; Remove all for merged PRs.
-- [ ] Settings → Tracked repositories modal (type owner/name, or pick from account).
-- [ ] Settings → Review agent (agent picker from opencode, model from providers, variant), Fetching,
+- [x] Settings → Worktrees list with sizes; Remove selected; Remove all for merged PRs.
+- [x] Settings → Tracked repositories modal (type owner/name, or pick from account).
+- [x] Settings → Review agent (agent picker from opencode, model from providers, variant), Fetching,
       Appearance (default diff view, theme, diff theme).
 
 ## Phase 6 — Accounts  ~1 day

@@ -7,7 +7,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   defaultReviewAgent: 'pr-reviewer',
   defaultModel: null,
   defaultVariant: null,
-  theme: 'system',
-  diffTheme: 'github',
+  theme: 'nocturne',
+  diffTheme: 'nocturne',
   defaultDiffMode: 'unified',
 }

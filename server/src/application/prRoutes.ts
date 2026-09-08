@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
-import type { ModelRef, Verdict } from '@review/shared'
+import type { AccountInfo, ModelRef, Verdict } from '@review/shared'
 import { addPullRequests, listOpenPreviews, resolvePullRequest } from '../domain/commands/addPullRequests.ts'
 import { dismissFinding, keepAllFindings, keepFinding } from '../domain/commands/agentFindings.ts'
 import { addDraftComment, deleteDraftComment, editDraftComment } from '../domain/commands/draftComments.ts'
 import { markDone, reopenPullRequest } from '../domain/commands/markDone.ts'
 import type { OpenPullRequest } from '../domain/commands/openPullRequest.ts'
-import { removeWorktrees } from '../domain/commands/removeWorktrees.ts'
+import { removeMergedWorktrees, removeWorktrees } from '../domain/commands/removeWorktrees.ts'
 import { submitReview } from '../domain/commands/submitReview.ts'
-import { trackRepo, untrackRepo } from '../domain/commands/trackRepos.ts'
+import { trackRepo, untrackRepo, updateRepo } from '../domain/commands/trackRepos.ts'
 import { markViewed } from '../domain/commands/viewedFiles.ts'
 import type { Clock, Events } from '../domain/ports.ts'
 import type { ProviderKind, PullRequestProvider, RepoRef } from '../domain/pullRequests.ts'
@@ -37,8 +37,13 @@ export function prRoutes(deps: PrRoutesDeps) {
   app.get('/api/repos', (c) => c.json(store.views.repoCounts()))
 
   app.post('/api/repos', async (c) => {
-    const ref = (await c.req.json()) as RepoRef
-    return c.json(trackRepo(deps, { provider: ref.provider, owner: ref.owner, name: ref.name }), 201)
+    const body = (await c.req.json()) as RepoRef & { autoReview?: boolean }
+    return c.json(trackRepo(deps, { provider: body.provider, owner: body.owner, name: body.name, autoReview: body.autoReview ?? false }), 201)
+  })
+
+  app.patch('/api/repos/:id', async (c) => {
+    const body = (await c.req.json()) as { autoReview?: boolean }
+    return c.json(updateRepo(deps, { repoId: id(c.req.param('id')), autoReview: body.autoReview }))
   })
 
   app.delete('/api/repos/:id', (c) => {
@@ -49,6 +54,14 @@ export function prRoutes(deps: PrRoutesDeps) {
   app.post('/api/repos/:id/sync', (c) => c.json({ status: deps.scheduler.runNow(id(c.req.param('id'))) }, 202))
 
   app.post('/api/sync', (c) => c.json({ status: deps.scheduler.runNow() }, 202))
+
+  /** The connected GitHub account. GitLab has no adapter yet, so only GitHub is reported. */
+  app.get('/api/account', async (c) => {
+    const account: AccountInfo = { provider: 'github', login: await deps.providers.github.viewerLogin(), connected: true }
+    return c.json(account)
+  })
+
+  app.get('/api/account/repos', async (c) => c.json(await deps.providers.github.listAccountRepos()))
 
   app.get('/api/repos/:id/prs', (c) => c.json(store.views.inbox(id(c.req.param('id')))))
 
@@ -168,6 +181,8 @@ export function prRoutes(deps: PrRoutesDeps) {
     )
     return c.json({ rows, totalBytes: rows.reduce((sum, r) => sum + r.sizeBytes, 0) })
   })
+
+  app.delete('/api/worktrees/merged', async (c) => c.json({ removed: await removeMergedWorktrees(deps) }))
 
   app.delete('/api/worktrees', async (c) => {
     const { prIds } = (await c.req.json()) as { prIds: number[] }

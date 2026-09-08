@@ -1,0 +1,13 @@
+{
+  "data": {
+    "viewer": {
+      "repositories": {
+        "nodes": [
+          { "owner": { "login": "seba" }, "name": "atelier", "pullRequests": { "totalCount": 3 } },
+          { "owner": { "login": "acme" }, "name": "widgets", "pullRequests": { "totalCount": 0 } },
+          { "owner": { "login": "acme" }, "name": "gadgets", "pullRequests": { "totalCount": 12 } }
+        ]
+      }
+    }
+  }
+}

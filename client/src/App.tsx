@@ -9,33 +9,39 @@ import { Inbox } from './inbox/Inbox'
 import { InboxSidebar, repoLabel } from './inbox/InboxSidebar'
 import { inboxSubtitle, sortInboxRows } from './inbox/inboxRows'
 import { useNow } from './inbox/useNow'
+import { PastReviews, PastSidebar } from './past/PastReviews'
+import type { PastFilter } from './past/pastRows'
 import { PrWorkspace } from './pr/PrWorkspace'
-import { keys, useInbox, useRepos, useSettings, useSyncInvalidation } from './pr/queries'
-import { Rail } from './shell/Rail'
+import { keys, useInbox, useRepos, useSettings, useSyncInvalidation, useUpdateSettings } from './pr/queries'
+import { Settings, SettingsSidebar } from './settings/Settings'
+import type { SectionId } from './settings/sections'
+import { TrackRepoModal } from './settings/TrackRepoModal'
+import { Rail, type RailView } from './shell/Rail'
 import { ShortcutsSheet } from './shell/ShortcutsSheet'
 import { StatusBar } from './shell/StatusBar'
 import { TopBar } from './shell/TopBar'
 import { useLayout } from './shell/useLayout'
 import { useMode, type Mode } from './shell/useMode'
-import { useDiffTheme, useUiTheme } from './theme/useTheme'
+import { useDiffTheme, useUiTheme, type DiffTheme, type UiTheme } from './theme/useTheme'
 import { DiffWorkspace } from './workspace/DiffWorkspace'
 import { isEditing } from './workspace/Workspace'
 
 const FLASH_MS = 5_000
 
-type Overlay = 'shortcuts' | 'theme' | 'scope' | 'repo' | 'add' | null
+type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | null
 
-/** Which sidebar/center pair shows. `past` and `settings` are phase-5 placeholders. */
-type View = 'inbox' | 'files' | 'past' | 'settings'
+/** Which sidebar/center pair shows. */
+type View = RailView
 
 /** Application shell: top bar, rail, the mode's sidebar + center + dock, status bar and overlays. */
 export function App() {
-  const [uiTheme, setUiTheme] = useUiTheme()
-  const [diffTheme, setDiffTheme] = useDiffTheme()
   const layout = useLayout()
   const client = useQueryClient()
   const repos = useRepos()
   const settings = useSettings()
+  const updateSettings = useUpdateSettings()
+  const [uiTheme, setUiTheme] = useUiTheme(settings.data?.theme)
+  const [diffTheme, setDiffTheme] = useDiffTheme(settings.data?.diffTheme)
   const { mode, prAvailable, probed, setMode } = useMode(repos)
   useSyncInvalidation()
 
@@ -49,6 +55,10 @@ export function App() {
   const [prStatus, setPrStatus] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [pastFilter, setPastFilter] = useState<PastFilter>('all')
+  /** Section the settings nav highlights (scroll spy) and, when set by a click, scrolls to. */
+  const [section, setSection] = useState<SectionId>('accounts')
+  const [requestedSection, setRequestedSection] = useState<SectionId | null>(null)
   const now = useNow(30_000)
   const turn = useTurnSettings()
 
@@ -75,6 +85,37 @@ export function App() {
     setPrStatus(null)
   }, [])
 
+  const goPast = useCallback(() => {
+    setView('past')
+    setPrId(null)
+    setPrStatus(null)
+  }, [])
+
+  const goSettings = useCallback((target: SectionId = 'accounts') => {
+    setView('settings')
+    setPrId(null)
+    setPrStatus(null)
+    setSection(target)
+    setRequestedSection(target)
+    setOverlay(null)
+  }, [])
+
+  const pickUiTheme = useCallback(
+    (theme: UiTheme) => {
+      setUiTheme(theme)
+      updateSettings.mutate({ theme })
+    },
+    [setUiTheme, updateSettings],
+  )
+
+  const pickDiffTheme = useCallback(
+    (theme: DiffTheme) => {
+      setDiffTheme(theme)
+      updateSettings.mutate({ diffTheme: theme })
+    },
+    [setDiffTheme, updateSettings],
+  )
+
   const openPr = useCallback((id: number) => {
     setPrId(id)
     setInboxCursor(id)
@@ -85,10 +126,10 @@ export function App() {
   const switchMode = useCallback(
     (next: Mode) => {
       setMode(next)
-      goInbox()
+      if (view === 'files' || view === 'inbox') goInbox()
       setOverlay(null)
     },
-    [setMode, goInbox],
+    [setMode, goInbox, view],
   )
 
   const selectRepo = useCallback(
@@ -175,12 +216,15 @@ export function App() {
 
   const status = (() => {
     if (flash) return flash
+    if (view === 'past') return 'past reviews'
+    if (view === 'settings') return 'settings'
     if (mode === 'diff') return `diff mode${scopePath ? ` · ${scopePath}` : ''}`
     if (view === 'files' && prStatus) return prStatus
     return `PR mode${repo ? ` · ${repoLabel(repo)}` : ''}`
   })()
 
-  const showInbox = mode === 'pr' && view !== 'files'
+  const showInbox = mode === 'pr' && view === 'inbox'
+  const sideView = view === 'past' || view === 'settings'
 
   return (
     <div className="app">
@@ -188,18 +232,41 @@ export function App() {
         mode={mode}
         modeLocked={probed && !prAvailable}
         onMode={switchMode}
-        uiTheme={uiTheme}
-        diffTheme={diffTheme}
-        themeMenuOpen={overlay === 'theme'}
-        onToggleThemeMenu={() => toggleOverlay('theme')}
-        onUiTheme={setUiTheme}
-        onDiffTheme={setDiffTheme}
         onToggleShortcuts={() => toggleOverlay('shortcuts')}
         onToggleDock={layout.toggleDock}
       />
       <div className="app-body">
-        <Rail prMode={mode === 'pr'} view={view} onInbox={goInbox} />
-        {mode === 'diff' && (
+        <Rail prMode={mode === 'pr'} view={view} onInbox={goInbox} onPast={goPast} onSettings={() => goSettings()} />
+        {view === 'past' && (
+          <>
+            {!layout.tight && <PastSidebar filter={pastFilter} width={layout.sidebarW} onFilter={setPastFilter} onStartResize={layout.startSidebarResize} />}
+            <PastReviews filter={pastFilter} onManageWorktrees={() => goSettings('worktrees')} onFlash={setFlash} />
+          </>
+        )}
+        {view === 'settings' && (
+          <>
+            {!layout.tight && <SettingsSidebar section={section} width={layout.sidebarW} onSection={goSettings} onStartResize={layout.startSidebarResize} />}
+            {settings.data ? (
+              <Settings
+                settings={settings.data}
+                uiTheme={uiTheme}
+                diffTheme={diffTheme}
+                requestedSection={requestedSection}
+                onSectionInView={setSection}
+                onUiTheme={pickUiTheme}
+                onDiffTheme={pickDiffTheme}
+                onTrackRepo={() => setOverlay('track')}
+                onConnect={() => setFlash('GitHub is authenticated through the gh CLI; OAuth device flow arrives in phase 6.')}
+                onFlash={setFlash}
+              />
+            ) : (
+              <main className="center">
+                <p className="notice">Loading settings…</p>
+              </main>
+            )}
+          </>
+        )}
+        {!sideView && mode === 'diff' && (
           <DiffWorkspace
             layout={layout}
             defaultDiffMode={defaultDiffMode}
@@ -239,6 +306,7 @@ export function App() {
                 onAddPr={() => setOverlay('add')}
                 onRefresh={() => refresh.mutate(repo.id)}
                 onDone={(id) => done.mutate(id)}
+                onManageRepos={() => goSettings('repositories')}
                 onStartResize={layout.startSidebarResize}
               />
             )}
@@ -281,16 +349,33 @@ export function App() {
             />
           </>
         )}
-        {mode === 'pr' && !repo && (
+        {showInbox && !repo && (
           <main className="center">
-            <p className="notice">
-              {repos.isPending ? 'Loading repositories…' : 'No tracked repositories. Track one in Settings (phase 5).'}
-            </p>
+            {repos.isPending ? (
+              <p className="notice">Loading repositories…</p>
+            ) : (
+              <p className="notice">
+                No tracked repositories.{' '}
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => goSettings('repositories')}>
+                  Track one in Settings
+                </button>
+              </p>
+            )}
           </main>
         )}
       </div>
       <StatusBar text={status} />
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={() => setOverlay(null)} />}
+      {overlay === 'track' && (
+        <TrackRepoModal
+          repos={repoList}
+          onClose={() => setOverlay(null)}
+          onTracked={(count) => {
+            setOverlay(null)
+            setFlash(`${count} repositor${count === 1 ? 'y' : 'ies'} tracked`)
+          }}
+        />
+      )}
       {overlay === 'add' && repo && (
         <AddPrModal
           repoId={repo.id}

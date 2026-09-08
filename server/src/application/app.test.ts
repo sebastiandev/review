@@ -206,6 +206,108 @@ describe('PR mode app', () => {
     expect(runner.runs).toHaveLength(1)
   })
 
+  it('tracks a repo with autoReview and patches it', async () => {
+    const created = await app.request('/api/repos', json('POST', { provider: 'github', owner: 'acme', name: 'widgets', autoReview: true }))
+    expect(created.status).toBe(201)
+    const repo: Repo = await created.json()
+    expect(repo.autoReview).toBe(true)
+
+    const patched = await app.request(`/api/repos/${repo.id}`, json('PATCH', { autoReview: false }))
+    expect(patched.status).toBe(200)
+    expect(await patched.json()).toMatchObject({ id: repo.id, autoReview: false })
+    expect(await (await app.request('/api/repos')).json()).toMatchObject([{ id: repo.id, autoReview: false }])
+  })
+
+  it('reports the connected account and its repositories', async () => {
+    provider.viewer = 'sebastiandev'
+    provider.accountRepos = [{ owner: 'acme', name: 'widgets', openPrCount: 2 }]
+    expect(await (await app.request('/api/account')).json()).toEqual({ provider: 'github', login: 'sebastiandev', connected: true })
+    expect(await (await app.request('/api/account/repos')).json()).toEqual([{ owner: 'acme', name: 'widgets', openPrCount: 2 }])
+  })
+
+  it('removes the worktrees of merged PRs, keeping the open ones', async () => {
+    const repo = await trackRepo()
+    provider.remote.set(7, remotePr({ number: 7 }))
+    await syncRepo(repo.id)
+    const inbox: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    for (const pr of inbox) {
+      const ready = nextEvent('worktree.ready')
+      await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
+      await ready
+    }
+    const merged = inbox.find((p) => p.number === 7)!
+    // Flip the row directly: a sync would already release the worktree of a merged PR.
+    store.transaction(() => store.pullRequests.update(merged.id, { state: 'merged' }))
+
+    const res = await app.request('/api/worktrees/merged', { method: 'DELETE' })
+    expect(await res.json()).toEqual({ removed: [merged.id] })
+    expect(worktrees.removed).toEqual(['/wt/acme/widgets/7'])
+    const { rows } = await (await app.request('/api/worktrees')).json()
+    expect(rows).toMatchObject([{ number: 415, path: '/wt/acme/widgets/415' }])
+  })
+
+  describe('autoReviewOnFetch', () => {
+    /** A tracked repo with one opened PR (worktree ready) and no agent run yet. */
+    const openedRepo = async (autoReview: boolean) => {
+      const created = await app.request('/api/repos', json('POST', { provider: 'github', owner: 'acme', name: 'widgets', autoReview }))
+      const repo: Repo = await created.json()
+      await syncRepo(repo.id)
+      const [pr]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+      const ready = nextEvent('worktree.ready')
+      await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
+      await ready
+      return { repo, pr }
+    }
+
+    it('reviews each opened PR with an unreviewed head once, when the setting and the repo flag are on', async () => {
+      const { repo, pr } = await openedRepo(true)
+      await app.request('/api/settings', json('PATCH', { autoReviewOnFetch: true }))
+
+      const reviewReady = nextEvent('review.ready')
+      await syncRepo(repo.id)
+      expect(await reviewReady).toMatchObject({ prId: pr.id })
+      expect(runner.runs).toMatchObject([{ directory: '/wt/acme/widgets/415' }])
+
+      await syncRepo(repo.id)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(runner.runs).toHaveLength(1)
+    })
+
+    it('reviews again when the head moves', async () => {
+      const { repo, pr } = await openedRepo(true)
+      await app.request('/api/settings', json('PATCH', { autoReviewOnFetch: true }))
+      const first = nextEvent('review.ready')
+      await syncRepo(repo.id)
+      await first
+
+      provider.remote.set(415, remotePr({ number: 415, title: 'Fix widgets', headSha: 'sha-415-b' }))
+      const second = nextEvent('review.ready')
+      await syncRepo(repo.id)
+      expect(await second).toMatchObject({ prId: pr.id })
+      expect(runner.runs).toHaveLength(2)
+    })
+
+    it.each([
+      ['the setting is off', false, true],
+      ['the repo has autoReview off', true, false],
+    ])('does nothing when %s', async (_, setting, repoFlag) => {
+      const { repo } = await openedRepo(repoFlag)
+      await app.request('/api/settings', json('PATCH', { autoReviewOnFetch: setting }))
+      await syncRepo(repo.id)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(runner.runs).toEqual([])
+    })
+
+    it('skips PRs without a worktree', async () => {
+      const created = await app.request('/api/repos', json('POST', { provider: 'github', owner: 'acme', name: 'widgets', autoReview: true }))
+      const repo: Repo = await created.json()
+      await app.request('/api/settings', json('PATCH', { autoReviewOnFetch: true }))
+      await syncRepo(repo.id)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(runner.runs).toEqual([])
+    })
+  })
+
   it('lists worktrees with sizes and removes them on request', async () => {
     const repo = await trackRepo()
     await syncRepo(repo.id)

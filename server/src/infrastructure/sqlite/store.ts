@@ -61,6 +61,7 @@ export function sqliteStore(db: DatabaseSync): Store {
         if (filter.open) where.push("state = 'open'")
         return q(`SELECT * FROM pull_request WHERE ${where.join(' AND ')} ORDER BY number`).all(repoId).map(toPullRequest)
       },
+      listWithWorktree: () => q('SELECT * FROM pull_request WHERE worktree_path IS NOT NULL ORDER BY id').all().map(toPullRequest),
       upsert(repoId, remote, fields, syncedAt) {
         const remoteValues = {
           title: remote.title,

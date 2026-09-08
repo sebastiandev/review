@@ -26,3 +26,16 @@ export async function removeWorktrees(deps: RemoveWorktreesDeps, req: { prIds: n
   }
   return removed
 }
+
+/**
+ * Free disk for every PR that is merged or closed remotely. Open PRs keep theirs, done or not.
+ * Post-conditions:
+ * - same as `removeWorktrees` for the matching PRs; returns their ids
+ */
+export function removeMergedWorktrees(deps: RemoveWorktreesDeps): Promise<number[]> {
+  const prIds = deps.store.pullRequests
+    .listWithWorktree()
+    .filter((pr) => pr.state !== 'open')
+    .map((pr) => pr.id)
+  return removeWorktrees(deps, { prIds })
+}

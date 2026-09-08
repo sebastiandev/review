@@ -1,4 +1,4 @@
-import type { DiffFile, Verdict } from '@review/shared'
+import type { AccountRepo, DiffFile, Verdict } from '@review/shared'
 
 export type ProviderKind = 'github' | 'gitlab'
 
@@ -86,6 +86,8 @@ export type PullRequestProvider = {
   cloneUrl(repo: RepoRef): string
   /** Login of the authenticated user; comments by this author are "mine". */
   viewerLogin(): Promise<string>
+  /** Repos the authenticated user owns, collaborates on or reaches via an org, most recently pushed first. */
+  listAccountRepos(): Promise<AccountRepo[]>
   /** Open PRs whose review is requested from me, directly or via a team. One request per repo. */
   listReviewRequested(repo: RepoRef): Promise<RemotePullRequest[]>
   /** Most recently updated open PRs (one page), for picking ones not assigned to me. */

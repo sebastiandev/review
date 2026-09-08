@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ChatEvent, ChatThreadRef, ServerEvent, WorktreeStage } from '@review/shared'
+import type { AccountRepo, ChatEvent, ChatThreadRef, ServerEvent, WorktreeStage } from '@review/shared'
 import type { AgentRunner, AgentRunRequest, PayloadFiles } from '../agentRunner.ts'
 import { lineThreadId, type ChatHub, type ChatInput, type ChatThread } from '../chat.ts'
 import type { Clock, Events } from '../ports.ts'
@@ -71,6 +71,8 @@ export type FakeProvider = PullRequestProvider & {
   submitted: { repo: RepoRef; number: number; payload: ReviewPayload }[]
   /** What `viewerLogin` answers. */
   viewer: string
+  /** What `listAccountRepos` answers. */
+  accountRepos: AccountRepo[]
 }
 
 /** In-memory `PullRequestProvider`. `listOpen` returns the open PRs in `remote`. */
@@ -88,10 +90,15 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     calls,
     submitted,
     viewer: 'me',
+    accountRepos: [],
     cloneUrl: (repo) => `https://github.com/${repo.owner}/${repo.name}.git`,
     async viewerLogin() {
       calls.push('viewerLogin')
       return fake.viewer
+    },
+    async listAccountRepos() {
+      calls.push('listAccountRepos')
+      return fake.accountRepos
     },
     async listReviewRequested() {
       calls.push('listReviewRequested')

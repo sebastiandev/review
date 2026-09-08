@@ -56,6 +56,17 @@ describe('ghProvider', () => {
     expect(await ghProvider(run).viewerLogin()).toBe('seba')
   })
 
+  it('listAccountRepos maps the viewer repositories with their open-PR counts', async () => {
+    const { run, calls } = fakeRunner(() => fixture('graphql_viewer_repos.json'))
+    expect(await ghProvider(run).listAccountRepos()).toEqual([
+      { owner: 'seba', name: 'atelier', openPrCount: 3 },
+      { owner: 'acme', name: 'widgets', openPrCount: 0 },
+      { owner: 'acme', name: 'gadgets', openPrCount: 12 },
+    ])
+    expect(calls[0].args.slice(0, 2)).toEqual(['api', 'graphql'])
+    expect(calls[0].args.at(-1)).toMatch(/affiliations: \[OWNER, COLLABORATOR, ORGANIZATION_MEMBER\]/)
+  })
+
   it('get maps the node and passes the number as a variable', async () => {
     const { run, calls } = fakeRunner(() => fixture('graphql_get_merged.json'))
     const pr = await ghProvider(run).get(repo, 400)

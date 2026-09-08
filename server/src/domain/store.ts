@@ -22,6 +22,8 @@ export type Store = {
     find(repoId: number, number: number): PullRequest | null
     /** `active` = not marked done; `open` = remote state is open. */
     listByRepo(repoId: number, filter: { active?: boolean; open?: boolean }): PullRequest[]
+    /** Every PR, across repos, that still holds a worktree path. */
+    listWithWorktree(): PullRequest[]
     /** Insert or refresh the remote fields. Local fields not in `fields` are preserved. */
     upsert(
       repoId: number,

@@ -1,6 +1,15 @@
 import type { PullRequestProvider, RepoRef, ReviewPayload } from '../../domain/pullRequests.ts'
 import type { Runner } from '../process.ts'
-import { mapComment, mapPullRequest, parseReference, PR_FIELDS, type GraphqlPullRequest, type RestReviewComment } from './mapping.ts'
+import {
+  mapAccountRepo,
+  mapComment,
+  mapPullRequest,
+  parseReference,
+  PR_FIELDS,
+  type GraphqlPullRequest,
+  type GraphqlRepository,
+  type RestReviewComment,
+} from './mapping.ts'
 
 const LIST_OPEN = `
 query($owner: String!, $name: String!) {
@@ -30,7 +39,17 @@ query($owner: String!, $name: String!, $number: Int!) {
 
 const VIEWER = `query { viewer { login } }`
 
+const VIEWER_REPOS = `
+query {
+  viewer {
+    repositories(first: 100, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], orderBy: { field: PUSHED_AT, direction: DESC }) {
+      nodes { owner { login } name pullRequests(states: OPEN) { totalCount } }
+    }
+  }
+}`
+
 type ViewerPage = { data: { viewer: { login: string } } }
+type ViewerReposPage = { data: { viewer: { repositories: { nodes: GraphqlRepository[] } } } }
 type ListPage = { data: { viewer: { login: string }; repository: { pullRequests: { nodes: GraphqlPullRequest[] } } } }
 type SearchPage = { data: { viewer: { login: string }; search: { nodes: GraphqlPullRequest[] } } }
 type GetPage = { data: { viewer: { login: string }; repository: { pullRequest: GraphqlPullRequest | null } } }
@@ -51,6 +70,11 @@ export function ghProvider(run: Runner): PullRequestProvider {
     async viewerLogin() {
       const out = await run('gh', ['api', 'graphql', '-f', `query=${VIEWER}`])
       return (JSON.parse(out) as ViewerPage).data.viewer.login
+    },
+
+    async listAccountRepos() {
+      const out = await run('gh', ['api', 'graphql', '-f', `query=${VIEWER_REPOS}`])
+      return (JSON.parse(out) as ViewerReposPage).data.viewer.repositories.nodes.map(mapAccountRepo)
     },
 
     async listReviewRequested(repo) {

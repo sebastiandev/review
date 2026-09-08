@@ -1,7 +1,5 @@
 import { MagnifyingGlass } from '@phosphor-icons/react'
-import type { DiffTheme, UiTheme } from '../theme/useTheme'
 import { Segmented } from './Segmented'
-import { ThemeMenu } from './ThemeMenu'
 import type { Mode } from './useMode'
 
 type TopBarProps = {
@@ -9,30 +7,12 @@ type TopBarProps = {
   /** The server was started with `review diff`: PR mode cannot be selected. */
   modeLocked: boolean
   onMode: (mode: Mode) => void
-  uiTheme: UiTheme
-  diffTheme: DiffTheme
-  themeMenuOpen: boolean
-  onToggleThemeMenu: () => void
-  onUiTheme: (theme: UiTheme) => void
-  onDiffTheme: (theme: DiffTheme) => void
   onToggleShortcuts: () => void
   onToggleDock: () => void
 }
 
-/** 46px top bar: mark + wordmark, mode toggle, search affordance, then Theme / ? / Dock on the right. */
-export function TopBar({
-  mode,
-  modeLocked,
-  onMode,
-  uiTheme,
-  diffTheme,
-  themeMenuOpen,
-  onToggleThemeMenu,
-  onUiTheme,
-  onDiffTheme,
-  onToggleShortcuts,
-  onToggleDock,
-}: TopBarProps) {
+/** 46px top bar: mark + wordmark, mode toggle, search affordance, then ? / Dock on the right. Themes live in Settings → Appearance. */
+export function TopBar({ mode, modeLocked, onMode, onToggleShortcuts, onToggleDock }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="brand">
@@ -56,18 +36,6 @@ export function TopBar({
         <span className="search-hint">⌘K</span>
       </div>
       <div className="topbar-actions">
-        <div className="menu-anchor">
-          <button
-            type="button"
-            className="btn btn-secondary topbar-btn"
-            aria-haspopup="menu"
-            aria-expanded={themeMenuOpen}
-            onClick={onToggleThemeMenu}
-          >
-            Theme
-          </button>
-          {themeMenuOpen && <ThemeMenu uiTheme={uiTheme} diffTheme={diffTheme} onUiTheme={onUiTheme} onDiffTheme={onDiffTheme} />}
-        </div>
         <button type="button" className="btn btn-secondary topbar-btn" title="Keyboard shortcuts" onClick={onToggleShortcuts}>
           ?
         </button>

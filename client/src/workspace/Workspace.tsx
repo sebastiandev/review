@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ChatSendRequest, ChatThreadRef, DiffDocument, DiffSelection } from '@review/shared'
-import { fetchConfig, fetchFile } from '../api'
+import { fetchFile } from '../api'
 import { ChatDock } from '../chat/ChatDock'
 import { InlineChat } from '../chat/InlineChat'
 import { DOCK_THREAD, useChatThreads } from '../chat/useChatThreads'
@@ -16,7 +16,7 @@ import { basename, scopeKind } from '../files/scope'
 import { TopPrBar } from '../files/TopPrBar'
 import type { ViewedState } from '../files/useViewed'
 import { MarkdownView, type MarkdownThread } from '../markdown/MarkdownView'
-import { keys } from '../pr/queries'
+import { keys, useConfig } from '../pr/queries'
 import { usePrArtifacts, type PrWorkspaceData } from '../pr/usePrArtifacts'
 import { Segmented } from '../shell/Segmented'
 import type { LayoutState } from '../shell/useLayout'
@@ -115,7 +115,7 @@ export function Workspace({
   const touchedLine = useRef<LineRef | null>(null)
   const pendingJump = useRef<{ path: string; start: number; end: number } | null>(null)
 
-  const config = useQuery({ queryKey: ['config'], queryFn: fetchConfig, staleTime: Infinity })
+  const config = useConfig()
   const chat = useChatThreads(scope, chatEnabled)
   const turn = useTurnSettings()
   const dock = chat.thread(DOCK_THREAD)

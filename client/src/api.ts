@@ -1,4 +1,6 @@
 import type {
+  AccountInfo,
+  AccountRepo,
   AppConfig,
   ChatPart,
   ChatSendRequest,
@@ -7,12 +9,14 @@ import type {
   DiffSelection,
   DraftCommentRow,
   InboxRow,
+  PastReviewRow,
   PermissionReply,
   PrDetail,
   PrPreview,
   RepoSummary,
   UserSettings,
   Verdict,
+  WorktreeRow,
 } from '@review/shared'
 
 export type FileContent = { path: string; content: string }
@@ -88,6 +92,11 @@ export function fetchSettings(): Promise<UserSettings> {
   return requestJson<UserSettings>('/api/settings')
 }
 
+/** Merges a partial change into the persisted settings; the server reschedules polling. */
+export function patchSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
+  return requestJson<UserSettings>('/api/settings', jsonInit('PATCH', patch))
+}
+
 /** Every thread the server knows: `dock` plus the line threads created so far. */
 export function fetchThreads(scope = LOCAL_SCOPE): Promise<ChatThreadRef[]> {
   return requestJson<ChatThreadRef[]>(`${scopePath(scope)}/threads`)
@@ -118,6 +127,32 @@ export function replyPermission(thread: string, id: string, response: Permission
 /** Tracked repos with inbox counts. Fails (404 or non-JSON) when the server was started with `review diff`. */
 export function fetchRepos(): Promise<RepoSummary[]> {
   return requestJson<RepoSummary[]>('/api/repos')
+}
+
+export type TrackRepoRequest = { provider: 'github' | 'gitlab'; owner: string; name: string; autoReview: boolean }
+
+/** Starts following a repo (or re-enables an untracked one). */
+export function trackRepo(req: TrackRepoRequest): Promise<RepoSummary> {
+  return requestJson<RepoSummary>('/api/repos', jsonInit('POST', req))
+}
+
+export function patchRepo(repoId: number, patch: { autoReview?: boolean }): Promise<RepoSummary> {
+  return requestJson<RepoSummary>(`/api/repos/${repoId}`, jsonInit('PATCH', patch))
+}
+
+/** Stops following a repo; its rows and worktrees stay. */
+export function untrackRepo(repoId: number): Promise<void> {
+  return requestVoid(`/api/repos/${repoId}`, { method: 'DELETE' })
+}
+
+/** The connected provider account. */
+export function fetchAccount(): Promise<AccountInfo> {
+  return requestJson<AccountInfo>('/api/account')
+}
+
+/** Repos on the connected account with open-PR counts, tracked or not. */
+export function fetchAccountRepos(): Promise<AccountRepo[]> {
+  return requestJson<AccountRepo[]>('/api/account/repos')
 }
 
 /** Asks the scheduler to sync one repo now; completion arrives as `sync.finished`. */
@@ -159,6 +194,33 @@ export function openPr(prId: number): Promise<void> {
 
 export function markPrDone(prId: number): Promise<void> {
   return requestVoid(`/api/prs/${prId}/done`, { method: 'POST' })
+}
+
+/** Puts a done PR back in the inbox. */
+export function reopenPr(prId: number): Promise<void> {
+  return requestVoid(`/api/prs/${prId}/done`, { method: 'DELETE' })
+}
+
+/** Submitted reviews, newest first; `verdict` narrows them. */
+export function fetchPastReviews(verdict: Verdict | null): Promise<PastReviewRow[]> {
+  return requestJson<PastReviewRow[]>(verdict ? `/api/reviews?verdict=${verdict}` : '/api/reviews')
+}
+
+export type WorktreeInventory = { rows: WorktreeRow[]; totalBytes: number }
+
+/** Every PR worktree on disk with its size. */
+export function fetchWorktrees(): Promise<WorktreeInventory> {
+  return requestJson<WorktreeInventory>('/api/worktrees')
+}
+
+/** Removes the worktrees of the given PRs; returns the ids that had one. */
+export function removeWorktrees(prIds: number[]): Promise<{ removed: number[] }> {
+  return requestJson<{ removed: number[] }>('/api/worktrees', jsonInit('DELETE', { prIds }))
+}
+
+/** Removes every worktree whose PR is merged or closed. */
+export function removeMergedWorktrees(): Promise<{ removed: number[] }> {
+  return requestJson<{ removed: number[] }>('/api/worktrees/merged', { method: 'DELETE' })
 }
 
 export type ViewedMark = { path: string; headSha: string }

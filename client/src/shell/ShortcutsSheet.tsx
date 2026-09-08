@@ -15,6 +15,20 @@ const SHORTCUTS: [key: string, label: string][] = [
   ['?', 'this sheet'],
 ]
 
+/** The shortcut table alone; the `?` sheet and Settings → Shortcuts both render it. */
+export function ShortcutTable() {
+  return (
+    <div className="shortcut-grid">
+      {SHORTCUTS.map(([key, label]) => (
+        <div key={key} className="shortcut">
+          <span className="shortcut-key">{key}</span>
+          <span className="shortcut-label">{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type ShortcutsSheetProps = { onClose: () => void }
 
 /** The `?` modal: the full shortcut table in two columns. Clicking the backdrop closes it. */
@@ -26,14 +40,7 @@ export function ShortcutsSheet({ onClose }: ShortcutsSheetProps) {
           <h4>Keyboard</h4>
           <span className="sheet-hint">? to close</span>
         </div>
-        <div className="shortcut-grid">
-          {SHORTCUTS.map(([key, label]) => (
-            <div key={key} className="shortcut">
-              <span className="shortcut-key">{key}</span>
-              <span className="shortcut-label">{label}</span>
-            </div>
-          ))}
-        </div>
+        <ShortcutTable />
       </div>
     </div>
   )

@@ -276,6 +276,12 @@ export type PastReviewRow = {
   submittedAt: string
 }
 
+/** A repo visible on the connected account, for the "pick from your account" list. */
+export type AccountRepo = { owner: string; name: string; openPrCount: number }
+
+/** The connected provider account. Until phase 6 the token always comes from the CLI. */
+export type AccountInfo = { provider: 'github' | 'gitlab'; login: string; connected: boolean }
+
 /** A checked-out PR on disk. `sizeBytes` is measured by the worktree adapter, not stored. */
 export type WorktreeRow = {
   prId: number

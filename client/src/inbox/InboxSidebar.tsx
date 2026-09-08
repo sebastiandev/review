@@ -22,6 +22,8 @@ type InboxSidebarProps = {
   onAddPr: () => void
   onRefresh: () => void
   onDone: (prId: number) => void
+  /** Jumps to Settings → Tracked repositories. */
+  onManageRepos: () => void
   onStartResize: (e: React.PointerEvent<HTMLElement>) => void
 }
 
@@ -41,6 +43,7 @@ export function InboxSidebar({
   onAddPr,
   onRefresh,
   onDone,
+  onManageRepos,
   onStartResize,
 }: InboxSidebarProps) {
   return (
@@ -65,7 +68,7 @@ export function InboxSidebar({
                 <span className="menu-row-note mono">{r.activeCount}</span>
               </button>
             ))}
-            <button type="button" role="menuitem" className="menu-footer-row" disabled title="Settings — phase 5">
+            <button type="button" role="menuitem" className="menu-footer-row" onClick={onManageRepos}>
               Manage repositories…
             </button>
           </div>

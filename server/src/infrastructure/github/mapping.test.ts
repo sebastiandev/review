@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { RepoRef } from '../../domain/pullRequests.ts'
-import { mapComment, mapPullRequest, parseReference, type GraphqlPullRequest, type RestReviewComment } from './mapping.ts'
+import { mapAccountRepo, mapComment, mapPullRequest, parseReference, type GraphqlPullRequest, type GraphqlRepository, type RestReviewComment } from './mapping.ts'
 
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8')) as T
 
@@ -41,6 +41,18 @@ describe('mapPullRequest', () => {
   it('maps MERGED state', () => {
     const page = fixture<{ data: { viewer: { login: string }; repository: { pullRequest: GraphqlPullRequest } } }>('graphql_get_merged.json')
     expect(mapPullRequest(page.data.repository.pullRequest, page.data.viewer.login)).toMatchObject({ number: 400, state: 'merged', reviewRequested: false })
+  })
+})
+
+describe('mapAccountRepo', () => {
+  const nodes = fixture<{ data: { viewer: { repositories: { nodes: GraphqlRepository[] } } } }>('graphql_viewer_repos.json').data.viewer.repositories.nodes
+
+  it('maps owner, name and the open-PR count', () => {
+    expect(nodes.map(mapAccountRepo)).toEqual([
+      { owner: 'seba', name: 'atelier', openPrCount: 3 },
+      { owner: 'acme', name: 'widgets', openPrCount: 0 },
+      { owner: 'acme', name: 'gadgets', openPrCount: 12 },
+    ])
   })
 })
 

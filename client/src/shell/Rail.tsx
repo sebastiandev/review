@@ -1,33 +1,36 @@
 import { ClockCounterClockwise, Gear, Tray } from '@phosphor-icons/react'
 
+export type RailView = 'inbox' | 'files' | 'past' | 'settings'
+
 type RailProps = {
   prMode: boolean
-  view: 'inbox' | 'files' | 'past' | 'settings'
+  view: RailView
   onInbox: () => void
+  onPast: () => void
+  onSettings: () => void
 }
 
-/** 48px icon rail. Inbox is live in PR mode; Past reviews and Settings stay inert until phase 5. */
-export function Rail({ prMode, view, onInbox }: RailProps) {
-  const inboxOn = prMode && view !== 'past' && view !== 'settings'
+/** 48px icon rail. Inbox is PR-mode only; Past reviews and Settings work in both modes. */
+export function Rail({ prMode, view, onInbox, onPast, onSettings }: RailProps) {
+  const inboxOn = prMode && (view === 'inbox' || view === 'files')
+  const item = (on: boolean, label: string, onClick: () => void, icon: React.ReactNode, disabled = false) => (
+    <button
+      type="button"
+      className={`rail-btn${on ? ' rail-btn-on' : ''}`}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      aria-current={on || undefined}
+      onClick={onClick}
+    >
+      {icon}
+    </button>
+  )
   return (
     <nav className="rail" aria-label="Sections">
-      <button
-        type="button"
-        className={`rail-btn${inboxOn ? ' rail-btn-on' : ''}`}
-        disabled={!prMode}
-        title={prMode ? 'Inbox' : 'PR mode'}
-        aria-label="Inbox"
-        aria-current={inboxOn || undefined}
-        onClick={onInbox}
-      >
-        <Tray size={16} />
-      </button>
-      <button type="button" className="rail-btn" disabled title="Past reviews — phase 5" aria-label="Past reviews">
-        <ClockCounterClockwise size={16} />
-      </button>
-      <button type="button" className="rail-btn" disabled title="Settings — phase 5" aria-label="Settings">
-        <Gear size={16} />
-      </button>
+      {item(inboxOn, prMode ? 'Inbox' : 'Inbox — PR mode only', onInbox, <Tray size={16} />, !prMode)}
+      {item(view === 'past', 'Past reviews', onPast, <ClockCounterClockwise size={16} />)}
+      {item(view === 'settings', 'Settings', onSettings, <Gear size={16} />)}
       <div className="rail-avatar" title="No account — phase 6" aria-hidden />
     </nav>
   )
