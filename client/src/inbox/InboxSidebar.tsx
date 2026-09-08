@@ -2,6 +2,7 @@ import { CaretDown } from '@phosphor-icons/react'
 import type { InboxRow, RepoSummary } from '@review/shared'
 import { AgentStatus } from './AgentStatus'
 import { fetchLine, relativeTime } from './inboxRows'
+import { ReviewedPill } from './ReviewedPill'
 import { StatePill } from './StatePill'
 
 export const repoLabel = (repo: RepoSummary) => `${repo.owner}/${repo.name}`
@@ -106,6 +107,7 @@ export function InboxSidebar({
             <div className="pr-row-meta">
               <span>#{pr.number}</span>
               <StatePill state={pr.state} isDraft={pr.isDraft} />
+              <ReviewedPill verdict={pr.submittedVerdict} />
               <span className="pr-row-time">{relativeTime(pr.updatedAt, now)}</span>
               <button
                 type="button"

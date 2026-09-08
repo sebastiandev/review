@@ -56,6 +56,11 @@ describe('submitReview', () => {
     expect(events.events).toEqual([{ type: 'review.submitted', prId: pr.id, verdict: 'COMMENT', remoteReviewId: 'review-1' }])
   })
 
+  it('marks every file of the head viewed once submitted', async () => {
+    await submitReview(deps, { prId: pr.id, ...request })
+    expect(store.viewed.list(pr.id)).toEqual([{ path: 'src/a.py', headSha: pr.headSha }])
+  })
+
   it('submits a body-only review when no draft exists yet', async () => {
     const submission = await submitReview(deps, { prId: pr.id, verdict: 'APPROVE', body: 'LGTM', confirmApprove: true })
     expect(provider.submitted[0].payload.comments).toEqual([])

@@ -1,14 +1,18 @@
-import type { PrDetail } from '@review/shared'
+import { ArrowSquareOut } from '@phosphor-icons/react'
+import type { PrDetail, Verdict } from '@review/shared'
+import { ReviewedPill } from '../inbox/ReviewedPill'
 import { worktreeLabel, type WorktreeState } from './useWorktree'
 
 type PrTreeHeaderProps = {
   pr: PrDetail['pr']
+  /** Verdict submitted on the current head, if any. */
+  submittedVerdict: Verdict | null
   onBack: () => void
   onDone: () => void
 }
 
 /** PR-mode sidebar header: `← All PRs`, the PR title, its branch, and a `Done` ghost action. */
-export function PrTreeHeader({ pr, onBack, onDone }: PrTreeHeaderProps) {
+export function PrTreeHeader({ pr, submittedVerdict, onBack, onDone }: PrTreeHeaderProps) {
   return (
     <div className="sidebar-head">
       <div className="pr-head-row">
@@ -22,8 +26,12 @@ export function PrTreeHeader({ pr, onBack, onDone }: PrTreeHeaderProps) {
       <div className="sidebar-title">
         <span className="mono pr-head-number">#{pr.number}</span> {pr.title}
       </div>
-      <div className="sidebar-meta" title={pr.headRef}>
-        {pr.headRef}
+      <div className="sidebar-meta pr-head-meta" title={pr.headRef}>
+        <span className="pr-head-branch">{pr.headRef}</span>
+        <ReviewedPill verdict={submittedVerdict} />
+        <a href={pr.url} target="_blank" rel="noreferrer" className="pr-head-link" title="Open on GitHub">
+          GitHub <ArrowSquareOut size={12} />
+        </a>
       </div>
     </div>
   )

@@ -1,7 +1,9 @@
 import type { InboxRow } from '@review/shared'
 import { AgentStatus } from './AgentStatus'
 import { relativeTime } from './inboxRows'
+import { ReviewedPill } from './ReviewedPill'
 import { StatePill } from './StatePill'
+import { ExternalLink } from '../shell/ExternalLink'
 
 type InboxProps = {
   repo: string
@@ -39,7 +41,9 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
                 {repo} · #{pr.number}
               </span>
               <StatePill state={pr.state} isDraft={pr.isDraft} />
+              <ReviewedPill verdict={pr.submittedVerdict} />
               <span className="pr-row-time">{relativeTime(pr.updatedAt, now)}</span>
+              <ExternalLink href={pr.url} label="Open on GitHub" />
             </div>
             <div className="inbox-card-title">{pr.title}</div>
             <div className="inbox-card-stats">

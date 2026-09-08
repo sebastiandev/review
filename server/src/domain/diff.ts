@@ -46,3 +46,24 @@ function fileStatus(file: parseDiff.File): DiffFile['status'] {
   if (file.from && file.to && file.from !== file.to) return 'renamed'
   return 'modified'
 }
+
+/**
+ * The change of each file as a comparable string: its chunks' content lines (no line numbers,
+ * no index headers), so the same edit rebased onto a new base still compares equal.
+ */
+export function fileChangeSignatures(patch: string): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const file of parseDiff(patch)) {
+    const path = file.to && file.to !== '/dev/null' ? file.to : (file.from ?? '')
+    const body = file.chunks.map((chunk) => chunk.changes.map((c) => `${c.type[0]}${c.content}`).join('\n')).join('\n@@\n')
+    out.set(path, body)
+  }
+  return out
+}
+
+/** Paths whose change is identical in both patches: viewed marks can be carried across the heads. */
+export function unchangedFiles(previousPatch: string, nextPatch: string): string[] {
+  const previous = fileChangeSignatures(previousPatch)
+  const next = fileChangeSignatures(nextPatch)
+  return [...next].filter(([path, body]) => previous.get(path) === body).map(([path]) => path)
+}

@@ -1,4 +1,5 @@
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
+import { carryViewedMarks } from '../actions/carryViewedMarks.ts'
 import { replaceComments } from '../actions/replaceComments.ts'
 import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import { NotFound } from '../errors.ts'
@@ -8,7 +9,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type RefreshPullRequestDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'exists' | 'headSha' | 'checkout'>
   events: Events
@@ -47,7 +48,11 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
   const pr = store.transaction(() => {
     const [row] = upsertPullRequests(store.pullRequests, repo.id, [remote], now)
     if (!row) throw new NotFound('pull request', req.prId)
-    if (patch !== null) cachePrDiff(store.diffs, repo, row, patch, now)
+    if (patch !== null) {
+      const previousDiff = headMoved ? store.diffs.get(row.id, before.headSha) : null
+      const next = cachePrDiff(store.diffs, repo, row, patch, now)
+      if (previousDiff) carryViewedMarks(store.viewed, row.id, previousDiff, next)
+    }
     replaceComments(store.comments, row.id, comments, now)
     return row
   })

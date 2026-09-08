@@ -1,4 +1,5 @@
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
+import { carryViewedMarks } from '../actions/carryViewedMarks.ts'
 import { releaseWorktree } from '../actions/releaseWorktree.ts'
 import { replaceComments } from '../actions/replaceComments.ts'
 import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
@@ -10,7 +11,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type SyncRepoDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'remove'>
   events: Events
@@ -21,7 +22,8 @@ export type SyncRepoResult = { added: number; updated: number; released: number 
 
 /**
  * Refresh one repo from its provider: review-requested and locally known PRs are upserted,
- * new heads get their diff cached, active PRs get their comments replaced, worktrees of finished
+ * new heads get their diff cached (viewed marks carried for files whose change did not move),
+ * active PRs get their comments replaced, worktrees of finished
  * PRs are released — unless an agent review is running there, which keeps the worktree until the
  * next sync.
  * Pre-conditions:
@@ -73,7 +75,12 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
       for (const pr of rows) {
         const fetched = content.get(pr.number)
         if (!fetched) continue
-        if (fetched.patch !== null) cachePrDiff(store.diffs, repo, pr, fetched.patch, now)
+        if (fetched.patch !== null) {
+          const previous = localByNumber.get(pr.number)
+          const previousDiff = previous && previous.headSha !== pr.headSha ? store.diffs.get(pr.id, previous.headSha) : null
+          const next = cachePrDiff(store.diffs, repo, pr, fetched.patch, now)
+          if (previousDiff) carryViewedMarks(store.viewed, pr.id, previousDiff, next)
+        }
         if (fetched.comments !== null) replaceComments(store.comments, pr.id, fetched.comments, now)
       }
       store.repos.update(repo.id, { syncedAt: now, syncError: null })

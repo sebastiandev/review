@@ -7,7 +7,7 @@ import { mergeSameLineComments, validateAnchors, type Submission } from '../revi
 import type { Store } from '../store.ts'
 
 export type SubmitReviewDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'drafts' | 'submissions' | 'agentReviews'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'drafts' | 'submissions' | 'agentReviews' | 'viewed'>
   providers: Record<ProviderKind, Pick<PullRequestProvider, 'submitReview'>>
   events: Events
   clock: Clock
@@ -26,7 +26,8 @@ export type SubmitReviewRequest = { prId: number; verdict: Verdict; body: string
  *   `anchorValid = false` in their own transaction and `InvalidAnchors(ids)` is thrown
  * Post-conditions:
  * - one `submission` row carrying the verdict of the latest ready agent run for this head (if
- *   any) as `agentVerdict`, the draft marked submitted, `review.submitted` emitted
+ *   any) as `agentVerdict`, the draft marked submitted, every file of the head marked viewed,
+ *   `review.submitted` emitted
  */
 export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequest): Promise<Submission> {
   const { store } = deps
@@ -61,6 +62,8 @@ export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequ
       JSON.stringify(payload),
     )
     store.drafts.markSubmitted(target.id, now)
+    // Submitting means the reviewer has been through the whole head.
+    for (const file of diff?.files ?? []) store.viewed.set(pr.id, file.path, pr.headSha)
     return submission
   })
   deps.events.emit({ type: 'review.submitted', prId: pr.id, verdict: req.verdict, remoteReviewId })

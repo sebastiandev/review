@@ -10,6 +10,7 @@ import {
   NOW,
   openTestStore,
   remotePr,
+  SAMPLE_PATCH,
   type FakeProvider,
   type FakeWorktrees,
   type MemoryEvents,
@@ -65,6 +66,24 @@ describe('refreshPullRequest', () => {
     expect(store.diffs.get(prId, 'sha-b')).not.toBeNull()
     expect(worktrees.checkedOut).toEqual([{ path, headSha: 'sha-b' }])
     expect(events.ofType('worktree.ready')).toEqual([{ type: 'worktree.ready', prId, path }])
+  })
+
+  it('carries viewed marks to the new head for files whose change did not move', async () => {
+    store.transaction(() => {
+      store.viewed.set(prId, 'src/a.py', 'sha-a')
+      store.viewed.set(prId, 'src/b.py', 'sha-a')
+    })
+    // b.py's change grew; a.py's is byte-identical.
+    provider.patches.set(1, `${SAMPLE_PATCH}diff --git a/src/b.py b/src/b.py\n--- a/src/b.py\n+++ b/src/b.py\n@@ -1,1 +1,2 @@\n one\n+two\n`)
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+
+    await refreshPullRequest(deps, { prId })
+
+    const atNewHead = store.viewed
+      .list(prId)
+      .filter((m) => m.headSha === 'sha-b')
+      .map((m) => m.path)
+    expect(atNewHead).toEqual(['src/a.py'])
   })
 
   it('defers the checkout while an agent review is running in the worktree', async () => {

@@ -271,7 +271,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         chatNotice={
           worktree.status === 'failed' ? `worktree failed: ${worktree.message}` : `worktree not ready · ${worktreeLabel(worktree)}…`
         }
-        sidebarHeader={<PrTreeHeader pr={pr} onBack={onBack} onDone={() => onDone(prId)} />}
+        sidebarHeader={<PrTreeHeader pr={pr} submittedVerdict={pr.submittedVerdict} onBack={onBack} onDone={() => onDone(prId)} />}
         sidebarFooter={<PrTreeFooter worktree={worktree} pendingCount={pendingCount} onSubmit={() => setSubmitOpen(true)} />}
         topBarLead={
           <>
