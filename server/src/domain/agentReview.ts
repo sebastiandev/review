@@ -164,9 +164,10 @@ export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPat
     '  decides that.',
     '- No findings at all? Write an empty `comments` array and one honest line in `body`.',
     '- Do not submit anything to GitHub and do not edit files in the worktree.',
-    '- If you are not allowed to write files, reply with the JSON itself in a ```json block instead.',
     '',
-    'Reply with only: the payload path, the event, and the inline comment count.',
+    'Your final message MUST contain the complete payload in a ```json block, whether or not the file',
+    'write succeeded (a denied write is not an error you can ignore). After the block, one line: the',
+    'payload path, the event, and the inline comment count.',
   )
   return lines.join('\n')
 }
