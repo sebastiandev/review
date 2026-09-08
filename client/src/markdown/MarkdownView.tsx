@@ -1,5 +1,6 @@
 import { createContext, createElement, useContext, useMemo, useRef, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import Markdown, { type Components, type ExtraProps } from 'react-markdown'
+import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 import type { DiffFile, DiffSelection } from '@review/shared'
 import { FileHeader } from '../diff/FileHeader'
@@ -115,6 +116,15 @@ function block(tag: string, { marker, wrap = false, className }: BlockOptions) {
   }
 }
 
+/** Scroll the heading `#id` names into view inside the markdown pane, without changing the browser URL. */
+function scrollToAnchor(e: MouseEvent<HTMLAnchorElement>, href: string) {
+  e.preventDefault()
+  const id = decodeURIComponent(href.slice(1))
+  const doc = e.currentTarget.closest('.md-doc')
+  const target = doc?.querySelector(`[id="${id.replace(/"/g, '\\"')}"]`)
+  target?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+}
+
 const components: Components = {
   p: block('p', { marker: true }),
   h1: block('h1', { marker: true }),
@@ -128,7 +138,11 @@ const components: Components = {
   blockquote: block('blockquote', { marker: true }),
   table: block('table', { marker: true, wrap: true, className: 'table' }),
   tr: block('tr', { marker: false }),
-  a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+  a: ({ node: _node, href, ...props }) => {
+    // `#section` links scroll inside the document; everything else opens in a new tab.
+    if (href?.startsWith('#')) return <a {...props} href={href} onClick={(e) => scrollToAnchor(e, href)} />
+    return <a {...props} href={href} target="_blank" rel="noreferrer" />
+  },
 }
 
 function lineLabel(thread: MarkdownThread): string {
@@ -179,7 +193,7 @@ export function MarkdownView({ file, content, compact, centerW, threads, toolbar
           <div ref={doc} className="md-doc">
             <p className="md-hint">Select any text — a line, a phrase, a whole section — to comment or ask the agent about it.</p>
             <ThreadsContext.Provider value={context}>
-              <Markdown remarkPlugins={[remarkGfm]} components={components}>
+              <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSlug]} components={components}>
                 {content}
               </Markdown>
             </ThreadsContext.Provider>

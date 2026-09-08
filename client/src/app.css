@@ -2739,8 +2739,10 @@ button {
 }
 
 .panel-step {
+  flex: none;
   display: flex;
   gap: 10px;
+  line-height: 1.6;
   color: var(--color-neutral-500);
   white-space: nowrap;
   overflow: hidden;

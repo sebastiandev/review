@@ -41,7 +41,7 @@ function render(threads: MarkdownThread[] = []): string {
 
 describe('MarkdownView line stamps', () => {
   it.each([
-    ['heading', '<h1 data-line-start="1" data-line-end="1"'],
+    ['heading', '<h1 id="title" data-line-start="1" data-line-end="1"'],
     ['paragraph', '<p data-line-start="3" data-line-end="4"'],
     ['list item', '<li data-line-start="6" data-line-end="6"'],
     ['fenced code', '<pre data-line-start="9" data-line-end="11"'],
@@ -70,7 +70,7 @@ describe('MarkdownView threads', () => {
 
   it('leaves blocks outside the thread untouched', () => {
     const html = render([thread])
-    expect(html).toContain('<h1 data-line-start="1" data-line-end="1">')
+    expect(html).toContain('<h1 id="title" data-line-start="1" data-line-end="1">')
   })
 
   it('lists the thread in the Selections aside', () => {
