@@ -62,8 +62,8 @@ describe('findingsByLine', () => {
 describe('labelFor', () => {
   it.each([
     [null, { label: 'Run agent review', disabled: false, action: 'run' }],
-    [review({ status: 'queued' }), { label: 'Reviewing…', disabled: true, action: 'open' }],
-    [review({ status: 'running' }), { label: 'Reviewing…', disabled: true, action: 'open' }],
+    [review({ status: 'queued' }), { label: 'Reviewing…', disabled: false, action: 'open' }],
+    [review({ status: 'running' }), { label: 'Reviewing…', disabled: false, action: 'open' }],
     [review({ status: 'ready' }), { label: 'Agent review · 4', disabled: false, action: 'open' }],
     [review({ status: 'failed' }), { label: 'Review failed', disabled: false, action: 'open' }],
   ])('maps %o', (input, expected) => {

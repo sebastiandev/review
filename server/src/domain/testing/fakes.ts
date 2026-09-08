@@ -172,7 +172,7 @@ export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehavi
     runs: [],
     behaviour,
     sessionId: 'ses_fake',
-    async run(req, onSession) {
+    async run(req, onSession, onStep = () => {}) {
       fake.runs.push(req)
       onSession(fake.sessionId)
       const b = fake.behaviour
@@ -180,7 +180,9 @@ export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehavi
         case 'write': {
           const m = /Write the review payload to (\S+) using/.exec(req.prompt)
           if (!m) throw new Error('fake runner: prompt names no payload path')
+          onStep({ tool: 'read', title: 'Read src/a.py' })
           payloads.files.set(m[1], b.text)
+          onStep({ tool: 'write', title: `Write ${m[1]}` })
           return
         }
         case 'silent':

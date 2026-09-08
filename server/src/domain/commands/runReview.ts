@@ -29,7 +29,8 @@ export const DEFAULT_REVIEW_TIMEOUT_MS = 20 * 60_000
  * Post-conditions:
  * - one `agent_review` row moves queued → running → ready with verdict, summary and findings;
  *   comments the agent anchored outside the diff are dropped and counted in `invalidAnchorCount`
- * - `review.queued`, `review.running`, then `review.ready` emitted; on any failure after the
+ * - `review.queued`, `review.running`, one `review.progress` per completed tool call, then
+ *   `review.ready` emitted; on any failure after the
  *   row exists it is marked failed with the message, `review.failed` emitted, and the error rethrown
  */
 export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Promise<RunReviewResult> {
@@ -68,6 +69,7 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
       deps.runner.run(
         { directory: worktreePath, title: `review ${repoLabel(repo)}#${pr.number}`, agent: req.agent, model: req.model, variant: req.variant, prompt },
         (sessionId) => store.transaction(() => store.agentReviews.update(review.id, { sessionId })),
+        (step) => events.emit({ type: 'review.progress', prId: pr.id, agentReviewId: review.id, tool: step.tool, title: step.title }),
       ),
       deps.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
     )

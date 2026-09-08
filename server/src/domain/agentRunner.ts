@@ -10,13 +10,17 @@ export type AgentRunRequest = {
   prompt: string
 }
 
+/** One visible step of the agent's work, as the runner sees it finish: `Read src/a.py`, `Grep foo`. */
+export type AgentStep = { tool: string; title: string }
+
 /** Drives one agent session to completion. Implemented over opencode in infrastructure. */
 export type AgentRunner = {
   /**
    * Create a session in `directory`, send `prompt`, resolve when the session goes idle.
-   * Rejects when the session reports an error. `onSession` fires as soon as the id is known.
+   * Rejects when the session reports an error. `onSession` fires as soon as the id is known;
+   * `onStep` fires for each tool call the agent completes.
    */
-  run(req: AgentRunRequest, onSession: (sessionId: string) => void): Promise<void>
+  run(req: AgentRunRequest, onSession: (sessionId: string) => void, onStep?: (step: AgentStep) => void): Promise<void>
 }
 
 /** Files exchanged with the agent: the diff the Command hands it, the payload it writes back. */

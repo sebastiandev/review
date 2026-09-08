@@ -101,6 +101,8 @@ describe('runReview', () => {
     expect(events.events).toEqual([
       { type: 'review.queued', prId: pr.id, agentReviewId: review.id },
       { type: 'review.running', prId: pr.id, agentReviewId: review.id },
+      { type: 'review.progress', prId: pr.id, agentReviewId: review.id, tool: 'read', title: 'Read src/a.py' },
+      { type: 'review.progress', prId: pr.id, agentReviewId: review.id, tool: 'write', title: `Write ${payloads.pathFor(review)}` },
       { type: 'review.ready', prId: pr.id, agentReviewId: review.id, verdict: 'REQUEST_CHANGES', findingCount: 2 },
     ])
   })
@@ -153,7 +155,7 @@ describe('runReview', () => {
     expect(review).toMatchObject({ status: 'failed', finishedAt: NOW, verdict: null })
     expect(review.error).toMatch(message)
     expect(findings).toEqual([])
-    expect(events.events.map((e) => e.type)).toEqual(['review.queued', 'review.running', 'review.failed'])
+    expect(events.events.map((e) => e.type).filter((t) => t !== 'review.progress')).toEqual(['review.queued', 'review.running', 'review.failed'])
     expect(events.ofType('review.failed')[0]).toMatchObject({ prId: pr.id, agentReviewId: review.id })
   })
 

@@ -19,7 +19,7 @@ export function findingsByLine(findings: AgentFinding[], path: string): Record<s
   return result
 }
 
-/** The file-header button: what it says, whether it is clickable, and what a click (or `r`) does. */
+/** The file-header button: what it says, whether it is clickable, and what a click (or `r`) does. While running, opening shows progress. */
 export type ReviewButton = { label: string; disabled: boolean; action: 'run' | 'open' }
 
 /** `Run agent review` → `Reviewing…` → `Agent review · n` / `Review failed`, from the latest run for the head. */
@@ -28,7 +28,7 @@ export function labelFor(review: AgentReview | null, findingCount = 0): ReviewBu
   switch (review.status) {
     case 'queued':
     case 'running':
-      return { label: 'Reviewing…', disabled: true, action: 'open' }
+      return { label: 'Reviewing…', disabled: false, action: 'open' }
     case 'ready':
       return { label: `Agent review · ${findingCount}`, disabled: false, action: 'open' }
     case 'failed':

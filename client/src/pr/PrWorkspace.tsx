@@ -30,6 +30,7 @@ import { keys, usePrDetail } from './queries'
 import { RunReviewModal } from './RunReviewModal'
 import { SubmitModal, verdictLabel } from './SubmitModal'
 import type { PrCommentActions, PrWorkspaceData } from './usePrArtifacts'
+import { useReviewProgress } from './useReviewProgress'
 import { useServerViewed } from './useServerViewed'
 import { useWorktree, worktreeLabel, type WorktreeState } from './useWorktree'
 
@@ -121,6 +122,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
 
   const agentReview = detail.data?.agentReview ?? null
   const review = agentReview?.review ?? null
+  const steps = useReviewProgress(review?.id ?? null)
   const findings = useMemo<AgentFinding[]>(() => (review?.status === 'ready' ? (agentReview?.findings ?? []) : []), [agentReview, review])
 
   const refresh = useMutation({
@@ -310,6 +312,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
           agentReview && (
             <AgentReviewPanel
               detail={agentReview}
+              steps={steps}
               now={now}
               busy={keepMany.isPending || run.isPending}
               error={panelError}

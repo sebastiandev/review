@@ -3,9 +3,12 @@ import { Check } from '@phosphor-icons/react'
 import type { AgentFinding, AgentReviewDetail } from '@review/shared'
 import { InlineBody } from './AgentFindingCard'
 import { VERDICT_TEXT, provenance } from './agentReview'
+import type { ReviewStep } from './useReviewProgress'
 
 type AgentReviewPanelProps = {
   detail: AgentReviewDetail
+  /** Tool calls the running agent has completed so far, oldest first. */
+  steps: ReviewStep[]
   now: number
   busy: boolean
   /** Server-side rejection of the last keep / re-run. */
@@ -18,7 +21,7 @@ type AgentReviewPanelProps = {
 }
 
 /** Screen 4: the run's suggested conclusion and one card per finding, over the center pane. */
-export function AgentReviewPanel({ detail, now, busy, error, onClose, onJump, onKeepAll, onKeepSelected, onRerun }: AgentReviewPanelProps) {
+export function AgentReviewPanel({ detail, steps, now, busy, error, onClose, onJump, onKeepAll, onKeepSelected, onRerun }: AgentReviewPanelProps) {
   const { review, findings } = detail
   const [unchecked, setUnchecked] = useState<ReadonlySet<number>>(new Set())
   const selected = findings.filter((f) => !unchecked.has(f.id)).map((f) => f.id)
@@ -44,10 +47,26 @@ export function AgentReviewPanel({ detail, now, busy, error, onClose, onJump, on
         </div>
 
         {(review.status === 'queued' || review.status === 'running') && (
-          <p className="panel-running">
-            <span className="spinner" aria-hidden />
-            {review.status === 'queued' ? 'Queued — waiting for the previous run…' : 'Reviewing — the agent is reading the diff…'}
-          </p>
+          <>
+            <p className="panel-running">
+              <span className="spinner" aria-hidden />
+              {review.status === 'queued'
+                ? 'Queued — waiting for the previous run…'
+                : steps.length === 0
+                  ? 'Reviewing — the agent is starting…'
+                  : `Reviewing — ${steps.length} step${steps.length === 1 ? '' : 's'} so far`}
+            </p>
+            {steps.length > 0 && (
+              <ol className="panel-steps mono" aria-label="Agent progress">
+                {steps.map((step, i) => (
+                  <li key={i} className={i === steps.length - 1 ? 'panel-step panel-step-last' : 'panel-step'}>
+                    <span className="panel-step-tool">{step.tool}</span>
+                    <span className="panel-step-title">{step.title}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
         )}
 
         {review.status === 'failed' && (

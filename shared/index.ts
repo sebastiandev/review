@@ -95,6 +95,7 @@ export type ServerEvent =
   // Agent runs. `agentReviewId` is the `agent_review` row the run writes to.
   | { type: 'review.queued'; prId: number; agentReviewId: number }
   | { type: 'review.running'; prId: number; agentReviewId: number }
+  | { type: 'review.progress'; prId: number; agentReviewId: number; tool: string; title: string }
   | { type: 'review.ready'; prId: number; agentReviewId: number; verdict: Verdict; findingCount: number }
   | { type: 'review.failed'; prId: number; agentReviewId: number; message: string }
   // Provider accounts (phase 6). `userCode` is what the user types on the device page.
