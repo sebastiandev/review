@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/cli.ts --dev --no-open",
     "start": "tsx src/cli.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R src/infrastructure/sqlite/migrations dist/infrastructure/sqlite/migrations",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp -R src/infrastructure/sqlite/migrations dist/infrastructure/sqlite/migrations && chmod +x dist/cli.js",
     "start:built": "node dist/cli.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
