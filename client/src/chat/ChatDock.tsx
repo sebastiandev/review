@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, PaperPlaneRight, Stop } from '@phosphor-icons/react'
 import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { Picker, type PickerItem } from './Picker'
 import { splitQuotes, type Quote } from './quotes'
@@ -31,6 +31,9 @@ const LOCAL_COMMAND_HINTS: Record<LocalCommand, string> = {
 }
 
 const NO_VARIANT: PickerItem = { id: '', label: 'no variant' }
+
+/** The composer grows with the draft up to this many lines, then scrolls. */
+const COMPOSER_MAX_LINES = 3
 
 type QuoteBlockProps = { quote: Quote; onJumpTo: ChatPanelProps['onJumpTo'] }
 
@@ -127,12 +130,14 @@ type ComposerProps = {
   placeholder?: string
   autoFocus?: boolean
   seed?: string
+  /** `opencode · agent · scope`, shown left of the key hints. */
+  provenance?: string
   onSend: ChatPanelProps['onSend']
   onAbort: () => void
   onOpenPicker: (kind: LocalCommand) => void
 }
 
-function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff…', autoFocus, seed, onSend, onAbort, onOpenPicker }: ComposerProps) {
+function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff…', autoFocus, seed, provenance, onSend, onAbort, onOpenPicker }: ComposerProps) {
   const [draft, setDraft] = useState(seed ?? '')
   useEffect(() => {
     if (seed !== undefined) setDraft(seed)
@@ -199,16 +204,28 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
     textarea.current?.focus()
   }
 
+  // Auto-grow to the content, capped at COMPOSER_MAX_LINES; past that the textarea scrolls.
+  useEffect(() => {
+    const el = textarea.current
+    if (!el) return
+    el.style.height = 'auto'
+    const line = Number.parseFloat(getComputedStyle(el).lineHeight) || 18
+    const padding = el.offsetHeight - el.clientHeight + Number.parseFloat(getComputedStyle(el).paddingTop) + Number.parseFloat(getComputedStyle(el).paddingBottom)
+    const max = line * COMPOSER_MAX_LINES + padding
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`
+    el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden'
+  }, [draft])
+
   return (
     <div className="composer">
       {prefix !== null && <Picker items={completions} filter={prefix} keySource={textarea} onPick={onComplete} onClose={clear} />}
       {mention && <Picker items={fileItems} filter={mention.query} keySource={textarea} onPick={onMention} onClose={() => setCaret(-1)} />}
-      <div className="composer-row">
+      <div className={`composer-field${idle ? '' : ' composer-field-busy'}`}>
         <textarea
           ref={textarea}
-          className="input composer-input"
+          className="composer-input"
           value={draft}
-          placeholder={idle ? `${placeholder}  ⌘↵ to send  / commands  @ files` : 'Agent is working…  esc to stop'}
+          placeholder={idle ? placeholder : 'Agent is working…'}
           rows={1}
           autoFocus={autoFocus}
           onChange={(e) => {
@@ -220,14 +237,23 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
           onKeyDown={onKeyDown}
         />
         {idle ? (
-          <button type="button" className="btn btn-primary composer-send" disabled={!draft.trim()} onClick={submit}>
-            Send
+          <button type="button" className="composer-send" title="Send · ⌘↵" aria-label="Send" disabled={!draft.trim()} onClick={submit}>
+            <PaperPlaneRight size={14} weight="fill" />
           </button>
         ) : (
-          <button type="button" className="btn btn-secondary composer-send" title="Stop the agent (esc)" onClick={onAbort}>
-            Stop
+          <button type="button" className="composer-send composer-stop" title="Stop the agent · esc" aria-label="Stop" onClick={onAbort}>
+            <Stop size={12} weight="fill" />
           </button>
         )}
+      </div>
+      <div className="composer-hints mono">
+        {provenance && <span className="composer-provenance">{provenance}</span>}
+        <span className="composer-hint-keys">
+          <span>⌘↵ send</span>
+          <span>/ commands</span>
+          <span>@ files</span>
+          {!idle && <span>esc stop</span>}
+        </span>
       </div>
     </div>
   )
@@ -398,11 +424,11 @@ export function ChatPanel({
           placeholder={placeholder}
           autoFocus={autoFocus}
           seed={seed}
+          provenance={provenance}
           onSend={onSend}
           onAbort={onAbort}
           onOpenPicker={setPicker}
         />
-        {provenance && <div className="dock-provenance">{provenance}</div>}
       </div>
     </>
   )

@@ -1325,22 +1325,44 @@ button {
   color: var(--color-neutral-600);
 }
 
-.composer-row {
+.composer-field {
+  position: relative;
   display: flex;
-  gap: 6px;
-  align-items: flex-start;
+  align-items: flex-end;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  transition: border-color 120ms;
+}
+
+.composer-field:hover {
+  border-color: color-mix(in srgb, var(--color-text) 30%, transparent);
+}
+
+.composer-field:focus-within {
+  border-color: var(--color-accent);
+}
+
+.composer-field-busy {
+  border-style: dashed;
 }
 
 .composer-input {
   flex: 1;
   min-width: 0;
-  min-height: 32px;
-  max-height: 160px;
-  padding: 6px 9px;
+  display: block;
+  padding: 7px 36px 7px 10px;
+  margin: 0;
+  font: inherit;
   font-size: 12.5px;
   line-height: 1.45;
-  resize: vertical;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
   background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-y: hidden;
 }
 
 .composer-input::placeholder {
@@ -1348,16 +1370,64 @@ button {
 }
 
 .composer-send {
-  flex: none;
-  font-size: 12px;
-  min-height: 32px;
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  cursor: pointer;
+  transition: opacity 120ms, background 120ms;
 }
 
-.dock-provenance {
-  margin-top: 6px;
+.composer-send:hover:not(:disabled) {
+  background: var(--color-accent-300);
+}
+
+.composer-send:disabled {
+  background: var(--color-neutral-800);
+  color: var(--color-neutral-600);
+  cursor: default;
+}
+
+.composer-stop {
+  background: var(--color-neutral-700);
+  color: var(--color-text);
+}
+
+.composer-stop:hover {
+  background: var(--count-del);
+}
+
+.composer-hints {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
   font-size: 10.5px;
   color: var(--color-neutral-600);
-  font-family: var(--font-mono);
+}
+
+.composer-provenance {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-hint-keys {
+  flex: none;
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
 }
 
 /* ── Status bar ────────────────────────────────────────────────────────── */
