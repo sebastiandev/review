@@ -91,9 +91,10 @@ Server first, then UI.
 
 ## Phase 6 — Accounts  ~1 day
 
-- [ ] GitHub: both paths — device-flow OAuth with keychain storage (macOS `security`) and
-      "use the token from the gh CLI". Account row phases per README.
-- [ ] GitLab: deferred; provider port exists from phase 3.
+- [x] GitHub: both paths — device-flow OAuth with keychain storage (macOS `security`, 0600 file
+      elsewhere) and "use the token from the gh CLI". Account row phases per README. The device
+      flow needs `REVIEW_GITHUB_CLIENT_ID`; without it only the CLI path is offered.
+- [x] GitLab: deferred; provider port exists from phase 3.
 
 ## Deferred / not planned
 

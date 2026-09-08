@@ -5,14 +5,20 @@ import type { Repo } from '../domain/pullRequests.ts'
 import type { Store } from '../domain/store.ts'
 import {
   fakeChatHub,
+  fakeCli,
+  fakeCredentialStore,
+  fakeDeviceFlow,
   fakeProvider,
   fakeRunner,
   fakeWorktrees,
   fixedClock,
   memoryEvents,
   memoryPayloads,
+  noSleep,
   openTestStore,
   remotePr,
+  type FakeCredentialStore,
+  type FakeDeviceFlow,
   type FakeProvider,
   type FakeRunner,
   type FakeWorktrees,
@@ -33,7 +39,10 @@ describe('PR mode app', () => {
   let worktrees: FakeWorktrees
   let runner: FakeRunner
   let events: MemoryEvents
+  let credentials: FakeCredentialStore
+  let deviceFlow: FakeDeviceFlow
   let app: ReturnType<typeof prMode>['app']
+  let accounts: ReturnType<typeof prMode>['accounts']
 
   const PAYLOAD = JSON.stringify({
     pr: 415,
@@ -50,7 +59,9 @@ describe('PR mode app', () => {
     const payloads = memoryPayloads()
     runner = fakeRunner(payloads, { kind: 'write', text: PAYLOAD })
     events = memoryEvents()
-    ;({ app } = prMode({
+    credentials = fakeCredentialStore()
+    deviceFlow = fakeDeviceFlow()
+    ;({ app, accounts } = prMode({
       store,
       providers: { github: provider, gitlab: provider },
       worktrees,
@@ -59,6 +70,10 @@ describe('PR mode app', () => {
       fileExists: async () => false,
       events,
       clock: fixedClock(),
+      credentials,
+      deviceFlow,
+      cli: fakeCli(),
+      sleep: noSleep,
       opencodeUrl: 'http://opencode.test',
       directory: '/tmp',
       staticDir: null,
@@ -218,11 +233,61 @@ describe('PR mode app', () => {
     expect(await (await app.request('/api/repos')).json()).toMatchObject([{ id: repo.id, autoReview: false }])
   })
 
-  it('reports the connected account and its repositories', async () => {
-    provider.viewer = 'sebastiandev'
+  it('lists the repositories on the account', async () => {
     provider.accountRepos = [{ owner: 'acme', name: 'widgets', openPrCount: 2 }]
-    expect(await (await app.request('/api/account')).json()).toEqual({ provider: 'github', login: 'sebastiandev', connected: true })
     expect(await (await app.request('/api/account/repos')).json()).toEqual([{ owner: 'acme', name: 'widgets', openPrCount: 2 }])
+  })
+
+  describe('accounts', () => {
+    it('is disconnected until something connects it', async () => {
+      expect(await (await app.request('/api/account')).json()).toMatchObject({ phase: 'disconnected', login: null, deviceFlowAvailable: true })
+    })
+
+    it('borrows the gh token on load when nothing is stored', async () => {
+      await accounts.load()
+      expect(await (await app.request('/api/account')).json()).toMatchObject({ phase: 'connected', login: 'sebastiandev', source: 'cli' })
+      expect(credentials.stored.get('github')).toMatchObject({ token: 'tok-cli', source: 'cli' })
+    })
+
+    it('connects through the CLI on request and emits account.connected', async () => {
+      const res = await app.request('/api/account/connect', json('POST', { via: 'cli' }))
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ phase: 'connected', login: 'sebastiandev', source: 'cli', scopes: ['repo', 'read:org'] })
+      expect(events.ofType('account.connected')).toEqual([{ type: 'account.connected', provider: 'github', login: 'sebastiandev', source: 'cli' }])
+    })
+
+    it('runs the device flow: pending with the code, then connected once approved', async () => {
+      const connected = nextEvent('account.connected')
+      const res = await app.request('/api/account/connect', json('POST', { via: 'device' }))
+      expect(res.status).toBe(202)
+      expect(await res.json()).toMatchObject({ userCode: 'ABCD-1234', verificationUri: 'https://github.com/login/device', interval: 5 })
+      expect(events.ofType('account.pending')).toHaveLength(1)
+      await connected
+      expect(await (await app.request('/api/account')).json()).toMatchObject({ phase: 'connected', login: 'sebastiandev', source: 'oauth', pending: null })
+      expect(credentials.stored.get('github')).toMatchObject({ token: 'tok-oauth', source: 'oauth' })
+    })
+
+    it('reports a denied device flow and stays disconnected', async () => {
+      deviceFlow.polls.splice(0, deviceFlow.polls.length, { status: 'failed', message: 'authorization was denied' })
+      const failed = nextEvent('account.failed')
+      await app.request('/api/account/connect', json('POST', { via: 'device' }))
+      expect(await failed).toMatchObject({ message: 'authorization was denied' })
+      expect(await (await app.request('/api/account')).json()).toMatchObject({ phase: 'disconnected' })
+    })
+
+    it('refuses the device flow when no client id is configured', async () => {
+      deviceFlow.available = false
+      const res = await app.request('/api/account/connect', json('POST', { via: 'device' }))
+      expect(res.status).toBe(409)
+      expect(await res.json()).toEqual({ code: 'device_flow_unavailable' })
+    })
+
+    it('disconnects: the credential is gone and the account reads disconnected', async () => {
+      await app.request('/api/account/connect', json('POST', { via: 'cli' }))
+      expect((await app.request('/api/account', { method: 'DELETE' })).status).toBe(204)
+      expect(credentials.stored.size).toBe(0)
+      expect(await (await app.request('/api/account')).json()).toMatchObject({ phase: 'disconnected', login: null })
+    })
   })
 
   it('removes the worktrees of merged PRs, keeping the open ones', async () => {

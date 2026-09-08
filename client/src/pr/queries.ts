@@ -43,6 +43,7 @@ export function useUpdateSettings() {
   })
 }
 
+/** The provider account; refetched on every `account.*` event. */
 export function useAccount() {
   return useQuery({ queryKey: keys.account, queryFn: fetchAccount, staleTime: Infinity })
 }
@@ -100,6 +101,13 @@ export function useSyncInvalidation(): void {
       case 'worktree.ready':
       case 'worktree.removed':
         void client.invalidateQueries({ queryKey: keys.worktrees })
+        break
+      case 'account.pending':
+      case 'account.connected':
+      case 'account.failed':
+      case 'account.disconnected':
+        void client.invalidateQueries({ queryKey: keys.account })
+        void client.invalidateQueries({ queryKey: keys.accountRepos })
         break
       case 'review.queued':
       case 'review.running':

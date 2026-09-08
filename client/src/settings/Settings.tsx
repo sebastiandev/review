@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check } from '@phosphor-icons/react'
-import type { ModelRef, RepoSummary, UserSettings } from '@review/shared'
-import { patchRepo, removeMergedWorktrees, removeWorktrees, untrackRepo } from '../api'
+import type { AccountInfo, ModelRef, RepoSummary, UserSettings } from '@review/shared'
+import { disconnectAccount, patchRepo, removeMergedWorktrees, removeWorktrees, untrackRepo } from '../api'
 import { keys, useAccount, useConfig, useRepos, useUpdateSettings, useWorktrees } from '../pr/queries'
 import { Segmented } from '../shell/Segmented'
 import { ShortcutTable } from '../shell/ShortcutsSheet'
@@ -52,6 +52,24 @@ const DIFF_SWATCHES: Record<DiffTheme, [add: string, del: string]> = {
   muted: ['rgb(140, 150, 170)', 'rgb(170, 140, 150)'],
   vivid: ['rgb(86, 190, 120)', 'rgb(226, 96, 96)'],
   paper: ['rgb(200, 205, 180)', 'rgb(205, 185, 170)'],
+}
+
+const ACCOUNT_DOT: Record<AccountInfo['phase'], string> = {
+  connected: 'status-dot-on',
+  pending: 'status-dot-pending',
+  disconnected: 'status-dot-off',
+}
+
+/** The mono meta line under the provider name. */
+export function accountMeta(account: AccountInfo): string {
+  switch (account.phase) {
+    case 'pending':
+      return 'Waiting for authorization…'
+    case 'disconnected':
+      return 'Not connected'
+    case 'connected':
+      return [account.login, account.scopes.length ? account.scopes.join(', ') : null, account.source === 'cli' ? 'via gh' : null].filter(Boolean).join(' · ')
+  }
 }
 
 function capitalize(s: string): string {
@@ -122,6 +140,11 @@ export function Settings({
   const fail = (what: string) => (e: unknown) => onFlash(`${what}: ${e instanceof Error ? e.message : String(e)}`)
   const save = (patch: Partial<UserSettings>) => update.mutate(patch, { onError: fail('could not save') })
 
+  const disconnect = useMutation({
+    mutationFn: disconnectAccount,
+    onSuccess: () => void client.invalidateQueries({ queryKey: keys.account }),
+    onError: fail('could not disconnect'),
+  })
   const invalidateRepos = () => void client.invalidateQueries({ queryKey: keys.repos })
   const repoAuto = useMutation({
     mutationFn: ({ id, autoReview }: { id: number; autoReview: boolean }) => patchRepo(id, { autoReview }),
@@ -196,17 +219,23 @@ export function Settings({
         <Section id="accounts" title="Accounts" lede="OAuth tokens are stored in your OS keychain.">
           <div className="settings-list">
             <div className="settings-row">
-              <span className={`status-dot ${account.data?.connected ? 'status-dot-on' : 'status-dot-off'}`} aria-hidden />
+              <span className={`status-dot ${ACCOUNT_DOT[account.data?.phase ?? 'disconnected']}`} aria-hidden />
               <span className="settings-row-main">
                 <span className="settings-row-title">GitHub</span>
-                <span className="settings-row-meta mono">
-                  {account.isPending && 'Checking…'}
-                  {account.isError && 'Not connected'}
-                  {account.data && (account.data.connected ? `${account.data.login} · repo, read:org` : 'Not connected')}
-                </span>
+                <span className="settings-row-meta mono">{account.data ? accountMeta(account.data) : account.isError ? 'Not connected' : 'Checking…'}</span>
               </span>
-              <button type="button" className={`btn btn-xs ${account.data?.connected ? 'btn-secondary' : 'btn-primary'}`} onClick={onConnect}>
-                {account.data?.connected ? 'Reauthorize' : 'Connect'}
+              {account.data?.phase === 'connected' && (
+                <button type="button" className="btn btn-ghost btn-xs" disabled={disconnect.isPending} onClick={() => disconnect.mutate()}>
+                  Disconnect
+                </button>
+              )}
+              <button
+                type="button"
+                className={`btn btn-xs ${account.data?.phase === 'connected' ? 'btn-secondary' : 'btn-primary'}`}
+                disabled={!account.data}
+                onClick={onConnect}
+              >
+                {account.data?.phase === 'connected' ? 'Reauthorize' : account.data?.phase === 'pending' ? 'Authorizing…' : 'Connect'}
               </button>
             </div>
             <div className="settings-row">

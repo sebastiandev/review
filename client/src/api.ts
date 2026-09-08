@@ -6,6 +6,7 @@ import type {
   ChatSendRequest,
   ChatThreadRef,
   DiffDocument,
+  DeviceCodeInfo,
   DiffSelection,
   DraftCommentRow,
   InboxRow,
@@ -148,6 +149,24 @@ export function untrackRepo(repoId: number): Promise<void> {
 /** The connected provider account. */
 export function fetchAccount(): Promise<AccountInfo> {
   return requestJson<AccountInfo>('/api/account')
+}
+
+/** Borrows the token the gh CLI is logged in with. */
+export function connectWithCli(): Promise<AccountInfo> {
+  return requestJson<AccountInfo>('/api/account/connect', jsonInit('POST', { via: 'cli' }))
+}
+
+/** Starts the OAuth device flow; the outcome arrives as `account.connected` / `account.failed`. */
+export function startDeviceFlow(): Promise<DeviceCodeInfo> {
+  return requestJson<DeviceCodeInfo>('/api/account/connect', jsonInit('POST', { via: 'device' }))
+}
+
+export function cancelDeviceFlow(): Promise<void> {
+  return requestVoid('/api/account/connect', { method: 'DELETE' })
+}
+
+export function disconnectAccount(): Promise<void> {
+  return requestVoid('/api/account', { method: 'DELETE' })
 }
 
 /** Repos on the connected account with open-PR counts, tracked or not. */

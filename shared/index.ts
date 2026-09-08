@@ -96,6 +96,11 @@ export type ServerEvent =
   | { type: 'review.running'; prId: number; agentReviewId: number }
   | { type: 'review.ready'; prId: number; agentReviewId: number; verdict: Verdict; findingCount: number }
   | { type: 'review.failed'; prId: number; agentReviewId: number; message: string }
+  // Provider accounts (phase 6). `userCode` is what the user types on the device page.
+  | { type: 'account.pending'; provider: 'github' | 'gitlab'; userCode: string }
+  | { type: 'account.connected'; provider: 'github' | 'gitlab'; login: string; source: 'oauth' | 'cli' }
+  | { type: 'account.failed'; provider: 'github' | 'gitlab'; message: string }
+  | { type: 'account.disconnected'; provider: 'github' | 'gitlab' }
 
 export type Verdict = 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES'
 
@@ -279,8 +284,32 @@ export type PastReviewRow = {
 /** A repo visible on the connected account, for the "pick from your account" list. */
 export type AccountRepo = { owner: string; name: string; openPrCount: number }
 
-/** The connected provider account. Until phase 6 the token always comes from the CLI. */
-export type AccountInfo = { provider: 'github' | 'gitlab'; login: string; connected: boolean }
+export type AccountPhase = 'disconnected' | 'pending' | 'connected'
+
+/** A provider account as Settings → Accounts shows it. */
+export type AccountInfo = {
+  provider: 'github' | 'gitlab'
+  phase: AccountPhase
+  login: string | null
+  scopes: string[]
+  /** `oauth` from the device flow, `cli` borrowed from `gh`; null when disconnected. */
+  source: 'oauth' | 'cli' | null
+  /** False when the server has no OAuth client id; only the CLI path is offered then. */
+  deviceFlowAvailable: boolean
+  /** The code to type while a device flow is pending. */
+  pending: DeviceCodeInfo | null
+}
+
+/** What the client shows during the device flow's code step. */
+export type DeviceCodeInfo = {
+  userCode: string
+  verificationUri: string
+  /** ISO time the code stops working. */
+  expiresAt: string
+  /** Seconds between polls. */
+  interval: number
+  scopes: string[]
+}
 
 /** A checked-out PR on disk. `sizeBytes` is measured by the worktree adapter, not stored. */
 export type WorktreeRow = {

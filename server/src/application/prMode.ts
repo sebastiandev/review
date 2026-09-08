@@ -1,3 +1,4 @@
+import type { CliCredentials, CredentialStore, OAuthDeviceFlow } from '../domain/accounts.ts'
 import type { AgentRunner, PayloadFiles } from '../domain/agentRunner.ts'
 import type { ChatHub } from '../domain/chat.ts'
 import { makeOpenPullRequest } from '../domain/commands/openPullRequest.ts'
@@ -8,6 +9,7 @@ import type { ProviderKind, PullRequest, PullRequestProvider } from '../domain/p
 import type { Store } from '../domain/store.ts'
 import type { Worktrees } from '../domain/worktrees.ts'
 import type { OpencodeChatOptions } from '../infrastructure/opencodeChat.ts'
+import { accountSession, type AccountSession } from './accounts.ts'
 import { createApp } from './app.ts'
 import { prRoutes } from './prRoutes.ts'
 import { reviewQueue } from './reviewQueue.ts'
@@ -23,6 +25,11 @@ export type PrModeDeps = {
   fileExists: (path: string) => Promise<boolean>
   events: Events
   clock: Clock
+  credentials: CredentialStore
+  deviceFlow: OAuthDeviceFlow
+  cli: CliCredentials
+  /** Waits `seconds` between device-flow polls; tests pass a no-op. */
+  sleep: (seconds: number) => Promise<void>
   opencodeUrl: string
   /** Directory opencode resolves agents and config for. */
   directory: string
@@ -39,7 +46,8 @@ export type PrModeDeps = {
  *   worktree whose head has not been reviewed is reviewed. The queue holds one run, so the
  *   others are picked up on later syncs.
  */
-export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; scheduler: Scheduler } {
+export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; scheduler: Scheduler; accounts: AccountSession } {
+  const accounts = accountSession(deps)
   const sync = scheduler({ store: deps.store, syncRepo: (repoId) => syncRepo(deps, { repoId }) })
   const reviews = reviewQueue({ runReview: (req) => runReview(deps, req) })
   const enqueueUnreviewed = (pr: PullRequest) => {
@@ -66,8 +74,8 @@ export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; s
     settingsChanged: sync.reschedule,
     opencodeUrl: deps.opencodeUrl,
     directory: deps.directory,
-    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews })],
+    routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews, accounts })],
     staticDir: deps.staticDir,
   })
-  return { app, scheduler: sync }
+  return { app, scheduler: sync, accounts }
 }

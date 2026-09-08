@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { AccountInfo, ModelRef, Verdict } from '@review/shared'
+import type { ModelRef, Verdict } from '@review/shared'
 import { addPullRequests, listOpenPreviews, resolvePullRequest } from '../domain/commands/addPullRequests.ts'
 import { dismissFinding, keepAllFindings, keepFinding } from '../domain/commands/agentFindings.ts'
 import { addDraftComment, deleteDraftComment, editDraftComment } from '../domain/commands/draftComments.ts'
@@ -14,6 +14,7 @@ import type { ProviderKind, PullRequestProvider, RepoRef } from '../domain/pullR
 import type { Anchor } from '../domain/review.ts'
 import type { Store } from '../domain/store.ts'
 import type { Worktrees } from '../domain/worktrees.ts'
+import type { AccountSession } from './accounts.ts'
 import type { ReviewQueue } from './reviewQueue.ts'
 import type { Scheduler } from './scheduler.ts'
 
@@ -26,6 +27,7 @@ export type PrRoutesDeps = {
   openPullRequest: OpenPullRequest
   scheduler: Pick<Scheduler, 'runNow'>
   reviewQueue: ReviewQueue
+  accounts: AccountSession
 }
 
 /** PR-mode routes. Each one parses input, calls one Command or one read model, and maps the result. */
@@ -55,10 +57,24 @@ export function prRoutes(deps: PrRoutesDeps) {
 
   app.post('/api/sync', (c) => c.json({ status: deps.scheduler.runNow() }, 202))
 
-  /** The connected GitHub account. GitLab has no adapter yet, so only GitHub is reported. */
-  app.get('/api/account', async (c) => {
-    const account: AccountInfo = { provider: 'github', login: await deps.providers.github.viewerLogin(), connected: true }
-    return c.json(account)
+  /** The GitHub account. GitLab has no adapter yet, so only GitHub is reported. */
+  app.get('/api/account', (c) => c.json(deps.accounts.info()))
+
+  /** `via: 'cli'` borrows gh's token now; `via: 'device'` starts the OAuth device flow and polls in the background. */
+  app.post('/api/account/connect', async (c) => {
+    const body = (await c.req.json()) as { via: 'cli' | 'device' }
+    if (body.via === 'cli') return c.json(await deps.accounts.connectWithCli())
+    return c.json(await deps.accounts.startDeviceFlow(), 202)
+  })
+
+  app.delete('/api/account/connect', (c) => {
+    deps.accounts.cancelDeviceFlow()
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/account', async (c) => {
+    await deps.accounts.disconnect()
+    return c.body(null, 204)
   })
 
   app.get('/api/account/repos', async (c) => c.json(await deps.providers.github.listAccountRepos()))

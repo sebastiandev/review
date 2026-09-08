@@ -46,3 +46,24 @@ export class WorktreeMissing extends DomainError {
     super('worktree_missing', `pull request ${prId} has no worktree; open it first`)
   }
 }
+
+/** The provider's CLI is not logged in, so there is no token to borrow. */
+export class CliNotAuthenticated extends DomainError {
+  constructor(cli: string) {
+    super('cli_not_authenticated', `${cli} is not logged in; run \`${cli} auth login\` or use the device flow`)
+  }
+}
+
+/** The device flow needs an OAuth client id and none is configured. */
+export class DeviceFlowUnavailable extends DomainError {
+  constructor() {
+    super('device_flow_unavailable', 'no OAuth client id configured (REVIEW_GITHUB_CLIENT_ID)')
+  }
+}
+
+/** The user denied the device authorization, or the code expired. */
+export class DeviceFlowFailed extends DomainError {
+  constructor(message: string) {
+    super('device_flow_failed', message)
+  }
+}

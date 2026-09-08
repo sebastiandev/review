@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountRepo, ChatEvent, ChatThreadRef, ServerEvent, WorktreeStage } from '@review/shared'
+import type { CliCredentials, Credential, CredentialStore, DevicePoll, OAuthDeviceFlow } from '../accounts.ts'
 import type { AgentRunner, AgentRunRequest, PayloadFiles } from '../agentRunner.ts'
 import { lineThreadId, type ChatHub, type ChatInput, type ChatThread } from '../chat.ts'
 import type { Clock, Events } from '../ports.ts'
@@ -310,3 +311,66 @@ export function fakeChatHub(): FakeChatHub {
     },
   }
 }
+
+export type FakeCredentialStore = CredentialStore & { stored: Map<string, Credential> }
+
+/** In-memory `CredentialStore`. */
+export function fakeCredentialStore(initial: Credential[] = []): FakeCredentialStore {
+  const stored = new Map(initial.map((c) => [c.provider, c]))
+  return {
+    stored,
+    read: async (provider) => stored.get(provider) ?? null,
+    async write(credential) {
+      stored.set(credential.provider, credential)
+    },
+    async delete(provider) {
+      stored.delete(provider)
+    },
+  }
+}
+
+export type FakeDeviceFlow = OAuthDeviceFlow & {
+  /** Answers `poll` returns, in order; the last one repeats. */
+  polls: DevicePoll[]
+  /** login by token; unknown tokens are rejected. */
+  owners: Map<string, string>
+  calls: string[]
+}
+
+/** `OAuthDeviceFlow` with scripted poll answers. `identify` knows the tokens in `owners`. */
+export function fakeDeviceFlow(polls: DevicePoll[] = [{ status: 'pending' }, { status: 'granted', token: 'tok-oauth' }]): FakeDeviceFlow {
+  const calls: string[] = []
+  return {
+    available: true,
+    scopes: ['repo', 'read:org'],
+    polls,
+    owners: new Map([
+      ['tok-oauth', 'sebastiandev'],
+      ['tok-cli', 'sebastiandev'],
+    ]),
+    calls,
+    async start() {
+      calls.push('start')
+      return { deviceCode: 'dev-1', userCode: 'ABCD-1234', verificationUri: 'https://github.com/login/device', expiresIn: 900, interval: 5 }
+    },
+    async poll(deviceCode) {
+      calls.push(`poll:${deviceCode}`)
+      const next = polls.length > 1 ? polls.shift()! : polls[0]!
+      return next
+    },
+    async identify(token) {
+      calls.push(`identify:${token}`)
+      const login = this.owners.get(token)
+      if (!login) throw new Error('bad token')
+      return { login, scopes: ['repo', 'read:org'] }
+    },
+  }
+}
+
+/** `CliCredentials` answering a fixed token (null = not logged in). */
+export function fakeCli(token: string | null = 'tok-cli'): CliCredentials {
+  return { token: async () => token }
+}
+
+/** A `sleep` that returns at once. */
+export const noSleep = async (): Promise<void> => {}

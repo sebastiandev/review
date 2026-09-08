@@ -10,6 +10,8 @@ import { localRepoSource, patchFileSource } from '../infrastructure/diffSources.
 import { eventBus } from '../infrastructure/events.ts'
 import { fileExists, fsPayloads } from '../infrastructure/fsPayloads.ts'
 import { ghProvider } from '../infrastructure/github/ghProvider.ts'
+import { ghCliCredentials, githubDeviceFlow, withGithubToken } from '../infrastructure/github/oauthDeviceFlow.ts'
+import { fileCredentialStore, keychainCredentialStore } from '../infrastructure/keychain.ts'
 import { gitWorktrees } from '../infrastructure/gitWorktrees.ts'
 import { openOpencodeChat } from '../infrastructure/opencodeChat.ts'
 import { opencodeRunner } from '../infrastructure/opencodeRunner.ts'
@@ -70,12 +72,19 @@ export async function startDiffMode(opts: DiffModeOptions) {
 /** Composition root for PR mode: store, providers, worktrees, scheduler, serve. */
 export async function startPrMode(opts: PrModeOptions) {
   const store = sqliteStore(await openCacheDatabase(opts.cacheDir))
-  const github = ghProvider(execFileRunner)
-  const { app, scheduler } = prMode({
+  // The account session is created inside prMode; the runner reads its token lazily.
+  let token: () => string | null = () => null
+  const run = withGithubToken(execFileRunner, () => token())
+  const github = ghProvider(run)
+  const { app, scheduler, accounts } = prMode({
     store,
     // No GitLab adapter yet; `gh` under the gitlab key keeps the Record total until one exists.
     providers: { github, gitlab: github },
-    worktrees: gitWorktrees({ cacheDir: opts.cacheDir, run: execFileRunner }),
+    worktrees: gitWorktrees({ cacheDir: opts.cacheDir, run }),
+    credentials: process.platform === 'darwin' ? keychainCredentialStore(execFileRunner) : fileCredentialStore(join(opts.cacheDir, 'credentials.json')),
+    deviceFlow: githubDeviceFlow(process.env.REVIEW_GITHUB_CLIENT_ID ?? null),
+    cli: ghCliCredentials(execFileRunner),
+    sleep: (seconds) => new Promise((r) => setTimeout(r, seconds * 1000)),
     runner: opencodeRunner({ baseUrl: opts.opencodeUrl }),
     payloads: fsPayloads(join(opts.cacheDir, 'payloads')),
     fileExists,
@@ -85,6 +94,8 @@ export async function startPrMode(opts: PrModeOptions) {
     directory: process.cwd(),
     staticDir: opts.serveBuiltClient ? clientDist() : null,
   })
+  token = accounts.token
+  await accounts.load()
   scheduler.start()
   return serve({ fetch: app.fetch, port: opts.port })
 }

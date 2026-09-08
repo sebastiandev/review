@@ -12,7 +12,8 @@ import { useNow } from './inbox/useNow'
 import { PastReviews, PastSidebar } from './past/PastReviews'
 import type { PastFilter } from './past/pastRows'
 import { PrWorkspace } from './pr/PrWorkspace'
-import { keys, useInbox, useRepos, useSettings, useSyncInvalidation, useUpdateSettings } from './pr/queries'
+import { keys, useAccount, useInbox, useRepos, useSettings, useSyncInvalidation, useUpdateSettings } from './pr/queries'
+import { ConnectModal } from './settings/ConnectModal'
 import { Settings, SettingsSidebar } from './settings/Settings'
 import type { SectionId } from './settings/sections'
 import { TrackRepoModal } from './settings/TrackRepoModal'
@@ -28,7 +29,7 @@ import { isEditing } from './workspace/Workspace'
 
 const FLASH_MS = 5_000
 
-type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | null
+type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | null
 
 /** Which sidebar/center pair shows. */
 type View = RailView
@@ -39,6 +40,7 @@ export function App() {
   const client = useQueryClient()
   const repos = useRepos()
   const settings = useSettings()
+  const account = useAccount()
   const updateSettings = useUpdateSettings()
   const [uiTheme, setUiTheme] = useUiTheme(settings.data?.theme)
   const [diffTheme, setDiffTheme] = useDiffTheme(settings.data?.diffTheme)
@@ -256,7 +258,7 @@ export function App() {
                 onUiTheme={pickUiTheme}
                 onDiffTheme={pickDiffTheme}
                 onTrackRepo={() => setOverlay('track')}
-                onConnect={() => setFlash('GitHub is authenticated through the gh CLI; OAuth device flow arrives in phase 6.')}
+                onConnect={() => setOverlay('connect')}
                 onFlash={setFlash}
               />
             ) : (
@@ -366,6 +368,16 @@ export function App() {
       </div>
       <StatusBar text={status} />
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={() => setOverlay(null)} />}
+      {overlay === 'connect' && account.data && (
+        <ConnectModal
+          account={account.data}
+          onClose={() => setOverlay(null)}
+          onConnected={(login) => {
+            setFlash(`GitHub connected as ${login}`)
+            void client.invalidateQueries({ queryKey: keys.repos })
+          }}
+        />
+      )}
       {overlay === 'track' && (
         <TrackRepoModal
           repos={repoList}
