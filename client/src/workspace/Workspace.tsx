@@ -109,6 +109,7 @@ export function Workspace({
   const [chatLine, setChatLine] = useState<string | null>(null)
   /** Text placed in the inline chat input when a finding is discussed. */
   const [chatSeed, setChatSeed] = useState<string | undefined>(undefined)
+  const [chatFolded, setChatFolded] = useState(false)
   /** Line whose comment composer is open (PR mode). */
   const [composer, setComposer] = useState<LineRef | null>(null)
   /** Markdown selection being commented on (PR mode). */
@@ -205,6 +206,7 @@ export function Workspace({
     (anchor: DiffSelection) => {
       setOpenMenu(null)
       clearSelection()
+      setChatFolded(false)
       void chat.openLineThread(anchor).then((ref) => setChatLine(ref.id))
     },
     [chat.openLineThread, clearSelection],
@@ -288,6 +290,47 @@ export function Workspace({
     onAsk: askLine,
     onDiscuss: discussLine,
   })
+
+  // The open line thread renders as the dock's chat, inlined under the last line of its anchor.
+  const openThreadState = openThread ? chat.thread(openThread.id) : null
+  const inlineChat = useMemo(() => {
+    if (!openThread?.anchor || openThread.anchor.path !== selectedFile?.path || !openThreadState) return null
+    return (
+      <InlineChat
+        key={openThread.id}
+        thread={openThread}
+        folded={chatFolded}
+        parts={openThreadState.parts}
+        idle={openThreadState.idle}
+        permissions={openThreadState.permissions}
+        error={openThreadState.error}
+        config={config.data}
+        filePaths={filePaths}
+        turn={turn}
+        lastTurn={openThreadState.lastTurn}
+        seed={chatSeed}
+        onSend={(request) => chat.send(openThread.id, { ...request, ...turn.settings })}
+        onAbort={() => void chat.abort(openThread.id)}
+        onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
+        onJumpTo={onJumpTo}
+        onToggleFold={() => setChatFolded((v) => !v)}
+        onClose={() => closeThread(openThread.id)}
+      />
+    )
+  }, [openThread, openThreadState, selectedFile?.path, chatFolded, config.data, filePaths, turn, chatSeed, chat, onJumpTo, closeThread])
+  const artifactsWithChat = useMemo(() => {
+    if (!inlineChat || !openThread?.anchor) return artifacts
+    const key = lineKey(openThread.anchor.side === 'LEFT' ? 'old' : 'new', openThread.anchor.endLine)
+    return {
+      ...artifacts,
+      [key]: (
+        <>
+          {artifacts[key]}
+          {inlineChat}
+        </>
+      ),
+    }
+  }, [artifacts, inlineChat, openThread])
 
   // The jump target may belong to a file that was not rendered yet; flash once the body shows it.
   useEffect(() => {
@@ -434,6 +477,7 @@ export function Workspace({
             onToggleThread={toggleThreadById}
           />
         )}
+        {selectedFile && showRich && inlineChat && <div className="ichat-floating">{inlineChat}</div>}
         {selectedFile && showRich && fileContent.isPending && <p className="notice">Loading {basename(selectedFile.path)}…</p>}
         {selectedFile && !showRich && (
           <DiffView
@@ -444,7 +488,7 @@ export function Workspace({
             viewed={viewed.viewed.has(selectedFile.path)}
             openMenu={openMenu}
             threads={threadsByLine}
-            artifacts={artifacts}
+            artifacts={artifactsWithChat}
             bodyRef={body}
             toolbar={mdControl}
             headerActions={headerActions}
@@ -464,18 +508,6 @@ export function Workspace({
               <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={askSelection} />
             )}
           </DiffView>
-        )}
-        {openThread && (
-          <InlineChat
-            key={openThread.id}
-            thread={openThread}
-            state={chat.thread(openThread.id)}
-            seed={chatSeed}
-            onSend={(text) => chat.send(openThread.id, { text, ...turn.settings })}
-            onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
-            onMinimize={() => setChatLine(null)}
-            onClose={() => closeThread(openThread.id)}
-          />
         )}
         {pr && selectionComposer && (
           <SelectionComposer

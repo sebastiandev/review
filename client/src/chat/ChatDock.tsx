@@ -7,33 +7,15 @@ import { LOCAL_COMMANDS, completeMention, mentionAt, parseSlashCommand, slashPre
 import type { ChatTurn } from './threadStore'
 import type { TurnSettingsState } from './useTurnSettings'
 
-type ChatDockProps = {
+type ChatDockProps = Omit<ChatPanelProps, 'placeholder' | 'autoFocus' | 'messagesClassName'> & {
   open: boolean
   /** Shown in the header: `working tree` / `patch file`. */
   scope: string | null
   /** Context chips: the selected file's basename and the file count. */
   currentFile: string | null
   fileCount: number
-  /** Paths in the diff, offered when the user types `@`. */
-  filePaths: string[]
-  parts: ChatPart[]
-  idle: boolean
-  permissions: PermissionAsk[]
-  error: string | null
-  /** Undefined until /api/config has loaded. */
-  config: AppConfig | undefined
   /** Replaces messages and composer with one line while the scope cannot chat yet (no worktree, inbox). */
   notice?: string
-  /** Footer provenance line; defaults to `opencode · {agent} · {scope}`. */
-  provenance?: string
-  turn: TurnSettingsState
-  lastTurn: ChatTurn | null
-  /** Text, selections and command only; the caller attaches the turn settings. */
-  onSend: (request: ChatSendRequest) => void
-  /** Stop the running turn; Esc in the composer and the Stop button call this. */
-  onAbort: () => void
-  onPermission: (id: string, response: PermissionReply) => void
-  onJumpTo: (path: string, start: number, end: number) => void
   onToggle: () => void
   /** Open width in px; the dock is resizable from its left edge. */
   width?: number
@@ -50,7 +32,7 @@ const LOCAL_COMMAND_HINTS: Record<LocalCommand, string> = {
 
 const NO_VARIANT: PickerItem = { id: '', label: 'no variant' }
 
-type QuoteBlockProps = { quote: Quote; onJumpTo: ChatDockProps['onJumpTo'] }
+type QuoteBlockProps = { quote: Quote; onJumpTo: ChatPanelProps['onJumpTo'] }
 
 function QuoteBlock({ quote, onJumpTo }: QuoteBlockProps) {
   const range = quote.startLine === quote.endLine ? `${quote.startLine}` : `${quote.startLine}-${quote.endLine}`
@@ -64,7 +46,7 @@ function QuoteBlock({ quote, onJumpTo }: QuoteBlockProps) {
   )
 }
 
-type PartViewProps = { part: ChatPart; onJumpTo: ChatDockProps['onJumpTo'] }
+type PartViewProps = { part: ChatPart; onJumpTo: ChatPanelProps['onJumpTo'] }
 
 function PartView({ part, onJumpTo }: PartViewProps) {
   const [expanded, setExpanded] = useState(false)
@@ -117,7 +99,7 @@ function PartView({ part, onJumpTo }: PartViewProps) {
   }
 }
 
-type PermissionRowProps = { ask: PermissionAsk; onPermission: ChatDockProps['onPermission'] }
+type PermissionRowProps = { ask: PermissionAsk; onPermission: ChatPanelProps['onPermission'] }
 
 function PermissionRow({ ask, onPermission }: PermissionRowProps) {
   return (
@@ -142,13 +124,19 @@ type ComposerProps = {
   idle: boolean
   commands: AppConfig['commands']
   filePaths: string[]
-  onSend: ChatDockProps['onSend']
+  placeholder?: string
+  autoFocus?: boolean
+  seed?: string
+  onSend: ChatPanelProps['onSend']
   onAbort: () => void
   onOpenPicker: (kind: LocalCommand) => void
 }
 
-function Composer({ idle, commands, filePaths, onSend, onAbort, onOpenPicker }: ComposerProps) {
-  const [draft, setDraft] = useState('')
+function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff…', autoFocus, seed, onSend, onAbort, onOpenPicker }: ComposerProps) {
+  const [draft, setDraft] = useState(seed ?? '')
+  useEffect(() => {
+    if (seed !== undefined) setDraft(seed)
+  }, [seed])
   const [caret, setCaret] = useState(0)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const commandNames = commands.map((c) => c.name)
@@ -220,8 +208,9 @@ function Composer({ idle, commands, filePaths, onSend, onAbort, onOpenPicker }: 
           ref={textarea}
           className="input composer-input"
           value={draft}
-          placeholder={idle ? 'Ask about the diff…  ⌘↵ to send  / commands  @ files' : 'Agent is working…  esc to stop'}
+          placeholder={idle ? `${placeholder}  ⌘↵ to send  / commands  @ files` : 'Agent is working…  esc to stop'}
           rows={1}
+          autoFocus={autoFocus}
           onChange={(e) => {
             setDraft(e.target.value)
             setCaret(e.target.selectionStart)
@@ -326,6 +315,97 @@ function StatusRow({ config, turn, lastTurn, picker, onOpenPicker }: StatusRowPr
   )
 }
 
+export type ChatPanelProps = {
+  parts: ChatPart[]
+  idle: boolean
+  permissions: PermissionAsk[]
+  error: string | null
+  /** Undefined until /api/config has loaded. */
+  config: AppConfig | undefined
+  /** Paths in the diff, offered when the user types `@`. */
+  filePaths: string[]
+  turn: TurnSettingsState
+  lastTurn: ChatTurn | null
+  /** Text, selections and command only; the caller attaches the turn settings. */
+  onSend: (request: ChatSendRequest) => void
+  /** Stop the running turn; Esc in the composer and the Stop button call this. */
+  onAbort: () => void
+  onPermission: (id: string, response: PermissionReply) => void
+  onJumpTo: (path: string, start: number, end: number) => void
+  /** Composer placeholder while idle. */
+  placeholder?: string
+  /** Focus the composer on mount (inline cards). */
+  autoFocus?: boolean
+  /** Text placed in the composer when it changes (a finding being discussed). */
+  seed?: string
+  /** Below the composer: `opencode · agent · scope`. */
+  provenance?: string
+  /** Class for the scrolling message list; the dock and the inline card size it differently. */
+  messagesClassName?: string
+}
+
+/**
+ * One conversation: the turns, the agent · model · variant status row with its pickers, and the
+ * composer (⌘↵ send, `/` commands, `@` files, esc / Stop to abort). The dock and inline cards both render it.
+ */
+export function ChatPanel({
+  parts,
+  idle,
+  permissions,
+  error,
+  config,
+  filePaths,
+  turn,
+  lastTurn,
+  onSend,
+  onAbort,
+  onPermission,
+  onJumpTo,
+  placeholder,
+  autoFocus,
+  seed,
+  provenance,
+  messagesClassName = 'dock-messages',
+}: ChatPanelProps) {
+  const list = useRef<HTMLDivElement>(null)
+  const [picker, setPicker] = useState<LocalCommand | null>(null)
+  const catalog = config ?? EMPTY_CONFIG
+
+  useEffect(() => {
+    const element = list.current
+    if (element) element.scrollTop = element.scrollHeight
+  }, [parts, permissions])
+
+  return (
+    <>
+      <div ref={list} className={messagesClassName}>
+        {parts.map((part) => (
+          <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
+        ))}
+        {permissions.map((ask) => (
+          <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
+        ))}
+        {error && <p className="dock-error">{error}</p>}
+      </div>
+      <div className="dock-footer">
+        <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
+        <Composer
+          idle={idle}
+          commands={catalog.commands}
+          filePaths={filePaths}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          seed={seed}
+          onSend={onSend}
+          onAbort={onAbort}
+          onOpenPicker={setPicker}
+        />
+        {provenance && <div className="dock-provenance">{provenance}</div>}
+      </div>
+    </>
+  )
+}
+
 /** Right-hand chat dock: 344px open (header, context chips, turns, footer) or a 44px rail with a vertical "Chat". */
 export function ChatDock({
   open,
@@ -350,15 +430,7 @@ export function ChatDock({
   width,
   onStartResize,
 }: ChatDockProps) {
-  const list = useRef<HTMLDivElement>(null)
-  const [picker, setPicker] = useState<LocalCommand | null>(null)
-  const catalog = config ?? EMPTY_CONFIG
   const shownAgent = lastTurn ? lastTurn.agent : turn.settings.agent
-
-  useEffect(() => {
-    const element = list.current
-    if (element) element.scrollTop = element.scrollHeight
-  }, [parts, permissions])
 
   if (!open) {
     return (
@@ -390,22 +462,21 @@ export function ChatDock({
       {notice ? (
         <p className="notice dock-notice">{notice}</p>
       ) : (
-        <>
-          <div ref={list} className="dock-messages">
-            {parts.map((part) => (
-              <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
-            ))}
-            {permissions.map((ask) => (
-              <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
-            ))}
-            {error && <p className="dock-error">{error}</p>}
-          </div>
-          <div className="dock-footer">
-            <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-            <Composer idle={idle} commands={catalog.commands} filePaths={filePaths} onSend={onSend} onAbort={onAbort} onOpenPicker={setPicker} />
-            <div className="dock-provenance">{provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}</div>
-          </div>
-        </>
+        <ChatPanel
+          parts={parts}
+          idle={idle}
+          permissions={permissions}
+          error={error}
+          config={config}
+          filePaths={filePaths}
+          turn={turn}
+          lastTurn={lastTurn}
+          onSend={onSend}
+          onAbort={onAbort}
+          onPermission={onPermission}
+          onJumpTo={onJumpTo}
+          provenance={provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}
+        />
       )}
     </aside>
   )

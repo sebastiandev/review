@@ -1,136 +1,49 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import type { ChatPart, ChatThreadRef, PermissionAsk, PermissionReply } from '@review/shared'
-import { splitInlineCode } from './inlineCode'
-import type { ThreadState } from './threadStore'
+import { CaretDown, CaretRight } from '@phosphor-icons/react'
+import type { ChatThreadRef } from '@review/shared'
+import { ChatPanel, type ChatPanelProps } from './ChatDock'
 
-type InlineChatProps = {
+type InlineChatProps = Omit<ChatPanelProps, 'placeholder' | 'autoFocus' | 'messagesClassName' | 'provenance'> & {
   thread: ChatThreadRef
-  state: ThreadState
-  /** Text placed in the input when it changes (a finding being discussed). */
-  seed?: string
-  /** Plain text only; the caller attaches the turn settings. */
-  onSend: (text: string) => void
-  onPermission: (permissionID: string, reply: PermissionReply) => void
-  onMinimize: () => void
+  /** Collapsed shows only the header line; the conversation keeps running underneath. */
+  folded: boolean
+  onToggleFold: () => void
   onClose: () => void
 }
 
-function InlinePart({ part }: { part: ChatPart }) {
-  switch (part.type) {
-    case 'text':
-      if (part.role === 'user') return <div className="ichat-user">{part.text}</div>
-      return (
-        <div className="ichat-agent">
-          {splitInlineCode(part.text).map((segment, i) =>
-            segment.kind === 'code' ? <code key={i} className="ichat-code">{segment.text}</code> : segment.text,
-          )}
-        </div>
-      )
-    case 'tool':
-      return (
-        <div className={`ichat-tool ichat-tool-${part.status}`}>
-          {part.tool} · {part.title}
-        </div>
-      )
-    case 'reasoning':
-      return <div className="ichat-tool">reasoning</div>
-  }
-}
-
-function InlinePermission({ ask, onPermission }: { ask: PermissionAsk; onPermission: InlineChatProps['onPermission'] }) {
-  return (
-    <div className="permission">
-      <span className="permission-title">{ask.title}</span>
-      <span className="permission-actions">
-        <button type="button" className="btn btn-primary btn-xs" onClick={() => onPermission(ask.id, 'once')}>
-          Allow once
-        </button>
-        <button type="button" className="btn btn-secondary btn-xs" onClick={() => onPermission(ask.id, 'always')}>
-          Always
-        </button>
-        <button type="button" className="btn btn-secondary btn-xs" onClick={() => onPermission(ask.id, 'reject')}>
-          Reject
-        </button>
-      </span>
-    </div>
-  )
-}
-
-function refLabel(thread: ChatThreadRef): string {
+/** `path:12-14` for a ranged anchor, `path:12` for one line. */
+export function refLabel(thread: ChatThreadRef): string {
   const anchor = thread.anchor
   if (!anchor) return thread.id
   const range = anchor.startLine === anchor.endLine ? `${anchor.startLine}` : `${anchor.startLine}-${anchor.endLine}`
   return `${anchor.path}:${range}`
 }
 
-/** Pane-level card for one line thread: header with the line reference, turns, and a one-line composer. */
-export function InlineChat({ thread, state, seed, onSend, onPermission, onMinimize, onClose }: InlineChatProps) {
-  const [draft, setDraft] = useState(seed ?? '')
-  const list = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (seed !== undefined) setDraft(seed)
-  }, [seed])
-
-  useEffect(() => {
-    const element = list.current
-    if (element) element.scrollTop = element.scrollHeight
-  }, [state.parts, state.permissions])
-
-  const submit = () => {
-    const text = draft.trim()
-    if (!text || !state.idle) return
-    onSend(text)
-    setDraft('')
-  }
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      submit()
-    }
-    // The workspace ignores Esc from inputs, so the card minimizes itself.
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      onMinimize()
-    }
-  }
-
+/**
+ * The dock's chat, inlined under the line it is about: same turns, same agent · model · variant
+ * pickers, same composer. Folds to a one-line header.
+ */
+export function InlineChat({ thread, folded, onToggleFold, onClose, ...panel }: InlineChatProps) {
+  const turns = panel.parts.filter((p) => p.type === 'text').length
   return (
-    <section className="ichat" aria-label="Inline chat">
+    <section className={`ichat${folded ? ' ichat-folded' : ''}`} aria-label="Inline chat">
       <div className="ichat-head">
-        <span className="ichat-dot" aria-hidden />
-        <span className="ichat-title">Inline chat</span>
-        <span className="ichat-ref">{refLabel(thread)}</span>
-        <button type="button" className="ichat-btn" title="Minimize" aria-label="Minimize" onClick={onMinimize}>
-          –
+        <button type="button" className="ichat-fold" aria-expanded={!folded} title={folded ? 'Unfold' : 'Fold'} onClick={onToggleFold}>
+          {folded ? <CaretRight size={12} /> : <CaretDown size={12} />}
         </button>
+        <span className="ichat-dot" aria-hidden />
+        <span className="ichat-title">Chat</span>
+        <span className="ichat-ref">{refLabel(thread)}</span>
+        {folded && (
+          <span className="ichat-summary">
+            {turns} turn{turns === 1 ? '' : 's'}
+            {!panel.idle && ' · agent working…'}
+          </span>
+        )}
         <button type="button" className="ichat-btn" title="Close" aria-label="Close" onClick={onClose}>
           ×
         </button>
       </div>
-      <div ref={list} className="ichat-body">
-        {state.parts.map((part) => (
-          <InlinePart key={part.id} part={part} />
-        ))}
-        {state.permissions.map((ask) => (
-          <InlinePermission key={ask.id} ask={ask} onPermission={onPermission} />
-        ))}
-        {state.error && <p className="dock-error">{state.error}</p>}
-      </div>
-      <div className="ichat-foot">
-        <input
-          className="input ichat-input"
-          value={draft}
-          placeholder="Ask about this line…"
-          autoFocus
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        <button type="button" className="btn btn-primary ichat-send" disabled={!state.idle || !draft.trim()} onClick={submit}>
-          Send
-        </button>
-      </div>
+      {!folded && <ChatPanel {...panel} placeholder="Ask about this line…" autoFocus messagesClassName="dock-messages ichat-messages" />}
     </section>
   )
 }
