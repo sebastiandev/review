@@ -49,12 +49,16 @@ export type RemoteComment = {
   remoteId: string
   author: string
   path: string
+  /** Line on the current head; null when the comment is outdated (left on an earlier head). */
   line: number | null
   startLine: number | null
   side: 'LEFT' | 'RIGHT' | null
   body: string
   inReplyTo: string | null
   createdAt: string
+  /** Where it was left originally, for showing outdated comments. */
+  originalLine: number | null
+  originalCommitSha: string | null
 }
 
 export type PullRequest = RemotePullRequest & {

@@ -73,3 +73,8 @@ export function countByPath(rows: { path: string }[]): Record<string, number> {
   for (const row of rows) counts[row.path] = (counts[row.path] ?? 0) + 1
   return counts
 }
+
+/** Threads of `path` whose root no longer maps onto the current diff (left on an earlier head). */
+export function outdatedThreads(threads: RemoteThread[], path: string): RemoteThread[] {
+  return threads.filter((t) => t.root.path === path && t.root.line === null)
+}

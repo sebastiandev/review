@@ -19,11 +19,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002', '0003', '0004'])
+    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(4)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(5)
     second.close()
   })
 
@@ -144,6 +144,8 @@ describe('sqliteStore', () => {
         body: 'hm',
         inReplyTo: null,
         createdAt: '2026-09-03T00:00:00.000Z',
+        originalLine: 2,
+        originalCommitSha: 'sha-1-a',
       })
       store.comments.replace(pr.id, [comment('c1'), comment('c2')], NOW)
       store.comments.replace(pr.id, [comment('c2'), comment('c3')], NOW)
@@ -262,7 +264,7 @@ describe('sqliteStore', () => {
       store.pullRequests.update(done.id, { doneAt: NOW })
       store.comments.replace(
         pr.id,
-        [{ remoteId: 'c1', author: 'bob', path: 'a.py', line: 1, startLine: null, side: 'RIGHT', body: 'x', inReplyTo: null, createdAt: NOW }],
+        [{ remoteId: 'c1', author: 'bob', path: 'a.py', line: 1, startLine: null, side: 'RIGHT', body: 'x', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null }],
         NOW,
       )
       const draft = store.drafts.insert(pr.id, pr.headSha, NOW)

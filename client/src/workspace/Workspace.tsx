@@ -19,6 +19,8 @@ import type { ViewedState } from '../files/useViewed'
 import { MarkdownView, type MarkdownThread } from '../markdown/MarkdownView'
 import { keys, useConfig } from '../pr/queries'
 import { usePrArtifacts, type PrWorkspaceData } from '../pr/usePrArtifacts'
+import { OutdatedComments } from '../pr/OutdatedComments'
+import { outdatedThreads } from '../pr/comments'
 import { Segmented } from '../shell/Segmented'
 import type { LayoutState } from '../shell/useLayout'
 import { SelectionComposer } from './SelectionComposer'
@@ -507,6 +509,7 @@ export function Workspace({
             {pillPosition && selections.length > 0 && (
               <AskPill selections={selections} left={pillPosition.left} top={pillPosition.top} onAsk={askSelection} />
             )}
+            {pr && <OutdatedComments threads={outdatedThreads(pr.threads, selectedFile.path)} now={pr.now} />}
           </DiffView>
         )}
         {pr && selectionComposer && (

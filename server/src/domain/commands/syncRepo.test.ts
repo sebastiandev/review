@@ -39,7 +39,7 @@ describe('syncRepo', () => {
     provider.remote.set(1, remotePr({ number: 1, body: 'Spec: docs/spec.md' }))
     provider.remote.set(2, remotePr({ number: 2, reviewRequested: false }))
     provider.remoteComments.set(1, [
-      { remoteId: 'c1', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'why', inReplyTo: null, createdAt: NOW },
+      { remoteId: 'c1', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'why', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null },
     ])
 
     const result = await syncRepo(deps, { repoId })
@@ -58,7 +58,7 @@ describe('syncRepo', () => {
     provider.remote.set(1, remotePr({ number: 1 }))
     await syncRepo(deps, { repoId })
     provider.calls.length = 0
-    provider.remoteComments.set(1, [{ remoteId: 'c9', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'late remark', inReplyTo: null, createdAt: NOW }])
+    provider.remoteComments.set(1, [{ remoteId: 'c9', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'late remark', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null }])
 
     const result = await syncRepo(deps, { repoId })
 

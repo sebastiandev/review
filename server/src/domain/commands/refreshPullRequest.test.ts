@@ -42,7 +42,7 @@ describe('refreshPullRequest', () => {
 
   it('replaces comments and keeps the diff when the head is unchanged', async () => {
     provider.remoteComments.set(1, [
-      { remoteId: 'c9', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'late remark', inReplyTo: null, createdAt: NOW },
+      { remoteId: 'c9', author: 'bob', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'late remark', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null },
     ])
 
     const result = await refreshPullRequest(deps, { prId })

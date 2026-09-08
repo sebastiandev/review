@@ -55,6 +55,8 @@ export type RestReviewComment = {
   body: string
   in_reply_to_id?: number
   created_at: string
+  original_line?: number | null
+  original_commit_id?: string
 }
 
 /** A PR node as the domain sees it. `reviewRequested` = `viewer` is among the requested users. */
@@ -116,6 +118,8 @@ export function mapComment(c: RestReviewComment): RemoteComment {
     body: c.body,
     inReplyTo: c.in_reply_to_id === undefined ? null : String(c.in_reply_to_id),
     createdAt: c.created_at,
+    originalLine: c.original_line ?? null,
+    originalCommitSha: c.original_commit_id ?? null,
   }
 }
 

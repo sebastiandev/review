@@ -70,7 +70,14 @@ describe('mapComment', () => {
       body: 'Why not keep the old name?',
       inReplyTo: null,
       createdAt: '2026-09-03T11:00:00Z',
+      originalLine: 2,
+      originalCommitSha: '9f2c1c3e6b0a4d5e8f7a6b5c4d3e2f1a0b9c8d7e',
     })
+  })
+
+  it('an outdated comment has no current line but keeps where it was left', () => {
+    const outdated = { ...comments[0], line: null, original_line: 234, original_commit_id: 'old-sha' }
+    expect(mapComment(outdated)).toMatchObject({ line: null, originalLine: 234, originalCommitSha: 'old-sha' })
   })
 
   it('a reply keeps its parent id as a string', () => {

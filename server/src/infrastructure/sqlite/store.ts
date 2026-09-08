@@ -126,11 +126,11 @@ export function sqliteStore(db: DatabaseSync): Store {
       replace(prId, rows, fetchedAt) {
         q('DELETE FROM remote_comment WHERE pr_id = ?').run(prId)
         const insert = q(
-          `INSERT INTO remote_comment (pr_id, remote_id, author, path, line, start_line, side, body, in_reply_to, remote_created_at, fetched_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO remote_comment (pr_id, remote_id, author, path, line, start_line, side, body, in_reply_to, remote_created_at, fetched_at, original_line, original_commit_sha)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const c of rows) {
-          insert.run(prId, c.remoteId, c.author, c.path, c.line, c.startLine, c.side, c.body, c.inReplyTo, c.createdAt, fetchedAt)
+          insert.run(prId, c.remoteId, c.author, c.path, c.line, c.startLine, c.side, c.body, c.inReplyTo, c.createdAt, fetchedAt, c.originalLine, c.originalCommitSha)
         }
       },
     },
@@ -469,6 +469,8 @@ function toRemoteComment(r: Row): RemoteComment {
     body: str(r.body),
     inReplyTo: (r.in_reply_to as string | null) ?? null,
     createdAt: str(r.remote_created_at),
+    originalLine: (r.original_line as number | null) ?? null,
+    originalCommitSha: (r.original_commit_sha as string | null) ?? null,
   }
 }
 

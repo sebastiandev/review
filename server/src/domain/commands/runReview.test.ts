@@ -119,8 +119,8 @@ describe('runReview', () => {
       store.comments.replace(
         pr.id,
         [
-          { remoteId: 'c1', author: 'seba', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'rename this', inReplyTo: null, createdAt: NOW },
-          { remoteId: 'c2', author: 'bob', path: 'src/a.py', line: 3, startLine: null, side: 'RIGHT', body: 'lgtm', inReplyTo: null, createdAt: NOW },
+          { remoteId: 'c1', author: 'seba', path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'rename this', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null },
+          { remoteId: 'c2', author: 'bob', path: 'src/a.py', line: 3, startLine: null, side: 'RIGHT', body: 'lgtm', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null },
         ],
         NOW,
       ),

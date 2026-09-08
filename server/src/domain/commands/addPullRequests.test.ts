@@ -22,7 +22,7 @@ describe('addPullRequests / resolvePullRequest', () => {
   describe('addPullRequests', () => {
     it('stores each PR as user-added with diff and comments', async () => {
       provider.remoteComments.set(10, [
-        { remoteId: 'c1', author: 'bob', path: 'src/a.py', line: 1, startLine: null, side: 'RIGHT', body: 'x', inReplyTo: null, createdAt: NOW },
+        { remoteId: 'c1', author: 'bob', path: 'src/a.py', line: 1, startLine: null, side: 'RIGHT', body: 'x', inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null },
       ])
 
       const prs = await addPullRequests(deps, { repoId, numbers: [10, 11], reviewOnOpen: true })

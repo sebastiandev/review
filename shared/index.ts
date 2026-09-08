@@ -234,12 +234,15 @@ export type RemoteCommentRow = {
   remoteId: string
   author: string
   path: string
+  /** Line on the current head; null when outdated (see `originalLine`). */
   line: number | null
   startLine: number | null
   side: 'LEFT' | 'RIGHT' | null
   body: string
   inReplyTo: string | null
   createdAt: string
+  originalLine: number | null
+  originalCommitSha: string | null
 }
 
 export type DraftCommentRow = {

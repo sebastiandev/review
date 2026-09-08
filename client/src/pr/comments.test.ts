@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DraftCommentRow, RemoteCommentRow } from '@review/shared'
-import { countByPath, draftAnchorKey, draftsByLine, groupThreads, remoteAnchorKey, threadsByLine } from './comments'
+import { countByPath, draftAnchorKey, draftsByLine, groupThreads, outdatedThreads, remoteAnchorKey, threadsByLine } from './comments'
 
 function remote(over: Partial<RemoteCommentRow> & Pick<RemoteCommentRow, 'remoteId' | 'createdAt'>): RemoteCommentRow {
   return {
@@ -11,6 +11,8 @@ function remote(over: Partial<RemoteCommentRow> & Pick<RemoteCommentRow, 'remote
     side: 'RIGHT',
     body: over.remoteId,
     inReplyTo: null,
+    originalLine: null,
+    originalCommitSha: null,
     ...over,
   }
 }
@@ -89,5 +91,19 @@ describe('countByPath', () => {
 
   it('is empty without rows', () => {
     expect(countByPath([])).toEqual({})
+  })
+})
+
+describe('outdatedThreads', () => {
+  it('keeps only threads of the file whose root lost its line', () => {
+    const threads = groupThreads([
+      remote({ remoteId: 'live', createdAt: '2026-09-01T00:00:00Z' }),
+      remote({ remoteId: 'old', createdAt: '2026-09-01T00:01:00Z', line: null, originalLine: 234 }),
+      remote({ remoteId: 'reply', createdAt: '2026-09-01T00:02:00Z', line: null, inReplyTo: 'old' }),
+      remote({ remoteId: 'elsewhere', createdAt: '2026-09-01T00:03:00Z', line: null, path: 'b.py' }),
+    ])
+    const outdated = outdatedThreads(threads, 'a.py')
+    expect(outdated.map((t) => t.root.remoteId)).toEqual(['old'])
+    expect(outdated[0]!.replies.map((r) => r.remoteId)).toEqual(['reply'])
   })
 })
