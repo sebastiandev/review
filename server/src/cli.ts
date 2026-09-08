@@ -39,9 +39,15 @@ if (values.help || !(prMode || diffMode)) {
 
 const port = Number(values.port)
 const common = { port, opencodeUrl: values.opencode, cacheDir: values['cache-dir'], serveBuiltClient: !values.dev }
-await ensureOpencode(values.opencode, console.error)
-if (diffMode) await startDiffMode({ ...common, target, base: values.base ?? null })
-else await startPrMode(common)
+const opencode = ensureOpencode(values.opencode, console.error)
+if (diffMode) {
+  // Diff mode opens a chat session at startup, so opencode has to be there first.
+  await opencode
+  await startDiffMode({ ...common, target, base: values.base ?? null })
+} else {
+  // PR mode only talks to opencode on demand: listen right away so the client can connect.
+  await Promise.all([startPrMode(common), opencode])
+}
 
 const url = values.dev ? 'http://localhost:5177' : `http://localhost:${port}`
 console.log(`review: ${url}`)
