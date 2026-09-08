@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlashCommand, slashPrefix } from './slashCommand'
+import { completeMention, mentionAt, parseSlashCommand, slashPrefix } from './slashCommand'
 
 const KNOWN = ['review', 'review-pr', 'checkpoint']
 
@@ -40,5 +40,31 @@ describe('slashPrefix', () => {
     ['', null],
   ])('%j -> %j', (draft, expected) => {
     expect(slashPrefix(draft)).toBe(expected)
+  })
+})
+
+describe('mentionAt', () => {
+  it.each([
+    ['at the start', '@src', 4, { start: 0, query: 'src' }],
+    ['after a space', 'look at @ker', 12, { start: 8, query: 'ker' }],
+    ['bare @', 'see @', 5, { start: 4, query: '' }],
+    ['caret before the mention ends', '@abc def', 2, { start: 0, query: 'a' }],
+  ])('%s', (_, draft, caret, expected) => {
+    expect(mentionAt(draft, caret)).toEqual(expected)
+  })
+
+  it.each([
+    ['an email-like token', 'mail me@host', 12],
+    ['after the mention is closed with a space', '@src/a.py ', 10],
+    ['no @', 'plain text', 10],
+  ])('is null for %s', (_, draft, caret) => {
+    expect(mentionAt(draft, caret)).toBeNull()
+  })
+})
+
+describe('completeMention', () => {
+  it('replaces the typed prefix with the path and a trailing space', () => {
+    const result = completeMention('look at @ker please', { start: 8, query: 'ker' }, 12, 'kernel/a.py')
+    expect(result).toEqual({ draft: 'look at @kernel/a.py  please', caret: 8 + '@kernel/a.py '.length })
   })
 })

@@ -2,6 +2,7 @@ import type { CliCredentials, CredentialStore, OAuthDeviceFlow } from '../domain
 import type { AgentRunner, PayloadFiles } from '../domain/agentRunner.ts'
 import type { ChatHub } from '../domain/chat.ts'
 import { makeOpenPullRequest } from '../domain/commands/openPullRequest.ts'
+import { recoverInterruptedReviews } from '../domain/commands/recoverInterruptedReviews.ts'
 import { runReview } from '../domain/commands/runReview.ts'
 import { syncRepo } from '../domain/commands/syncRepo.ts'
 import type { Clock, Events } from '../domain/ports.ts'
@@ -48,6 +49,8 @@ export type PrModeDeps = {
  */
 export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; scheduler: Scheduler; accounts: AccountSession } {
   const accounts = accountSession(deps)
+  const interrupted = recoverInterruptedReviews(deps)
+  if (interrupted.length > 0) console.warn(`agent reviews interrupted by the last shutdown, marked failed: ${interrupted.map((r) => `#${r.id}`).join(', ')}`)
   const sync = scheduler({ store: deps.store, syncRepo: (repoId) => syncRepo(deps, { repoId }) })
   const reviews = reviewQueue({ runReview: (req) => runReview(deps, req) })
   const enqueueUnreviewed = (pr: PullRequest) => {

@@ -193,6 +193,7 @@ export function sqliteStore(db: DatabaseSync): Store {
         ),
       active: (prId) =>
         nullable(q("SELECT * FROM agent_review WHERE pr_id = ? AND status IN ('queued', 'running') ORDER BY id DESC LIMIT 1").get(prId), toAgentReview),
+      listActive: () => q("SELECT * FROM agent_review WHERE status IN ('queued', 'running') ORDER BY id").all().map(toAgentReview),
       listForPr(prId) {
         const reviews = q('SELECT * FROM agent_review WHERE pr_id = ? ORDER BY id DESC').all(prId).map(toAgentReview)
         const findings = q(

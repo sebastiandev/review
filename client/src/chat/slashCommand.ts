@@ -30,3 +30,22 @@ export function slashPrefix(draft: string): string | null {
   const match = /^\/(\S*)$/.exec(draft)
   return match ? match[1]! : null
 }
+
+export type Mention = { start: number; query: string }
+
+/**
+ * An `@` mention being typed at `caret`: the `@` must start the draft or follow whitespace, and the
+ * text between it and the caret has no whitespace. Returns where it starts and what was typed so far.
+ */
+export function mentionAt(draft: string, caret: number): Mention | null {
+  const before = draft.slice(0, caret)
+  const match = /(?:^|\s)@([^\s@]*)$/.exec(before)
+  if (!match) return null
+  return { start: caret - match[1]!.length - 1, query: match[1]! }
+}
+
+/** The draft with the mention at `mention` replaced by `@path ` and where the caret lands afterwards. */
+export function completeMention(draft: string, mention: Mention, caret: number, path: string): { draft: string; caret: number } {
+  const inserted = `@${path} `
+  return { draft: draft.slice(0, mention.start) + inserted + draft.slice(caret), caret: mention.start + inserted.length }
+}

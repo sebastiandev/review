@@ -63,7 +63,8 @@ describe('prScopes', () => {
     expect(opened[0]).toMatchObject({ directory: '/wt/3', title: 'acme/widgets#3', baseUrl: 'http://opencode.test' })
     expect(opened[0].systemContext).toContain('Add thing')
     expect(opened[0].systemContext).toContain('Because.')
-    expect(opened[0].systemContext).toContain(SAMPLE_PATCH)
+    expect(opened[0].systemContext).toContain('- src/a.py')
+    expect(opened[0].systemContext).not.toContain('+new')
   })
 
   it('stamps forwarded chat events with the PR scope', async () => {

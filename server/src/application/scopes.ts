@@ -92,21 +92,22 @@ function forwardChatEvents(chat: ChatHub, scope: string, events: Events): void {
 }
 
 function prContext(repo: Repo, pr: PullRequest, diff: PrDiff): string {
+  const files = diff.files.map((f) => `- ${f.path}`)
   return [
     `You are a chat assistant sitting next to a human who is reviewing pull request ${repoLabel(repo)}#${pr.number}: ${pr.title}`,
+    `(${pr.url}, branch ${pr.headRef} into ${pr.baseRef}).`,
     'Your job is to answer their questions about this PR and the surrounding code, briefly and',
     'conversationally. Do NOT perform a code review, do NOT produce findings or a verdict, and do',
     'NOT write any review payload or file unless they explicitly ask for exactly that. A greeting',
     'gets a one-line greeting back. When asked something, look at the code before answering.',
-    `The working directory is a checkout of its head (${pr.headSha}). Read files there when it helps.`,
-    `Ranges are given as path:start-end on the new side unless marked LEFT. Do not edit files unless explicitly asked.`,
+    `The working directory is a checkout of the PR head (${pr.headSha}); read files there. The diff`,
+    `against ${pr.baseSha} is \`git diff ${pr.baseSha}\` — run it for a single path when a question needs the change itself.`,
+    'Ranges are given as path:start-end on the new side unless marked LEFT. Do not edit files unless explicitly asked.',
     '',
     'PR description:',
     pr.body || '(none)',
     '',
-    'The full diff:',
-    '```diff',
-    diff.patch,
-    '```',
+    `Files changed (${files.length}):`,
+    ...files,
   ].join('\n')
 }

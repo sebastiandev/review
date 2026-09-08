@@ -3,7 +3,7 @@ import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { Picker, type PickerItem } from './Picker'
 import { splitQuotes, type Quote } from './quotes'
-import { LOCAL_COMMANDS, parseSlashCommand, slashPrefix, type LocalCommand } from './slashCommand'
+import { LOCAL_COMMANDS, completeMention, mentionAt, parseSlashCommand, slashPrefix, type LocalCommand } from './slashCommand'
 import type { ChatTurn } from './threadStore'
 import type { TurnSettingsState } from './useTurnSettings'
 
@@ -14,6 +14,8 @@ type ChatDockProps = {
   /** Context chips: the selected file's basename and the file count. */
   currentFile: string | null
   fileCount: number
+  /** Paths in the diff, offered when the user types `@`. */
+  filePaths: string[]
   parts: ChatPart[]
   idle: boolean
   permissions: PermissionAsk[]
@@ -139,16 +141,32 @@ function PermissionRow({ ask, onPermission }: PermissionRowProps) {
 type ComposerProps = {
   idle: boolean
   commands: AppConfig['commands']
+  filePaths: string[]
   onSend: ChatDockProps['onSend']
   onAbort: () => void
   onOpenPicker: (kind: LocalCommand) => void
 }
 
-function Composer({ idle, commands, onSend, onAbort, onOpenPicker }: ComposerProps) {
+function Composer({ idle, commands, filePaths, onSend, onAbort, onOpenPicker }: ComposerProps) {
   const [draft, setDraft] = useState('')
+  const [caret, setCaret] = useState(0)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const commandNames = commands.map((c) => c.name)
   const prefix = slashPrefix(draft)
+  const mention = prefix === null && filePaths.length > 0 ? mentionAt(draft, caret) : null
+  const fileItems: PickerItem[] = filePaths.map((path) => ({ id: path, label: path }))
+
+  const onMention = (item: PickerItem) => {
+    if (!mention) return
+    const next = completeMention(draft, mention, caret, item.id)
+    setDraft(next.draft)
+    setCaret(next.caret)
+    const el = textarea.current
+    if (el) {
+      el.focus()
+      requestAnimationFrame(() => el.setSelectionRange(next.caret, next.caret))
+    }
+  }
 
   const clear = () => setDraft('')
 
@@ -196,14 +214,20 @@ function Composer({ idle, commands, onSend, onAbort, onOpenPicker }: ComposerPro
   return (
     <div className="composer">
       {prefix !== null && <Picker items={completions} filter={prefix} keySource={textarea} onPick={onComplete} onClose={clear} />}
+      {mention && <Picker items={fileItems} filter={mention.query} keySource={textarea} onPick={onMention} onClose={() => setCaret(-1)} />}
       <div className="composer-row">
         <textarea
           ref={textarea}
           className="input composer-input"
           value={draft}
-          placeholder={idle ? 'Ask about the diff…  ⌘↵ to send  / for commands' : 'Agent is working…  esc to stop'}
+          placeholder={idle ? 'Ask about the diff…  ⌘↵ to send  / commands  @ files' : 'Agent is working…  esc to stop'}
           rows={1}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            setCaret(e.target.selectionStart)
+          }}
+          onKeyUp={(e) => setCaret(e.currentTarget.selectionStart)}
+          onClick={(e) => setCaret(e.currentTarget.selectionStart)}
           onKeyDown={onKeyDown}
         />
         {idle ? (
@@ -308,6 +332,7 @@ export function ChatDock({
   scope,
   currentFile,
   fileCount,
+  filePaths,
   parts,
   idle,
   permissions,
@@ -377,7 +402,7 @@ export function ChatDock({
           </div>
           <div className="dock-footer">
             <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-            <Composer idle={idle} commands={catalog.commands} onSend={onSend} onAbort={onAbort} onOpenPicker={setPicker} />
+            <Composer idle={idle} commands={catalog.commands} filePaths={filePaths} onSend={onSend} onAbort={onAbort} onOpenPicker={setPicker} />
             <div className="dock-provenance">{provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}</div>
           </div>
         </>

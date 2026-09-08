@@ -123,6 +123,7 @@ export function Workspace({
 
   const parsedByPath = useMemo(() => new Map(parsePatch(document.patch).map((f) => [f.path, f])), [document.patch])
   const files = document.files
+  const filePaths = useMemo(() => files.map((f) => f.path), [files])
   const selectedIndex = files.findIndex((f) => f.path === selectedPath)
   const selectedFile = selectedIndex >= 0 ? files[selectedIndex] : files[0]
   const openThread = chat.refs.find((ref) => ref.id === chatLine) ?? null
@@ -479,6 +480,7 @@ export function Workspace({
         scope={scopeKind(document.source)}
         currentFile={selectedFile ? basename(selectedFile.path) : null}
         fileCount={files.length}
+        filePaths={filePaths}
         parts={dock.parts}
         idle={dock.idle}
         permissions={dock.permissions}

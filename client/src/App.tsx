@@ -340,6 +340,7 @@ export function App() {
               scope="inbox"
               currentFile={null}
               fileCount={0}
+              filePaths={[]}
               parts={[]}
               idle
               permissions={[]}
