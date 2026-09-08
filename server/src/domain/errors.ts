@@ -67,3 +67,10 @@ export class DeviceFlowFailed extends DomainError {
     super('device_flow_failed', message)
   }
 }
+
+/** The PR is merged or closed remotely; reviews can no longer be submitted. */
+export class PullRequestClosed extends DomainError {
+  constructor(readonly state: 'merged' | 'closed') {
+    super('pr_closed', `pull request is ${state}`)
+  }
+}

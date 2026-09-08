@@ -1,6 +1,7 @@
 import type { Verdict } from '@review/shared'
 import { findOrCreateDraft } from '../actions/findOrCreateDraft.ts'
-import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound } from '../errors.ts'
+import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed } from '../errors.ts'
+import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import type { Clock, Events } from '../ports.ts'
 import type { ProviderKind, PullRequestProvider, ReviewPayload } from '../pullRequests.ts'
 import { mergeSameLineComments, validateAnchors, type Submission } from '../review.ts'
@@ -8,7 +9,7 @@ import type { Store } from '../store.ts'
 
 export type SubmitReviewDeps = {
   store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'drafts' | 'submissions' | 'agentReviews' | 'viewed'>
-  providers: Record<ProviderKind, Pick<PullRequestProvider, 'submitReview'>>
+  providers: Record<ProviderKind, Pick<PullRequestProvider, 'submitReview' | 'get'>>
   events: Events
   clock: Clock
 }
@@ -18,6 +19,8 @@ export type SubmitReviewRequest = { prId: number; verdict: Verdict; body: string
 /**
  * Send the human's draft for the PR's current head to the provider as one review.
  * Pre-conditions:
+ * - the PR is still open remotely (else `PullRequestClosed`, after storing the new state) and its
+ *   head has not moved since the last sync (else `DraftStale`, after storing the new head)
  * - the PR exists (else `NotFound`)
  * - no open draft for an older head (else `DraftStale`); a PR with no draft at all gets an
  *   empty one so a body-only review can go out
@@ -36,6 +39,22 @@ export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequ
   const repo = store.repos.get(pr.repoId)
   if (!repo) throw new NotFound('repo', pr.repoId)
   if (req.verdict === 'APPROVE' && !req.confirmApprove) throw new ApproveNotConfirmed()
+
+  // Re-check the remote first: the PR may have been merged since the last poll.
+  const provider = deps.providers[repo.provider]
+  const remote = await provider.get(repo, pr.number)
+  if (remote && remote.state !== 'open') {
+    const now = deps.clock()
+    store.transaction(() => upsertPullRequests(store.pullRequests, repo.id, [remote], now))
+    deps.events.emit({ type: 'pr.refreshed', prId: pr.id, headMoved: remote.headSha !== pr.headSha })
+    throw new PullRequestClosed(remote.state)
+  }
+  if (remote && remote.headSha !== pr.headSha) {
+    const now = deps.clock()
+    store.transaction(() => upsertPullRequests(store.pullRequests, repo.id, [remote], now))
+    deps.events.emit({ type: 'pr.refreshed', prId: pr.id, headMoved: true })
+    throw new DraftStale(pr.headSha, remote.headSha)
+  }
 
   const stale = store.drafts.latestOpen(pr.id)
   if (stale && stale.headSha !== pr.headSha) throw new DraftStale(stale.headSha, pr.headSha)

@@ -54,7 +54,9 @@ function submitErrorMessage(e: unknown): string {
       case 'invalid_anchors':
         return `${e.ids.length} selected comment${e.ids.length === 1 ? ' is' : 's are'} no longer anchored to the diff; unselect or delete them.`
       case 'draft_stale':
-        return 'PR moved to a new commit; refresh.'
+        return 'PR moved to a new commit since the last sync; the diff has been refreshed — re-check your comments and submit again.'
+      case 'pr_closed':
+        return 'This PR was merged or closed on GitHub; reviews can no longer be submitted.'
       case 'approve_not_confirmed':
         return 'Approving needs confirmation.'
     }
@@ -185,6 +187,14 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
     },
     onError: (e) => {
       if (e instanceof ApiError && e.code === 'invalid_anchors') setInvalidIds(new Set(e.ids))
+      if (e instanceof ApiError && (e.code === 'pr_closed' || e.code === 'draft_stale')) {
+        void refetchDetail()
+        if (e.code === 'pr_closed') {
+          setSubmitOpen(false)
+          onFlash(submitErrorMessage(e))
+          return
+        }
+      }
       setSubmitError(submitErrorMessage(e))
     },
   })
@@ -204,7 +214,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         setPanelOpen(false)
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isEditing(e.target)) {
         e.preventDefault()
-        setSubmitOpen(true)
+        if (pr?.state === 'open') setSubmitOpen(true)
       } else if (e.key === 'r' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && !isEditing(e.target) && !submitOpen && !runOpen) {
         // ⌘R: the browser's reload is not wanted inside the app; the agent review is.
         e.preventDefault()
@@ -213,7 +223,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [submitOpen, panelOpen, runOpen, button.disabled, onReviewButton])
+  }, [submitOpen, panelOpen, runOpen, button.disabled, onReviewButton, pr?.state])
 
   const drafts = useMemo(() => withInvalid(detail.data?.draft?.comments ?? [], invalidIds), [detail.data?.draft?.comments, invalidIds])
   const threads = useMemo(() => groupThreads(detail.data?.comments ?? []), [detail.data?.comments])
@@ -274,7 +284,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
           worktree.status === 'failed' ? `worktree failed: ${worktree.message}` : `worktree not ready · ${worktreeLabel(worktree)}…`
         }
         sidebarHeader={<PrTreeHeader pr={pr} submittedVerdict={pr.submittedVerdict} onBack={onBack} onDone={() => onDone(prId)} />}
-        sidebarFooter={<PrTreeFooter worktree={worktree} pendingCount={pendingCount} onSubmit={() => setSubmitOpen(true)} />}
+        sidebarFooter={<PrTreeFooter worktree={worktree} pendingCount={pendingCount} state={pr.state} onSubmit={() => setSubmitOpen(true)} />}
         topBarLead={
           <>
             <button type="button" className="btn btn-secondary btn-xs" title="All PRs" onClick={onBack}>

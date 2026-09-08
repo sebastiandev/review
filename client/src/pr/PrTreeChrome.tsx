@@ -40,11 +40,13 @@ export function PrTreeHeader({ pr, submittedVerdict, onBack, onDone }: PrTreeHea
 type PrTreeFooterProps = {
   worktree: WorktreeState
   pendingCount: number
+  /** Merged / closed PRs cannot take a review; the button gives way to a note. */
+  state: 'open' | 'merged' | 'closed'
   onSubmit: () => void
 }
 
 /** PR-mode sidebar footer: worktree path (or its stage) and `Submit review · n`. */
-export function PrTreeFooter({ worktree, pendingCount, onSubmit }: PrTreeFooterProps) {
+export function PrTreeFooter({ worktree, pendingCount, state, onSubmit }: PrTreeFooterProps) {
   const line =
     worktree.status === 'ready'
       ? worktree.path
@@ -56,9 +58,13 @@ export function PrTreeFooter({ worktree, pendingCount, onSubmit }: PrTreeFooterP
       <div className={`pr-foot-path${worktree.status === 'failed' ? ' pr-foot-failed' : ''}`} title={line}>
         {line}
       </div>
-      <button type="button" className="btn btn-primary btn-block pr-submit" onClick={onSubmit}>
-        Submit review · {pendingCount}
-      </button>
+      {state === 'open' ? (
+        <button type="button" className="btn btn-primary btn-block pr-submit" onClick={onSubmit}>
+          Submit review · {pendingCount}
+        </button>
+      ) : (
+        <p className="pr-closed-note">This PR is {state}; reviews can no longer be submitted.</p>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
-import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound } from '../errors.ts'
+import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed } from '../errors.ts'
 import type { PullRequest, Repo } from '../pullRequests.ts'
 import type { Store } from '../store.ts'
 import { fakeProvider, fixedClock, GITHUB_REPO, memoryEvents, NOW, openTestStore, remotePr, SAMPLE_PATCH, type FakeProvider, type MemoryEvents } from '../testing/fakes.ts'
@@ -20,7 +20,7 @@ describe('submitReview', () => {
 
   beforeEach(async () => {
     ;({ store, close } = await openTestStore())
-    provider = fakeProvider()
+    provider = fakeProvider([remotePr({ number: 415 })])
     events = memoryEvents()
     deps = { store, providers: { github: provider, gitlab: provider }, events, clock: fixedClock() }
     repo = store.repos.insert({ ...GITHUB_REPO, tracked: true, autoReview: false, syncedAt: null, syncError: null })
@@ -74,8 +74,24 @@ describe('submitReview', () => {
     expect(provider.submitted).toEqual([])
   })
 
+  it('refuses a PR that was merged since the last sync and stores the new state', async () => {
+    provider.remote.set(415, remotePr({ number: 415, state: 'merged' }))
+    await expect(submitReview(deps, { prId: pr.id, ...request })).rejects.toBeInstanceOf(PullRequestClosed)
+    expect(provider.submitted).toEqual([])
+    expect(store.pullRequests.get(pr.id)).toMatchObject({ state: 'merged' })
+    expect(events.ofType('pr.refreshed')).toEqual([{ type: 'pr.refreshed', prId: pr.id, headMoved: false }])
+  })
+
+  it('refuses when the head moved since the last sync and stores the new head', async () => {
+    provider.remote.set(415, remotePr({ number: 415, headSha: 'sha-415-b' }))
+    await expect(submitReview(deps, { prId: pr.id, ...request })).rejects.toBeInstanceOf(DraftStale)
+    expect(provider.submitted).toEqual([])
+    expect(store.pullRequests.get(pr.id)).toMatchObject({ headSha: 'sha-415-b' })
+  })
+
   it('a draft for an older head is stale', async () => {
     addDraftComment(draftDeps(), { prId: pr.id, ...anchor, body: 'old head' })
+    provider.remote.set(415, remotePr({ number: 415, headSha: 'sha-moved' }))
     store.transaction(() => store.pullRequests.upsert(repo.id, remotePr({ number: 415, headSha: 'sha-moved' }), {}, NOW))
 
     const error = await submitReview(deps, { prId: pr.id, ...request }).catch((e: unknown) => e)
