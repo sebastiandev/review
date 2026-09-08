@@ -1,4 +1,4 @@
-import { Check } from '@phosphor-icons/react'
+import { ArrowsOutLineVertical, Check } from '@phosphor-icons/react'
 import { Fragment, type ReactNode, type RefObject } from 'react'
 import type { DiffFile } from '@review/shared'
 import { Segmented } from '../shell/Segmented'
@@ -6,6 +6,8 @@ import { FileHeader } from './FileHeader'
 import { ChatMarker, LineActionButton, type LineRef } from './LineActionButton'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
 import { highlightLine, languageOf } from './highlight'
+import type { ContextGap } from './contextGaps'
+import { useExpandedContext, type ExpandedContext } from './useExpandedContext'
 
 export type DiffMode = 'unified' | 'split'
 
@@ -49,10 +51,13 @@ type DiffViewProps = {
   headerActions?: ReactNode
   /** Rendered inside the scrolling body (the Ask pill). */
   children?: ReactNode
+  /** Full new-side content of a file, for expanding unchanged context; null when the source has none (patch files). */
+  loadFile: (path: string) => Promise<string | null>
 }
 
 const MARKER: Record<DiffLine['kind'], string> = { add: '+ ', del: '- ', normal: '  ' }
 const NO_ARTIFACTS: Record<string, ReactNode> = {}
+const NO_HUNKS: DiffHunk[] = []
 
 /** The artifact under a side-by-side row: the right (new) line's, else the left (old) line's. */
 function splitArtifact(artifacts: Record<string, ReactNode>, left: DiffLine | null, right: DiffLine | null): ReactNode {
@@ -193,6 +198,69 @@ function SplitHunk({ path, hunk, ...slot }: HunkProps) {
   )
 }
 
+type GapProps = { gap: ContextGap; context: ExpandedContext; split: boolean }
+
+/** The `⋯ expand N lines` control for a gap, or its expanded read-only lines. Nothing when the gap turns out empty. */
+function GapRow({ gap, context, split, path }: GapProps & { path: string }) {
+  const lines = context.lines[gap.id]
+  if (context.isEmpty(gap)) return null
+  if (!lines) {
+    const count = gap.newEnd === null ? null : gap.newEnd - gap.newStart + 1
+    const label = context.loading === gap.id ? 'Loading…' : count === null ? 'Expand to the end of the file' : `Expand ${count} unchanged line${count === 1 ? '' : 's'}`
+    const button = (
+      <button type="button" className="expand-btn" disabled={context.loading !== null} onClick={() => context.expand(gap)}>
+        <ArrowsOutLineVertical size={12} />
+        {label}
+      </button>
+    )
+    return split ? (
+      <div className="srow srow-expand">
+        <div className="side side-left side-hunk">{button}</div>
+        <div className="side side-hunk" />
+      </div>
+    ) : (
+      <div className="drow drow-expand">{button}</div>
+    )
+  }
+  const language = languageOf(path)
+  // Expanded lines carry no data-path / data-line: no menu, no anchor, no selection range.
+  return (
+    <>
+      {lines.map((line) =>
+        split ? (
+          <div key={line.newLine} className="srow srow-context">
+            <div className="side side-left side-normal">
+              <span className="gutter">{line.oldLine}</span>
+              <Code line={line} marker="  " language={language} />
+            </div>
+            <div className="side side-normal">
+              <span className="gutter">{line.newLine}</span>
+              <span className="line-action-spacer" />
+              <Code line={line} marker="  " language={language} />
+            </div>
+          </div>
+        ) : (
+          <div key={line.newLine} className="drow drow-normal drow-context">
+            <span className="gutter">{line.oldLine}</span>
+            <span className="gutter">{line.newLine}</span>
+            <span className="line-action-spacer" />
+            <Code line={line} marker="  " language={language} />
+          </div>
+        ),
+      )}
+      <div className={split ? 'srow srow-expand' : 'drow drow-expand'}>
+        <button type="button" className="expand-btn" onClick={() => context.collapse(gap)}>
+          Collapse
+        </button>
+      </div>
+    </>
+  )
+}
+
+function gapById(context: ExpandedContext, id: string): ContextGap | undefined {
+  return context.gaps.find((g) => g.id === id)
+}
+
 function lineRefFrom(target: EventTarget | null): LineRef | null {
   if (!(target instanceof Element)) return null
   const row = target.closest<HTMLElement>('[data-path][data-line]')
@@ -225,7 +293,9 @@ export function DiffView({
   toolbar,
   headerActions,
   children,
+  loadFile,
 }: DiffViewProps) {
+  const context = useExpandedContext(file.path, parsed?.hunks ?? NO_HUNKS, loadFile)
   const slot = { path: file.path, openMenu, threads, artifacts, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }
   const touch = (target: EventTarget | null) => {
     const ref = lineRefFrom(target)
@@ -260,9 +330,16 @@ export function DiffView({
           <p className="notice">Binary file or no textual changes.</p>
         ) : (
           <div className={mode === 'unified' ? 'diff-unified' : 'diff-split'}>
-            {parsed.hunks.map((hunk, i) =>
-              mode === 'unified' ? <UnifiedHunk key={i} hunk={hunk} {...slot} /> : <SplitHunk key={i} hunk={hunk} {...slot} />,
-            )}
+            {context.error && <p className="notice">{context.error}</p>}
+            {gapById(context, 'before') && <GapRow gap={gapById(context, 'before')!} context={context} split={mode === 'split'} path={file.path} />}
+            {parsed.hunks.map((hunk, i) => (
+              <Fragment key={i}>
+                {mode === 'unified' ? <UnifiedHunk hunk={hunk} {...slot} /> : <SplitHunk hunk={hunk} {...slot} />}
+                {gapById(context, i === parsed.hunks.length - 1 ? 'after' : `after:${i}`) && (
+                  <GapRow gap={gapById(context, i === parsed.hunks.length - 1 ? 'after' : `after:${i}`)!} context={context} split={mode === 'split'} path={file.path} />
+                )}
+              </Fragment>
+            ))}
           </div>
         )}
         {children}

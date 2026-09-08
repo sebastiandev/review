@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ChatSendRequest, ChatThreadRef, DiffDocument, DiffSelection } from '@review/shared'
-import { fetchFile } from '../api'
+import { ApiError, fetchFile } from '../api'
 import { ChatDock } from '../chat/ChatDock'
 import { InlineChat } from '../chat/InlineChat'
 import { DOCK_THREAD, useChatThreads } from '../chat/useChatThreads'
@@ -170,6 +170,16 @@ export function Workspace({
     setOpenMenu(null)
     setComposer(null)
   }, [])
+
+  const queryClient = useQueryClient()
+  const loadFile = useCallback(
+    (path: string) =>
+      queryClient
+        .fetchQuery({ queryKey: keys.file(scope, path), queryFn: () => fetchFile(path, scope), staleTime: Infinity, retry: false })
+        .then((f) => f.content)
+        .catch((e: unknown) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))),
+    [queryClient, scope],
+  )
 
   const searchTargets = useMemo<SearchTargets>(
     () => ({
@@ -438,6 +448,7 @@ export function Workspace({
             bodyRef={body}
             toolbar={mdControl}
             headerActions={headerActions}
+            loadFile={loadFile}
             onMode={setMode}
             onToggleViewed={() => viewed.toggle(selectedFile.path)}
             onToggleMenu={setOpenMenu}

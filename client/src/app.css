@@ -2879,3 +2879,52 @@ button {
 .search-modal .picker-list {
   max-height: 50vh;
 }
+
+/* ── Expandable context ────────────────────────────────────────────────── */
+
+.drow-expand,
+.srow-expand .side {
+  background: var(--color-neutral-900);
+  user-select: none;
+}
+
+.drow-expand {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 2px 8px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-accent-300);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.expand-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.expand-btn:disabled {
+  color: var(--color-neutral-600);
+  cursor: default;
+}
+
+.drow-context .gutter,
+.srow-context .gutter {
+  color: var(--color-neutral-800);
+}
+
+.drow-context .diff-text,
+.srow-context .diff-text {
+  color: var(--color-neutral-500);
+}
