@@ -119,6 +119,11 @@ export function sendChat(thread: string, body: ChatSendRequest, scope = LOCAL_SC
   return requestVoid(threadPath(scope, thread), jsonInit('POST', body))
 }
 
+/** Stops the agent's current turn in one thread (Esc in the CLI). */
+export function abortChat(thread: string, scope = LOCAL_SCOPE): Promise<void> {
+  return requestVoid(`${threadPath(scope, thread)}/abort`, { method: 'POST' })
+}
+
 /** Answers a pending permission ask in one thread. */
 export function replyPermission(thread: string, id: string, response: PermissionReply, scope = LOCAL_SCOPE): Promise<void> {
   return requestVoid(`${threadPath(scope, thread)}/permission/${encodeURIComponent(id)}`, jsonInit('POST', { response }))

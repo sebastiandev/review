@@ -111,6 +111,11 @@ function makeThread(
       if (res.error) throw new Error(`opencode: prompt failed: ${JSON.stringify(res.error)}`)
     },
 
+    async abort() {
+      const res = await client.session.abort({ path: { id: sessionID }, query })
+      if (res.error) throw new Error(`opencode: abort failed: ${JSON.stringify(res.error)}`)
+    },
+
     async history() {
       const res = await client.session.messages({ path: { id: sessionID }, query })
       const out: ChatPart[] = []

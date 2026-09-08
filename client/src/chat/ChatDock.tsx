@@ -28,6 +28,8 @@ type ChatDockProps = {
   lastTurn: ChatTurn | null
   /** Text, selections and command only; the caller attaches the turn settings. */
   onSend: (request: ChatSendRequest) => void
+  /** Stop the running turn; Esc in the composer and the Stop button call this. */
+  onAbort: () => void
   onPermission: (id: string, response: PermissionReply) => void
   onJumpTo: (path: string, start: number, end: number) => void
   onToggle: () => void
@@ -138,10 +140,11 @@ type ComposerProps = {
   idle: boolean
   commands: AppConfig['commands']
   onSend: ChatDockProps['onSend']
+  onAbort: () => void
   onOpenPicker: (kind: LocalCommand) => void
 }
 
-function Composer({ idle, commands, onSend, onOpenPicker }: ComposerProps) {
+function Composer({ idle, commands, onSend, onAbort, onOpenPicker }: ComposerProps) {
   const [draft, setDraft] = useState('')
   const textarea = useRef<HTMLTextAreaElement>(null)
   const commandNames = commands.map((c) => c.name)
@@ -169,7 +172,8 @@ function Composer({ idle, commands, onSend, onOpenPicker }: ComposerProps) {
       submit()
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      clear()
+      if (!idle) onAbort()
+      else clear()
     }
   }
 
@@ -197,14 +201,20 @@ function Composer({ idle, commands, onSend, onOpenPicker }: ComposerProps) {
           ref={textarea}
           className="input composer-input"
           value={draft}
-          placeholder="Ask about the diff…  ⌘↵ to send  / for commands"
+          placeholder={idle ? 'Ask about the diff…  ⌘↵ to send  / for commands' : 'Agent is working…  esc to stop'}
           rows={1}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <button type="button" className="btn btn-primary composer-send" disabled={!idle || !draft.trim()} onClick={submit}>
-          Send
-        </button>
+        {idle ? (
+          <button type="button" className="btn btn-primary composer-send" disabled={!draft.trim()} onClick={submit}>
+            Send
+          </button>
+        ) : (
+          <button type="button" className="btn btn-secondary composer-send" title="Stop the agent (esc)" onClick={onAbort}>
+            Stop
+          </button>
+        )}
       </div>
     </div>
   )
@@ -308,6 +318,7 @@ export function ChatDock({
   turn,
   lastTurn,
   onSend,
+  onAbort,
   onPermission,
   onJumpTo,
   onToggle,
@@ -366,7 +377,7 @@ export function ChatDock({
           </div>
           <div className="dock-footer">
             <StatusRow config={catalog} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
-            <Composer idle={idle} commands={catalog.commands} onSend={onSend} onOpenPicker={setPicker} />
+            <Composer idle={idle} commands={catalog.commands} onSend={onSend} onAbort={onAbort} onOpenPicker={setPicker} />
             <div className="dock-provenance">{provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}</div>
           </div>
         </>

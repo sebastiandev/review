@@ -87,6 +87,14 @@ export function createApp(deps: AppDeps) {
     return c.body(null, 202)
   })
 
+  scoped.post('/chat/:thread/abort', async (c) => {
+    const { chat } = await deps.scopes.resolve(c.req.param('scope')!)
+    const thread = chat.byId(c.req.param('thread')!)
+    if (!thread) return c.json({ error: 'unknown thread' }, 404)
+    await thread.abort()
+    return c.body(null, 204)
+  })
+
   scoped.get('/chat/:thread/history', async (c) => {
     const { chat } = await deps.scopes.resolve(c.req.param('scope')!)
     const thread = chat.byId(c.req.param('thread')!)

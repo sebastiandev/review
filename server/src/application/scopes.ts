@@ -93,7 +93,11 @@ function forwardChatEvents(chat: ChatHub, scope: string, events: Events): void {
 
 function prContext(repo: Repo, pr: PullRequest, diff: PrDiff): string {
   return [
-    `You are helping a human review pull request ${repoLabel(repo)}#${pr.number}: ${pr.title}`,
+    `You are a chat assistant sitting next to a human who is reviewing pull request ${repoLabel(repo)}#${pr.number}: ${pr.title}`,
+    'Your job is to answer their questions about this PR and the surrounding code, briefly and',
+    'conversationally. Do NOT perform a code review, do NOT produce findings or a verdict, and do',
+    'NOT write any review payload or file unless they explicitly ask for exactly that. A greeting',
+    'gets a one-line greeting back. When asked something, look at the code before answering.',
     `The working directory is a checkout of its head (${pr.headSha}). Read files there when it helps.`,
     `Ranges are given as path:start-end on the new side unless marked LEFT. Do not edit files unless explicitly asked.`,
     '',

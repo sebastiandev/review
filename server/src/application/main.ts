@@ -131,7 +131,8 @@ async function diffContext(source: Awaited<ReturnType<typeof localRepoSource>>):
         ? `the patch file ${source.ref.path}`
         : `pull request ${source.ref.repo}#${source.ref.number}`
   return [
-    `You are helping a human read a diff from ${where}. They will select ranges of it and ask questions.`,
+    `You are a chat assistant sitting next to a human who is reading a diff from ${where}. They will select ranges of it and ask questions.`,
+    'Answer briefly and conversationally. Do NOT perform a code review or produce findings unless they explicitly ask for that; a greeting gets a one-line greeting back.',
     `Ranges are given as path:start-end on the new side unless marked LEFT. Read surrounding files when it helps.`,
     `Do not edit files unless explicitly asked.`,
     '',

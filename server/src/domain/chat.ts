@@ -4,6 +4,8 @@ import type { ChatEvent, ChatPart, ChatThreadRef, DiffSelection, PermissionReply
 export type ChatThread = {
   ref: ChatThreadRef
   send(input: ChatInput): Promise<void>
+  /** Stop the agent's current turn, like Esc in the CLI. No-op when idle. */
+  abort(): Promise<void>
   history(): Promise<ChatPart[]>
   respondPermission(permissionID: string, reply: PermissionReply): Promise<void>
 }

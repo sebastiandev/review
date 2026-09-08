@@ -489,6 +489,7 @@ export function Workspace({
         turn={turn}
         lastTurn={dock.lastTurn}
         onSend={onSend}
+        onAbort={() => void chat.abort(DOCK_THREAD)}
         onPermission={(id, reply) => chat.respondPermission(DOCK_THREAD, id, reply)}
         onJumpTo={onJumpTo}
         onToggle={layout.toggleDock}

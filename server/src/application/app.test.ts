@@ -43,6 +43,7 @@ describe('PR mode app', () => {
   let deviceFlow: FakeDeviceFlow
   let app: ReturnType<typeof prMode>['app']
   let accounts: ReturnType<typeof prMode>['accounts']
+  let hub: ReturnType<typeof fakeChatHub>
 
   const PAYLOAD = JSON.stringify({
     pr: 415,
@@ -61,6 +62,7 @@ describe('PR mode app', () => {
     events = memoryEvents()
     credentials = fakeCredentialStore()
     deviceFlow = fakeDeviceFlow()
+    hub = fakeChatHub()
     ;({ app, accounts } = prMode({
       store,
       providers: { github: provider, gitlab: provider },
@@ -77,7 +79,7 @@ describe('PR mode app', () => {
       opencodeUrl: 'http://opencode.test',
       directory: '/tmp',
       staticDir: null,
-      openChat: async () => fakeChatHub(),
+      openChat: async () => hub,
     }))
   })
   afterEach(() => close())
@@ -134,6 +136,9 @@ describe('PR mode app', () => {
       files: [{ path: 'src/a.py' }],
     })
     expect(await (await app.request(`/api/scopes/pr:${pr.id}/threads`)).json()).toEqual([{ id: 'dock', anchor: null }])
+    expect((await app.request(`/api/scopes/pr:${pr.id}/chat/dock/abort`, { method: 'POST' })).status).toBe(204)
+    expect(hub.aborted).toEqual(['dock'])
+    expect((await app.request(`/api/scopes/pr:${pr.id}/chat/nope/abort`, { method: 'POST' })).status).toBe(404)
 
     const detail = await (await app.request(`/api/prs/${pr.id}`)).json()
     expect(detail).toMatchObject({ pr: { id: pr.id, worktreePath: '/wt/acme/widgets/415' }, draft: null })

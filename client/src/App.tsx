@@ -349,6 +349,7 @@ export function App() {
               turn={turn}
               lastTurn={null}
               onSend={() => {}}
+              onAbort={() => {}}
               onPermission={() => {}}
               onJumpTo={() => {}}
               onToggle={layout.toggleDock}

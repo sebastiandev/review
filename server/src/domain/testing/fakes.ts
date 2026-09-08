@@ -292,6 +292,8 @@ export async function openTestStore(): Promise<{ store: Store; path: string; clo
 export type FakeChatHub = ChatHub & {
   /** Every `send` across threads, as `[threadId, input]`. */
   sent: [string, ChatInput][]
+  /** Thread ids whose `abort` was called. */
+  aborted: string[]
   /** Push an event to the hub's subscribers, as opencode would. */
   emit(e: ChatEvent): void
 }
@@ -299,6 +301,7 @@ export type FakeChatHub = ChatHub & {
 /** In-memory `ChatHub`: a dock thread, line threads created on demand, no agent behind them. */
 export function fakeChatHub(): FakeChatHub {
   const sent: FakeChatHub['sent'] = []
+  const aborted: string[] = []
   const listeners = new Set<(e: ChatEvent) => void>()
   const threads = new Map<string, ChatThread>()
   const register = (ref: ChatThreadRef): ChatThread => {
@@ -306,6 +309,9 @@ export function fakeChatHub(): FakeChatHub {
       ref,
       async send(input) {
         sent.push([ref.id, input])
+      },
+      async abort() {
+        aborted.push(ref.id)
       },
       async history() {
         return []
@@ -318,6 +324,7 @@ export function fakeChatHub(): FakeChatHub {
   const dock = register({ id: 'dock', anchor: null })
   return {
     sent,
+    aborted,
     emit: (e) => listeners.forEach((l) => l(e)),
     dock: () => dock,
     async line(anchor) {

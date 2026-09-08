@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChatSendRequest, ChatThreadRef, DiffSelection, PermissionReply } from '@review/shared'
-import { LOCAL_SCOPE, createLineThread, fetchChatHistory, fetchThreads, replyPermission, sendChat } from '../api'
+import { LOCAL_SCOPE, abortChat, createLineThread, fetchChatHistory, fetchThreads, replyPermission, sendChat } from '../api'
 import { useServerEvent } from '../events/useServerEvents'
 import {
   EMPTY_THREAD,
@@ -20,6 +20,8 @@ export type ChatThreads = {
   refs: ChatThreadRef[]
   thread: (id: string) => ThreadState
   send: (id: string, request: ChatSendRequest) => Promise<void>
+  /** Stop the agent's current turn in a thread. */
+  abort: (id: string) => Promise<void>
   loadHistory: (id: string) => Promise<void>
   respondPermission: (id: string, permissionID: string, reply: PermissionReply) => Promise<void>
   /** Get-or-create the thread anchored to `anchor`'s start line and load its history. */
@@ -81,6 +83,8 @@ export function useChatThreads(scope: string = LOCAL_SCOPE, enabled = true): Cha
     [scope],
   )
 
+  const abort = useCallback((id: string) => abortChat(id, scope), [scope])
+
   const respondPermission = useCallback(
     async (id: string, permissionID: string, reply: PermissionReply) => {
       await replyPermission(id, permissionID, reply, scope)
@@ -103,5 +107,5 @@ export function useChatThreads(scope: string = LOCAL_SCOPE, enabled = true): Cha
 
   const thread = useCallback((id: string) => threads[id] ?? EMPTY_THREAD, [threads])
 
-  return { refs, thread, send, loadHistory, respondPermission, openLineThread, forget }
+  return { refs, thread, send, abort, loadHistory, respondPermission, openLineThread, forget }
 }
