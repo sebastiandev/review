@@ -112,6 +112,23 @@ describe('syncRepo', () => {
     expect(events.ofType('worktree.removed')).toEqual([{ type: 'worktree.removed', prId: pr.id }])
   })
 
+  it('keeps the worktree of a merged PR while an agent review is running in it', async () => {
+    provider.remote.set(1, remotePr({ number: 1 }))
+    await syncRepo(deps, { repoId })
+    const pr = store.pullRequests.find(repoId, 1)!
+    worktrees.paths.add('/wt/1')
+    store.transaction(() => store.pullRequests.update(pr.id, { worktreePath: '/wt/1' }))
+    const run = store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'pr-reviewer', model: null, variant: null })
+    store.agentReviews.update(run.id, { status: 'running' })
+    provider.remote.set(1, remotePr({ number: 1, state: 'merged' }))
+
+    const result = await syncRepo(deps, { repoId })
+
+    expect(result.released).toBe(0)
+    expect(store.pullRequests.get(pr.id)).toMatchObject({ state: 'merged', worktreePath: '/wt/1' })
+    expect(worktrees.removed).toEqual([])
+  })
+
   it('refreshes a manually added PR and preserves its local fields', async () => {
     store.transaction(() =>
       store.pullRequests.upsert(repoId, remotePr({ number: 9, reviewRequested: false, title: 'old' }), { addedByUser: true, reviewOnOpen: true }, NOW),

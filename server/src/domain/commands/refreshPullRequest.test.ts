@@ -46,7 +46,7 @@ describe('refreshPullRequest', () => {
 
     const result = await refreshPullRequest(deps, { prId })
 
-    expect(result.headMoved).toBe(false)
+    expect(result).toMatchObject({ headMoved: false, worktreeDeferred: false })
     expect(provider.calls).toEqual(['get:1', 'comments:1'])
     expect(store.comments.list(prId).map((c) => c.body)).toEqual(['late remark'])
     expect(events.ofType('pr.refreshed')).toEqual([{ type: 'pr.refreshed', prId, headMoved: false }])
@@ -65,6 +65,23 @@ describe('refreshPullRequest', () => {
     expect(store.diffs.get(prId, 'sha-b')).not.toBeNull()
     expect(worktrees.checkedOut).toEqual([{ path, headSha: 'sha-b' }])
     expect(events.ofType('worktree.ready')).toEqual([{ type: 'worktree.ready', prId, path }])
+  })
+
+  it('defers the checkout while an agent review is running in the worktree', async () => {
+    const path = '/wt/acme/widgets/1'
+    worktrees.paths.add(path)
+    worktrees.heads.set(path, 'sha-a')
+    store.transaction(() => store.pullRequests.update(prId, { worktreePath: path }))
+    const run = store.agentReviews.insert({ prId, headSha: 'sha-a', agent: 'pr-reviewer', model: null, variant: null })
+    store.agentReviews.update(run.id, { status: 'running' })
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+
+    const result = await refreshPullRequest(deps, { prId })
+
+    expect(result).toMatchObject({ headMoved: true, worktreeDeferred: true })
+    expect(store.diffs.get(prId, 'sha-b')).not.toBeNull()
+    expect(worktrees.checkedOut).toEqual([])
+    expect(worktrees.heads.get(path)).toBe('sha-a')
   })
 
   it('leaves the worktree alone when the head moved but none is on disk', async () => {

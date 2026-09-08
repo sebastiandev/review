@@ -10,7 +10,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type SyncRepoDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'remove'>
   events: Events
@@ -22,7 +22,8 @@ export type SyncRepoResult = { added: number; updated: number; released: number 
 /**
  * Refresh one repo from its provider: review-requested and locally known PRs are upserted,
  * new heads get their diff cached, active PRs get their comments replaced, worktrees of finished
- * PRs are released.
+ * PRs are released — unless an agent review is running there, which keeps the worktree until the
+ * next sync.
  * Pre-conditions:
  * - the repo exists (else `NotFound`)
  * Post-conditions:
@@ -80,7 +81,7 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
     })
 
     let released = 0
-    for (const pr of rows.filter(shouldReleaseWorktree)) {
+    for (const pr of rows.filter((p) => shouldReleaseWorktree(p, store.agentReviews.active(p.id) !== null))) {
       await releaseWorktree(deps.worktrees, pr)
       store.transaction(() => store.pullRequests.update(pr.id, { worktreePath: null }))
       events.emit({ type: 'worktree.removed', prId: pr.id })

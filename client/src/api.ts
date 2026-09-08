@@ -222,8 +222,10 @@ export function markPrDone(prId: number): Promise<void> {
 }
 
 /** Fetches the PR now: row, comments, and a moved head's diff + worktree checkout. */
-export function refreshPr(prId: number): Promise<{ headMoved: boolean }> {
-  return requestJson<{ headMoved: boolean }>(`/api/prs/${prId}/refresh`, { method: 'POST' })
+export type RefreshResult = { headMoved: boolean; worktreeDeferred: boolean }
+
+export function refreshPr(prId: number): Promise<RefreshResult> {
+  return requestJson<RefreshResult>(`/api/prs/${prId}/refresh`, { method: 'POST' })
 }
 
 /** Puts a done PR back in the inbox. */

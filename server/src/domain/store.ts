@@ -62,6 +62,8 @@ export type Store = {
     get(id: number): AgentReview | null
     /** Newest run for the head; `status` narrows it (e.g. the latest `ready` one). */
     latest(prId: number, headSha: string, status: AgentReviewStatus | null): AgentReview | null
+    /** The queued or running run for the PR, any head; null when the agent is not working on it. */
+    active(prId: number): AgentReview | null
     /** Every run for the PR with its findings, newest first. */
     listForPr(prId: number): AgentReviewDetail[]
     insert(r: Pick<AgentReview, 'prId' | 'headSha' | 'agent' | 'model' | 'variant'>): AgentReview

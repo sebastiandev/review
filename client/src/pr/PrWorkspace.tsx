@@ -127,9 +127,10 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
 
   const refresh = useMutation({
     mutationFn: () => refreshPr(prId),
-    onSuccess: ({ headMoved }) => {
+    onSuccess: ({ headMoved, worktreeDeferred }) => {
       void refetchDetail()
-      onFlash(headMoved ? 'PR updated · new commits, diff and worktree refreshed' : 'PR updated · comments refreshed')
+      if (worktreeDeferred) onFlash('PR updated · new commits fetched; the worktree moves once the running agent review ends')
+      else onFlash(headMoved ? 'PR updated · new commits, diff and worktree refreshed' : 'PR updated · comments refreshed')
     },
     onError: (e) => onFlash(`could not refresh: ${e instanceof Error ? e.message : String(e)}`),
   })

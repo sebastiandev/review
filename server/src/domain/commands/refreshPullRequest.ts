@@ -8,14 +8,15 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type RefreshPullRequestDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'exists' | 'headSha' | 'checkout'>
   events: Events
   clock: Clock
 }
 
-export type RefreshResult = { pr: PullRequest; headMoved: boolean }
+/** `worktreeDeferred`: the head moved but an agent review is running, so the checkout waits for the next refresh. */
+export type RefreshResult = { pr: PullRequest; headMoved: boolean; worktreeDeferred: boolean }
 
 /**
  * Bring one PR up to date now, regardless of the poll interval: row, comments, and — when the
@@ -24,7 +25,8 @@ export type RefreshResult = { pr: PullRequest; headMoved: boolean }
  * - the PR and its repo exist (else `NotFound`); the PR still exists remotely (else `NotFound`)
  * Post-conditions:
  * - the row mirrors the remote; comments are replaced; a new head has its diff cached and, if a
- *   worktree is on disk, is checked out there (`worktree.progress`/`worktree.ready` emitted)
+ *   worktree is on disk, is checked out there (`worktree.progress`/`worktree.ready` emitted) —
+ *   unless an agent review is running in it, which keeps the old checkout (`worktreeDeferred`)
  * - emits `pr.refreshed`
  */
 export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { prId: number }): Promise<RefreshResult> {
@@ -50,8 +52,11 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
     return row
   })
 
+  let worktreeDeferred = false
   if (headMoved && pr.worktreePath && (await deps.worktrees.exists(pr.worktreePath))) {
-    if ((await deps.worktrees.headSha(pr.worktreePath)) !== pr.headSha) {
+    if (store.agentReviews.active(pr.id)) {
+      worktreeDeferred = true
+    } else if ((await deps.worktrees.headSha(pr.worktreePath)) !== pr.headSha) {
       await deps.worktrees.checkout(
         pr.worktreePath,
         { repo, cloneUrl: provider.cloneUrl(repo), number: pr.number, headRef: pr.headRef, headSha: pr.headSha },
@@ -62,5 +67,5 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
   }
 
   events.emit({ type: 'pr.refreshed', prId: pr.id, headMoved })
-  return { pr, headMoved }
+  return { pr, headMoved, worktreeDeferred }
 }

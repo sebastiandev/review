@@ -29,6 +29,31 @@ describe('removeWorktrees', () => {
   })
 })
 
+describe('removeWorktrees with an active review', () => {
+  let store: Store
+  let close: () => Promise<void>
+  beforeEach(async () => {
+    ;({ store, close } = await openTestStore())
+  })
+  afterEach(() => close())
+
+  it('skips a PR whose agent review is queued or running', async () => {
+    const worktrees = fakeWorktrees()
+    const events = memoryEvents()
+    const repo = store.repos.insert({ ...GITHUB_REPO, tracked: true, autoReview: false, syncedAt: null, syncError: null })
+    const pr = store.pullRequests.upsert(repo.id, remotePr({ number: 1 }), {}, NOW)
+    store.pullRequests.update(pr.id, { worktreePath: '/wt/1' })
+    worktrees.paths.add('/wt/1')
+    store.agentReviews.insert({ prId: pr.id, headSha: pr.headSha, agent: 'pr-reviewer', model: null, variant: null })
+
+    const removed = await removeWorktrees({ store, worktrees, events }, { prIds: [pr.id] })
+
+    expect(removed).toEqual([])
+    expect(worktrees.removed).toEqual([])
+    expect(store.pullRequests.get(pr.id)?.worktreePath).toBe('/wt/1')
+  })
+})
+
 describe('removeMergedWorktrees', () => {
   let store: Store
   let close: () => Promise<void>
