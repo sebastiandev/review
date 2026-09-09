@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { stopRunningServer } from '../infrastructure/serverPid.ts'
 
 const run = promisify(execFile)
 
@@ -12,10 +13,10 @@ export function repoRoot(): string {
 
 /**
  * Bring the checkout to the latest version and rebuild. Fast-forward only: local commits or
- * a dirty tree stop the update instead of creating a merge. Schema migrations run on the next
- * start (`openDatabase` applies pending ones). Returns the exit code.
+ * a dirty tree stop the update instead of creating a merge. A running server is stopped at the end so
+ * the next `review` runs the new build. Schema migrations run on the next start. Returns the exit code.
  */
-export async function updateApp(log: (line: string) => void, root: string = repoRoot()): Promise<number> {
+export async function updateApp(log: (line: string) => void, running: { cacheDir: string; port: number }, root: string = repoRoot()): Promise<number> {
   const git = (args: string[]) => run('git', args, { cwd: root })
   const { stdout: status } = await git(['status', '--porcelain'])
   if (status.trim()) {
@@ -45,7 +46,8 @@ export async function updateApp(log: (line: string) => void, root: string = repo
   log('building…')
   await run('npm', ['run', 'build'], { cwd: root, maxBuffer: 16 * 1024 * 1024 })
   await ensureLinked(log, root)
-  log('done. Pending database migrations run automatically on the next start.')
+  const stopped = await stopRunningServer(running.cacheDir, running.port, log)
+  log(stopped ? 'done. The old server was stopped; run `review` to start the new version.' : 'done. Pending database migrations run automatically on the next start.')
   return 0
 }
 

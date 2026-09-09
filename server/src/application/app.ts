@@ -144,6 +144,11 @@ export function createApp(deps: AppDeps) {
   for (const routes of deps.routes) app.route('/', routes)
 
   if (deps.staticDir) {
+    // Hashed assets may cache forever; the HTML shell must not, or a rebuilt app keeps showing the old one.
+    app.use('*', async (c, next) => {
+      await next()
+      if (c.res.headers.get('content-type')?.includes('text/html')) c.res.headers.set('cache-control', 'no-cache')
+    })
     app.use('/*', serveStatic({ root: deps.staticDir }))
     app.get('*', serveStatic({ root: deps.staticDir, path: 'index.html' }))
   }

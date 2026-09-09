@@ -5,6 +5,7 @@ import { formatReview, parsePrTarget, ReviewClient } from './application/cliRevi
 import { updateApp } from './application/update.ts'
 import { openUi, type OpenMode } from './infrastructure/appWindow.ts'
 import { ensureOpencode } from './infrastructure/opencodeServer.ts'
+import { stopRunningServer } from './infrastructure/serverPid.ts'
 
 const USAGE = `usage:
   review                                   PR inbox in an app window (tracked repos, worktrees, reviews)
@@ -74,13 +75,15 @@ switch (command) {
     await reviewPr(target)
     break
   case 'update':
-    process.exit(await updateApp(console.log))
+    process.exit(await updateApp(console.log, { cacheDir, port }))
     break
   default:
     usage(1)
 }
 
 async function startPr() {
+  // A new `review` replaces the running server, so an update is live on the next launch.
+  await stopRunningServer(cacheDir, port, console.error)
   // PR mode only talks to opencode on demand: listen right away so the client can connect.
   await Promise.all([startPrMode(common), ensureOpencode(values.opencode, console.error)])
   console.log(`review: ${uiUrl}`)
@@ -88,6 +91,7 @@ async function startPr() {
 }
 
 async function startDiff(path: string) {
+  await stopRunningServer(cacheDir, port, console.error)
   // Diff mode opens a chat session at startup, so opencode has to be there first.
   await ensureOpencode(values.opencode, console.error)
   await startDiffMode({ ...common, target: path, base: values.base ?? null })

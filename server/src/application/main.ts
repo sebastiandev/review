@@ -18,6 +18,7 @@ import { openOpencodeChat } from '../infrastructure/opencodeChat.ts'
 import { opencodeRunner } from '../infrastructure/opencodeRunner.ts'
 import { execFileRunner } from '../infrastructure/process.ts'
 import { openDatabase } from '../infrastructure/sqlite/database.ts'
+import { writePidFile } from '../infrastructure/serverPid.ts'
 import { sqliteStore } from '../infrastructure/sqlite/store.ts'
 
 /** `~/.cache/review`: the SQLite store, repo clones, PR worktrees and agent payloads. */
@@ -68,7 +69,7 @@ export async function startDiffMode(opts: DiffModeOptions) {
     staticDir: opts.serveBuiltClient ? clientDist() : null,
   })
 
-  return serve({ fetch: app.fetch, port: opts.port })
+  return listen(app.fetch, opts.port, opts.cacheDir)
 }
 
 /** Composition root for PR mode: store, providers, worktrees, scheduler, serve. */
@@ -101,7 +102,21 @@ export async function startPrMode(opts: PrModeOptions) {
   token = accounts.token
   await accounts.load()
   scheduler.start()
-  return serve({ fetch: app.fetch, port: opts.port })
+  return listen(app.fetch, opts.port, opts.cacheDir)
+}
+
+/** Bind the port or exit: a swallowed EADDRINUSE would open the UI against whatever server already answers there. */
+async function listen(fetch: Parameters<typeof serve>[0]['fetch'], port: number, cacheDir: string) {
+  const server = serve({ fetch, port })
+  await new Promise<void>((resolveListening, reject) => {
+    server.once('listening', () => resolveListening())
+    server.once('error', reject)
+  }).catch((e: NodeJS.ErrnoException) => {
+    console.error(e.code === 'EADDRINUSE' ? `port ${port} is in use; stop the other server or pass --port` : e.message)
+    process.exit(1)
+  })
+  await writePidFile(cacheDir)
+  return server
 }
 
 /** `<cacheDir>/logs/review-YYYY-MM-DD.log`: console output and every bus event; seven days kept. */
