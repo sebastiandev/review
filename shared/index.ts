@@ -112,12 +112,18 @@ export type WorktreeStage = 'cloning' | 'fetching' | 'checking-out' | 'ready'
 export type UserSettings = {
   /** Minutes between syncs, or manual only. */
   pollInterval: 1 | 5 | 15 | 'manual'
+  /** Only PRs updated within this many days are fetched. */
+  lookbackDays: 7 | 14 | 30 | 90
   autoReviewOnFetch: boolean
   defaultReviewAgent: string
   defaultModel: ModelRef | null
   defaultVariant: string | null
   theme: string
+  /** Surface style: hairlines and edges, or borderless surface steps. */
+  styleMode: 'framed' | 'tonal'
   diffTheme: string
+  /** Face of the diff body only; interface mono stays JetBrains Mono. */
+  codeFont: string
   defaultDiffMode: 'unified' | 'split'
 }
 

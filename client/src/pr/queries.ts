@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { UserSettings, Verdict } from '@review/shared'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { InboxRow, RepoSummary, UserSettings, Verdict } from '@review/shared'
 import { fetchAccount, fetchAccountRepos, fetchConfig, fetchInbox, fetchPastReviews, fetchPrDetail, fetchRepos, fetchSettings, fetchWorktrees, patchSettings } from '../api'
 import { useServerEvent } from '../events/useServerEvents'
 
@@ -66,6 +66,14 @@ export function useInbox(repoId: number | null) {
     queryFn: () => fetchInbox(repoId ?? 0),
     enabled: repoId !== null,
     staleTime: 30_000,
+  })
+}
+
+/** Inbox rows of every tracked repo, for the ⌘K palette; shares the per-repo inbox cache keys. */
+export function useAllInboxes(repos: RepoSummary[]): InboxRow[] {
+  return useQueries({
+    queries: repos.map((repo) => ({ queryKey: keys.inbox(repo.id), queryFn: () => fetchInbox(repo.id), staleTime: 30_000 })),
+    combine: (results) => results.flatMap((r) => r.data ?? []),
   })
 }
 

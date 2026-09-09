@@ -2,9 +2,11 @@
    Nocturne variable; the only animation is `pulse`. Hovers are instant. */
 
 :root {
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --code-size: 12.5px;
   --code-line: 1.65;
+  /* Diff tints: rgb + alpha come from the diff theme (themes.css); Daylight raises the alpha. */
+  --diff-add-bg: rgba(var(--diff-add-rgb), var(--diff-add-alpha));
+  --diff-del-bg: rgba(var(--diff-del-rgb), var(--diff-del-alpha));
   --tint-hover: color-mix(in srgb, var(--color-text) 5%, transparent);
   --tint-row-hover: color-mix(in srgb, var(--color-text) 8%, transparent);
   --tint-selected: color-mix(in srgb, var(--color-accent) 9%, transparent);
@@ -53,6 +55,14 @@ button {
   color: inherit;
 }
 
+/* Surface style: secondary buttons and inputs take the style's fill (transparent in Framed, a surface step in Tonal). */
+.btn-secondary {
+  background: var(--btn-bg);
+}
+.input {
+  background: var(--ctl-bg);
+}
+
 .mono {
   font-family: var(--font-mono);
 }
@@ -97,7 +107,8 @@ button {
   gap: 14px;
   height: 46px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--seam);
+  background: var(--chrome-bg);
 }
 
 .brand {
@@ -159,7 +170,8 @@ button {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
-  border: 1px solid var(--color-divider);
+  border: 1px solid var(--seam);
+  background: var(--panel-bg);
   border-radius: var(--radius-md);
 }
 
@@ -199,7 +211,8 @@ button {
   align-items: center;
   gap: 4px;
   padding: 8px 0;
-  border-right: 1px solid var(--color-divider);
+  border-right: 1px solid var(--seam);
+  background: var(--chrome-bg);
 }
 
 .rail-btn {
@@ -237,7 +250,8 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--color-divider);
+  border-right: 1px solid var(--seam);
+  background: var(--chrome-bg);
 }
 
 .sidebar-resize {
@@ -418,8 +432,8 @@ button {
 .menu {
   position: absolute;
   z-index: 30;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+  background: var(--pop-bg);
+  border-radius: var(--r-pop);
   box-shadow: var(--shadow-md);
   padding: 4px;
   font-family: var(--font-body);
@@ -522,6 +536,60 @@ button {
   width: 12px;
   height: 12px;
   border-radius: 3px;
+}
+
+.swatch-pair-9 .swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* Diff-theme picker in the diff toolbar */
+
+.diff-theme-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.diff-theme-caret {
+  color: var(--color-neutral-500);
+}
+
+.diff-theme-menu {
+  right: 0;
+  top: 34px;
+  width: 180px;
+  border: 1px solid var(--seam);
+}
+
+.diff-theme-item {
+  font-size: 12.5px;
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-400);
+}
+
+.diff-theme-item-on {
+  color: var(--color-text);
+}
+
+.diff-theme-mark {
+  flex: none;
+  width: 11px;
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+/* Focus mode: a flag on the app root. Chrome hides, the diff body grows; nothing else resizes. */
+
+.app-focus .topbar,
+.app-focus .rail {
+  display: none;
+}
+
+.app-focus .diff-body {
+  --code-size: 13.5px;
+  --code-line: 1.95;
 }
 
 /* Center */
@@ -659,6 +727,10 @@ button {
   line-height: var(--code-line);
 }
 
+.diff-body-code {
+  font-family: var(--font-code);
+}
+
 .diff-unified {
   min-width: 620px;
 }
@@ -687,7 +759,7 @@ button {
 }
 
 .side-left {
-  border-right: 1px solid var(--color-divider);
+  border-right: 1px solid var(--hairline);
 }
 
 .gutter {
@@ -847,9 +919,9 @@ button {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
+  background: var(--pop-bg);
   border: 1px solid var(--color-accent-800);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-pop);
   box-shadow: var(--shadow-sm);
   font-family: var(--font-body);
   user-select: text;
@@ -954,7 +1026,7 @@ button {
   height: 26px;
   padding: 0 12px;
   font-size: 12px;
-  background: var(--color-surface);
+  background: var(--pop-bg);
   box-shadow: var(--shadow-sm);
 }
 
@@ -967,7 +1039,8 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--color-divider);
+  border-left: 1px solid var(--seam);
+  background: var(--chrome-bg);
 }
 
 .dock-resize {
@@ -1252,8 +1325,8 @@ button {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+  background: var(--pop-bg);
+  border-radius: var(--r-pop);
   box-shadow: var(--shadow-md);
   padding: 4px;
 }
@@ -1439,7 +1512,8 @@ button {
   align-items: center;
   gap: 14px;
   padding: 0 14px;
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--seam);
+  background: var(--chrome-bg);
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-neutral-600);
@@ -1466,8 +1540,8 @@ button {
   width: 100%;
   max-width: 560px;
   padding: 20px 22px;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
+  background: var(--pop-bg);
+  border-radius: var(--r-pop);
   box-shadow: var(--shadow-lg);
 }
 
@@ -1716,7 +1790,7 @@ button {
   padding: 14px 16px;
   margin-bottom: 10px;
   background: var(--color-surface);
-  border: 1px solid var(--color-divider);
+  border: 1px solid var(--seam);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -1825,9 +1899,10 @@ button {
 
 /* ── Line-anchored artifacts ───────────────────────────────────────────── */
 
+/* Sized against the visible pane (centerW − 116), not the horizontally scrolling wrapper: prose never scrolls sideways. */
 .artifacts {
   margin: 6px 0 8px 92px;
-  max-width: 720px;
+  width: max(320px, calc(var(--center-w, 100vw) - 116px));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1838,7 +1913,7 @@ button {
 
 /* The chat card ignores the artifact column cap and runs to the right edge of the diff. */
 .artifacts:has(.ichat) {
-  max-width: none;
+  width: auto;
   margin-right: 12px;
 }
 
@@ -2229,6 +2304,10 @@ button {
   gap: 8px;
 }
 
+.finding .artifact-body {
+  margin-top: 5px;
+}
+
 .finding-agent {
   color: var(--color-accent-200);
 }
@@ -2269,8 +2348,8 @@ button {
   max-height: 100%;
   overflow-y: auto;
   padding: 20px 22px;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
+  background: var(--pop-bg);
+  border-radius: var(--r-pop);
   box-shadow: var(--shadow-lg);
   font-family: var(--font-body);
   font-size: 13px;
@@ -2630,20 +2709,24 @@ button {
 }
 
 .theme-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-grid-span {
+  grid-column: 1 / -1;
 }
 
 .theme-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 10px 12px;
+  gap: 2px;
+  padding: 7px 11px;
   text-align: left;
   font: inherit;
-  color: var(--color-text);
+  color: var(--color-neutral-400);
   background: transparent;
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
@@ -2657,6 +2740,7 @@ button {
 .theme-card-on,
 .theme-card-on:hover {
   border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .theme-card-title {
@@ -2681,7 +2765,7 @@ button {
   padding: 6px 10px;
   font: inherit;
   font-size: 12.5px;
-  color: var(--color-text);
+  color: var(--color-neutral-400);
   background: transparent;
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
@@ -2695,6 +2779,7 @@ button {
 .diff-theme-btn-on,
 .diff-theme-btn-on:hover {
   border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 /* ── Connect GitHub modal ──────────────────────────────────────────────── */
@@ -2890,7 +2975,7 @@ button {
 .search {
   font: inherit;
   font-size: 13px;
-  background: transparent;
+  background: var(--panel-bg);
   cursor: pointer;
   text-align: left;
 }
@@ -3128,4 +3213,189 @@ button {
 .open-scope .modal-actions {
   margin-top: 4px;
   flex-wrap: wrap;
+}
+
+/* ── ⌘K palette: Open a pull request ───────────────────────────────────── */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 84px 24px 24px;
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+}
+
+.palette {
+  width: 100%;
+  max-width: 660px;
+  max-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pop-bg);
+  border: 1px solid var(--seam);
+  border-radius: var(--r-pop);
+  box-shadow: var(--shadow-lg);
+}
+
+.palette-input-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.palette-glyph {
+  flex: none;
+  font-size: 13px;
+  color: var(--color-accent);
+}
+
+.palette-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.palette-input::placeholder {
+  color: var(--color-neutral-500);
+}
+
+.palette-count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-neutral-600);
+}
+
+.palette-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0;
+}
+
+.palette-group {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+}
+
+.palette-group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-group-count {
+  flex: none;
+  margin-left: auto;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.palette-row-on {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.palette-num {
+  flex: none;
+  width: 54px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+}
+
+.palette-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.palette-files {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-neutral-600);
+}
+
+.palette-author {
+  flex: none;
+  width: 104px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.palette-enter {
+  flex: none;
+  width: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-accent-200);
+  opacity: 0;
+}
+
+.palette-row-on .palette-enter {
+  opacity: 1;
+}
+
+.palette-empty {
+  padding: 22px 14px;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+.palette-query {
+  font-family: var(--font-mono);
+  color: var(--color-neutral-400);
+}
+
+.palette-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 34px;
+  padding: 0 14px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-neutral-600);
+}
+
+.palette-footer-right {
+  margin-left: auto;
 }

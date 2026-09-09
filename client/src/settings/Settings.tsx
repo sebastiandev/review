@@ -6,7 +6,9 @@ import { disconnectAccount, patchRepo, removeMergedWorktrees, removeWorktrees, u
 import { keys, useAccount, useConfig, useRepos, useUpdateSettings, useWorktrees } from '../pr/queries'
 import { Segmented } from '../shell/Segmented'
 import { ShortcutTable } from '../shell/ShortcutsSheet'
-import { DIFF_THEMES, UI_THEMES, type DiffTheme, type UiTheme } from '../theme/useTheme'
+import { SwatchPair } from '../diff/DiffToolbarAppearance'
+import { CODE_FONT_INFO, DIFF_THEME_INFO, STYLE_MODE_INFO, UI_THEME_INFO } from '../theme/catalog'
+import { CODE_FONTS, DIFF_THEMES, STYLE_MODES, UI_THEMES, type CodeFont, type DiffTheme, type StyleMode, type UiTheme } from '../theme/useTheme'
 import { formatBytes } from './bytes'
 import { SECTIONS, SECTION_LABEL, sectionInView, type SectionId } from './sections'
 
@@ -40,20 +42,6 @@ export function SettingsSidebar({ section, width, onSection, onStartResize }: Se
   )
 }
 
-const UI_NOTES: Record<UiTheme, string> = {
-  nocturne: 'blue-grey ground, blurple accent',
-  ember: 'warm ink, amber accent',
-  slate: 'cool, high contrast',
-}
-
-// Swatches show the tints at full alpha so the pair reads at 12px.
-const DIFF_SWATCHES: Record<DiffTheme, [add: string, del: string]> = {
-  nocturne: ['rgb(111, 170, 126)', 'rgb(196, 123, 123)'],
-  muted: ['rgb(140, 150, 170)', 'rgb(170, 140, 150)'],
-  vivid: ['rgb(86, 190, 120)', 'rgb(226, 96, 96)'],
-  paper: ['rgb(200, 205, 180)', 'rgb(205, 185, 170)'],
-}
-
 const ACCOUNT_DOT: Record<AccountInfo['phase'], string> = {
   connected: 'status-dot-on',
   pending: 'status-dot-pending',
@@ -70,10 +58,6 @@ export function accountMeta(account: AccountInfo): string {
     case 'connected':
       return [account.login, account.scopes.length ? account.scopes.join(', ') : null, account.source === 'cli' ? 'via gh' : null].filter(Boolean).join(' · ')
   }
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 function modelKey(model: ModelRef | null): string {
@@ -101,15 +85,40 @@ function Checkbox({ on, label, onToggle }: { on: boolean; label: string; onToggl
   )
 }
 
+type ThemeCardProps = {
+  on: boolean
+  label: string
+  note: string
+  /** The code-font cards render their own name in their own face. */
+  labelStyle?: React.CSSProperties
+  onPick: () => void
+}
+
+/** Bordered appearance card: a 12.5px label over a 10.5px note, accent border when selected. */
+function ThemeCard({ on, label, note, labelStyle, onPick }: ThemeCardProps) {
+  return (
+    <button type="button" role="radio" aria-checked={on} className={`theme-card${on ? ' theme-card-on' : ''}`} onClick={onPick}>
+      <span className="theme-card-title" style={labelStyle}>
+        {label}
+      </span>
+      <span className="theme-card-note">{note}</span>
+    </button>
+  )
+}
+
 type SettingsProps = {
   settings: UserSettings
   uiTheme: UiTheme
+  styleMode: StyleMode
   diffTheme: DiffTheme
+  codeFont: CodeFont
   /** Section the sidebar (or a deep link such as "Manage repositories…") asked to scroll to. */
   requestedSection: SectionId | null
   onSectionInView: (section: SectionId) => void
   onUiTheme: (theme: UiTheme) => void
+  onStyleMode: (mode: StyleMode) => void
   onDiffTheme: (theme: DiffTheme) => void
+  onCodeFont: (font: CodeFont) => void
   onTrackRepo: () => void
   onConnect: () => void
   onFlash: (text: string) => void
@@ -119,11 +128,15 @@ type SettingsProps = {
 export function Settings({
   settings,
   uiTheme,
+  styleMode,
   diffTheme,
+  codeFont,
   requestedSection,
   onSectionInView,
   onUiTheme,
+  onStyleMode,
   onDiffTheme,
+  onCodeFont,
   onTrackRepo,
   onConnect,
   onFlash,
@@ -353,7 +366,7 @@ export function Settings({
           </div>
         </Section>
 
-        <Section id="fetching" title="Fetching" lede="How often tracked repositories are polled, and what happens with new commits.">
+        <Section id="fetching" title="Fetching" lede="How often tracked repositories are polled, how far back to look, and what happens with new commits.">
           <div className="field">
             <span className="field-label">Poll interval</span>
             <Segmented<string>
@@ -368,6 +381,20 @@ export function Settings({
               onChange={(v) => save({ pollInterval: v === 'manual' ? 'manual' : (Number(v) as 1 | 5 | 15) })}
             />
           </div>
+          <div className="field">
+            <span className="field-label">Fetch PRs updated in the last</span>
+            <Segmented<string>
+              label="Lookback window"
+              value={String(settings.lookbackDays)}
+              options={[
+                { value: '7', label: '7 days' },
+                { value: '14', label: '14 days' },
+                { value: '30', label: '30 days' },
+                { value: '90', label: '90 days' },
+              ]}
+              onChange={(v) => save({ lookbackDays: Number(v) as UserSettings['lookbackDays'] })}
+            />
+          </div>
           <Checkbox
             on={settings.autoReviewOnFetch}
             label="Run the automatic review on newly fetched commits"
@@ -375,56 +402,68 @@ export function Settings({
           />
         </Section>
 
-        <Section id="appearance" title="Appearance" lede="Diff layout and the two colour themes.">
-          <div className="field">
-            <span className="field-label">Default diff view</span>
-            <Segmented<UserSettings['defaultDiffMode']>
-              label="Default diff view"
-              value={settings.defaultDiffMode}
-              options={[
-                { value: 'unified', label: 'Merged' },
-                { value: 'split', label: 'Side by side' },
-              ]}
-              onChange={(v) => save({ defaultDiffMode: v })}
-            />
-          </div>
-          <div className="field">
-            <span className="field-label">Theme</span>
-            <div className="theme-cards" role="radiogroup" aria-label="Theme">
-              {UI_THEMES.map((theme) => (
-                <button
-                  key={theme}
-                  type="button"
-                  role="radio"
-                  aria-checked={uiTheme === theme}
-                  className={`theme-card${uiTheme === theme ? ' theme-card-on' : ''}`}
-                  onClick={() => onUiTheme(theme)}
-                >
-                  <span className="theme-card-title">{capitalize(theme)}</span>
-                  <span className="theme-card-note">{UI_NOTES[theme]}</span>
-                </button>
-              ))}
+        <Section id="appearance" title="Appearance" lede="Any palette runs in either surface style, with any diff theme and any code font.">
+          <div className="settings-grid">
+            <div className="field">
+              <span className="field-label">Default diff view</span>
+              <Segmented<UserSettings['defaultDiffMode']>
+                label="Default diff view"
+                value={settings.defaultDiffMode}
+                options={[
+                  { value: 'unified', label: 'Merged' },
+                  { value: 'split', label: 'Side by side' },
+                ]}
+                onChange={(v) => save({ defaultDiffMode: v })}
+              />
             </div>
-          </div>
-          <div className="field">
-            <span className="field-label">Diff theme</span>
-            <div className="diff-theme-row" role="radiogroup" aria-label="Diff theme">
-              {DIFF_THEMES.map((theme) => (
-                <button
-                  key={theme}
-                  type="button"
-                  role="radio"
-                  aria-checked={diffTheme === theme}
-                  className={`diff-theme-btn${diffTheme === theme ? ' diff-theme-btn-on' : ''}`}
-                  onClick={() => onDiffTheme(theme)}
-                >
-                  <span className="swatch-pair" aria-hidden>
-                    <span className="swatch" style={{ background: DIFF_SWATCHES[theme][0] }} />
-                    <span className="swatch" style={{ background: DIFF_SWATCHES[theme][1] }} />
-                  </span>
-                  {capitalize(theme)}
-                </button>
-              ))}
+            <div className="field">
+              <span className="field-label">Surface style</span>
+              <div className="theme-cards" role="radiogroup" aria-label="Surface style">
+                {STYLE_MODES.map((mode) => (
+                  <ThemeCard key={mode} on={styleMode === mode} label={STYLE_MODE_INFO[mode].label} note={STYLE_MODE_INFO[mode].note} onPick={() => onStyleMode(mode)} />
+                ))}
+              </div>
+            </div>
+            <div className="field settings-grid-span">
+              <span className="field-label">Theme</span>
+              <div className="theme-cards" role="radiogroup" aria-label="Theme">
+                {UI_THEMES.map((theme) => (
+                  <ThemeCard key={theme} on={uiTheme === theme} label={UI_THEME_INFO[theme].label} note={UI_THEME_INFO[theme].note} onPick={() => onUiTheme(theme)} />
+                ))}
+              </div>
+            </div>
+            <div className="field settings-grid-span">
+              <span className="field-label">Code font</span>
+              <div className="theme-cards" role="radiogroup" aria-label="Code font">
+                {CODE_FONTS.map((font) => (
+                  <ThemeCard
+                    key={font}
+                    on={codeFont === font}
+                    label={CODE_FONT_INFO[font].label}
+                    note={CODE_FONT_INFO[font].note}
+                    labelStyle={{ fontFamily: CODE_FONT_INFO[font].stack }}
+                    onPick={() => onCodeFont(font)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="field settings-grid-span">
+              <span className="field-label">Diff theme</span>
+              <div className="diff-theme-row" role="radiogroup" aria-label="Diff theme">
+                {DIFF_THEMES.map((theme) => (
+                  <button
+                    key={theme}
+                    type="button"
+                    role="radio"
+                    aria-checked={diffTheme === theme}
+                    className={`diff-theme-btn${diffTheme === theme ? ' diff-theme-btn-on' : ''}`}
+                    onClick={() => onDiffTheme(theme)}
+                  >
+                    <SwatchPair add={DIFF_THEME_INFO[theme].add} del={DIFF_THEME_INFO[theme].del} size={12} />
+                    {DIFF_THEME_INFO[theme].label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </Section>

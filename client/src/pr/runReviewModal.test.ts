@@ -4,12 +4,15 @@ import { initialOptions } from './RunReviewModal'
 
 const settings: UserSettings = {
   pollInterval: 5,
+  lookbackDays: 30,
   autoReviewOnFetch: false,
   defaultReviewAgent: 'pr-reviewer',
   defaultModel: { providerID: 'anthropic', modelID: 'claude-sonnet-4' },
   defaultVariant: 'high',
   theme: 'nocturne',
+  styleMode: 'framed',
   diffTheme: 'nocturne',
+  codeFont: 'jetbrains-mono',
   defaultDiffMode: 'unified',
 }
 

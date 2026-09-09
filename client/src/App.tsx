@@ -12,20 +12,23 @@ import { useNow } from './inbox/useNow'
 import { PastReviews, PastSidebar } from './past/PastReviews'
 import type { PastFilter } from './past/pastRows'
 import { PrWorkspace } from './pr/PrWorkspace'
-import { keys, useAccount, useInbox, useRepos, useSettings, useSyncInvalidation, useUpdateSettings } from './pr/queries'
+import { useCollectReviewProgress } from './pr/useReviewProgress'
+import { keys, useAccount, useAllInboxes, useInbox, useRepos, useSettings, useSyncInvalidation, useUpdateSettings } from './pr/queries'
 import { ConnectModal } from './settings/ConnectModal'
 import { Settings, SettingsSidebar } from './settings/Settings'
 import type { SectionId } from './settings/sections'
 import { TrackRepoModal } from './settings/TrackRepoModal'
 import { Rail, type RailView } from './shell/Rail'
+import { PrPalette } from './shell/PrPalette'
 import { SearchModal } from './shell/SearchModal'
-import { usePublishSearchTargets, useSearchTargets, type SearchTargets } from './shell/searchTargets'
+import { useSearchTargets } from './shell/searchTargets'
 import { ShortcutsSheet } from './shell/ShortcutsSheet'
 import { StatusBar } from './shell/StatusBar'
 import { TopBar } from './shell/TopBar'
 import { useLayout } from './shell/useLayout'
 import { useMode, type Mode } from './shell/useMode'
-import { useDiffTheme, useUiTheme, type DiffTheme, type UiTheme } from './theme/useTheme'
+import { AppearanceProvider, type Appearance } from './theme/AppearanceContext'
+import { useCodeFont, useDiffTheme, useStyleMode, useUiTheme, type CodeFont, type DiffTheme, type StyleMode, type UiTheme } from './theme/useTheme'
 import { DiffWorkspace } from './workspace/DiffWorkspace'
 import { isEditing } from './workspace/Workspace'
 
@@ -43,7 +46,7 @@ function storedInboxFilter(): InboxFilter {
   }
 }
 
-type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | 'search' | null
+type Overlay = 'shortcuts' | 'scope' | 'repo' | 'add' | 'track' | 'connect' | 'search' | 'palette' | null
 
 /** Which sidebar/center pair shows. */
 type View = RailView
@@ -57,9 +60,14 @@ export function App() {
   const account = useAccount()
   const updateSettings = useUpdateSettings()
   const [uiTheme, setUiTheme] = useUiTheme(settings.data?.theme)
+  const [styleMode, setStyleMode] = useStyleMode(settings.data?.styleMode)
   const [diffTheme, setDiffTheme] = useDiffTheme(settings.data?.diffTheme)
+  const [codeFont, setCodeFont] = useCodeFont(settings.data?.codeFont)
+  /** Focus mode preference; only takes effect inside the workspace (see `focus` below). */
+  const [focusPref, setFocusPref] = useState(false)
   const { mode, prAvailable, probed, setMode } = useMode(repos)
   useSyncInvalidation()
+  useCollectReviewProgress()
 
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [view, setView] = useState<View>('inbox')
@@ -129,12 +137,36 @@ export function App() {
     [setUiTheme, updateSettings],
   )
 
+  const pickStyleMode = useCallback(
+    (mode: StyleMode) => {
+      setStyleMode(mode)
+      updateSettings.mutate({ styleMode: mode })
+    },
+    [setStyleMode, updateSettings],
+  )
+
   const pickDiffTheme = useCallback(
     (theme: DiffTheme) => {
       setDiffTheme(theme)
       updateSettings.mutate({ diffTheme: theme })
     },
     [setDiffTheme, updateSettings],
+  )
+
+  const pickCodeFont = useCallback(
+    (font: CodeFont) => {
+      setCodeFont(font)
+      updateSettings.mutate({ codeFont: font })
+    },
+    [setCodeFont, updateSettings],
+  )
+
+  // Focus mode is scoped to the workspace so the toolbar carrying the exit is always on screen.
+  const inWorkspace = view === 'files' || (mode === 'diff' && view !== 'past' && view !== 'settings')
+  const focus = focusPref && inWorkspace
+  const appearance = useMemo<Appearance>(
+    () => ({ diffTheme, onDiffTheme: pickDiffTheme, focus, onToggleFocus: () => setFocusPref((f) => !f) }),
+    [diffTheme, pickDiffTheme, focus],
   )
 
   const openPr = useCallback((id: number) => {
@@ -205,20 +237,20 @@ export function App() {
     onError: (e) => setFlash(`could not mark done: ${e instanceof Error ? e.message : String(e)}`),
   })
 
-  // While the inbox shows, ⌘K searches its PRs; an open diff publishes its files instead.
-  const inboxTargets = useMemo<SearchTargets | null>(
-    () =>
-      mode === 'pr' && view === 'inbox'
-        ? {
-            placeholder: `Open a pull request · ${rows.length} pending`,
-            items: rows.map((r) => ({ id: String(r.id), label: `#${r.number} ${r.title}`, hint: r.author })),
-            onPick: (item) => openPr(Number(item.id)),
-          }
-        : null,
-    [mode, view, rows, openPr],
-  )
-  usePublishSearchTargets(inboxTargets)
+  // ⌘K: in PR mode the palette lists every tracked repo's PRs; in diff mode the open scope publishes its files.
+  const paletteRows = useAllInboxes(mode === 'pr' ? repoList : [])
   const searchTargets = useSearchTargets()
+  const openSearch = useCallback(() => {
+    if (mode === 'pr') toggleOverlay('palette')
+    else if (searchTargets) toggleOverlay('search')
+  }, [mode, searchTargets, toggleOverlay])
+  const openFromPalette = useCallback(
+    (pr: { id: number; repoId: number }) => {
+      setRepoId(pr.repoId)
+      openPr(pr.id)
+    },
+    [openPr],
+  )
 
   const stepInbox = useCallback(
     (direction: 1 | -1) => {
@@ -237,12 +269,15 @@ export function App() {
         if (overlay) {
           e.stopPropagation()
           setOverlay(null)
+        } else if (focus && !isEditing(e.target)) {
+          e.stopPropagation()
+          setFocusPref(false)
         }
         return
       }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         e.preventDefault()
-        if (searchTargets) toggleOverlay('search')
+        openSearch()
         return
       }
       if (isEditing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
@@ -252,6 +287,9 @@ export function App() {
           break
         case 'd':
           layout.toggleDock()
+          break
+        case 'f':
+          if (inWorkspace) setFocusPref((f) => !f)
           break
         case 'j':
           if (view === 'inbox') stepInbox(1)
@@ -266,7 +304,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [overlay, toggleOverlay, layout.toggleDock, view, stepInbox, inboxCursor, mode, openPr, searchTargets])
+  }, [overlay, toggleOverlay, layout.toggleDock, view, stepInbox, inboxCursor, mode, openPr, openSearch, focus, inWorkspace])
 
   const status = (() => {
     if (flash) return flash
@@ -281,13 +319,14 @@ export function App() {
   const sideView = view === 'past' || view === 'settings'
 
   return (
-    <div className="app">
+    <div className={focus ? 'app app-focus' : 'app'}>
+      <AppearanceProvider value={appearance}>
       <TopBar
         mode={mode}
         modeLocked={probed && !prAvailable}
         onMode={switchMode}
-        searchHint={searchTargets?.placeholder ?? null}
-        onSearch={() => searchTargets && toggleOverlay('search')}
+        searchHint={mode === 'pr' ? 'Open a pull request' : (searchTargets?.placeholder ?? null)}
+        onSearch={openSearch}
         onToggleShortcuts={() => toggleOverlay('shortcuts')}
         onToggleDock={layout.toggleDock}
       />
@@ -310,11 +349,15 @@ export function App() {
               <Settings
                 settings={settings.data}
                 uiTheme={uiTheme}
+                styleMode={styleMode}
                 diffTheme={diffTheme}
+                codeFont={codeFont}
                 requestedSection={requestedSection}
                 onSectionInView={setSection}
                 onUiTheme={pickUiTheme}
+                onStyleMode={pickStyleMode}
                 onDiffTheme={pickDiffTheme}
+                onCodeFont={pickCodeFont}
                 onTrackRepo={() => setOverlay('track')}
                 onConnect={() => setOverlay('connect')}
                 onFlash={setFlash}
@@ -433,8 +476,10 @@ export function App() {
         )}
       </div>
       <StatusBar text={status} />
+      </AppearanceProvider>
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={() => setOverlay(null)} />}
       {overlay === 'search' && searchTargets && <SearchModal targets={searchTargets} onClose={() => setOverlay(null)} />}
+      {overlay === 'palette' && <PrPalette repos={repoList} rows={paletteRows} onOpen={openFromPalette} onClose={() => setOverlay(null)} />}
       {overlay === 'connect' && account.data && (
         <ConnectModal
           account={account.data}

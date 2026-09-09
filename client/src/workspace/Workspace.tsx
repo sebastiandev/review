@@ -451,7 +451,7 @@ export function Workspace({
           onStartResize={layout.startSidebarResize}
         />
       )}
-      <main className="center">
+      <main className="center" style={{ '--center-w': `${layout.centerW}px` } as React.CSSProperties}>
         {layout.tight && <TopPrBar files={files} selectedPath={selectedFile?.path ?? null} lead={topBarLead} onSelect={selectFile} />}
         {files.length === 0 && (
           <p className="notice">
@@ -492,6 +492,7 @@ export function Workspace({
             threads={threadsByLine}
             artifacts={artifactsWithChat}
             bodyRef={body}
+            codeFace={markdownPath === null}
             toolbar={mdControl}
             headerActions={headerActions}
             loadFile={loadFile}

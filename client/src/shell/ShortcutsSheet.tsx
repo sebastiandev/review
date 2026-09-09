@@ -1,4 +1,6 @@
 const SHORTCUTS: [key: string, label: string][] = [
+  ['⌘K', 'open a pull request (palette)'],
+  ['f', 'focus mode'],
   ['j / k', 'next / previous file'],
   ['⏎', 'open selected PR'],
   ['esc', 'back / close'],
@@ -12,7 +14,6 @@ const SHORTCUTS: [key: string, label: string][] = [
   ['v', 'mark file viewed'],
   ['⌘⏎', 'submit review'],
   ['⌘R', 'run the automatic review'],
-  ['⌘K', 'search files / pull requests'],
   ['?', 'this sheet'],
 ]
 

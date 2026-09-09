@@ -1,4 +1,6 @@
-/* UI themes re-point Nocturne's tokens on <html data-theme>. Nocturne itself is the stylesheet's own palette (no block). */
+/* UI themes re-point Nocturne's tokens on <html data-theme>. Nocturne itself is the stylesheet's own palette (no block).
+   Ramp steps are roles, not values: 100 is the brightest step on a dark ground and INK on Daylight, where both ramps
+   run inverted. Never hard-code a dark value where a ramp step belongs. */
 
 [data-theme="ember"] {
   --color-bg: #191614;
@@ -58,32 +60,235 @@
   --shadow-lg: 0 0 0 1px #8c99a4, 0 16px 40px rgba(0, 0, 0, 0.7);
 }
 
-/* Diff themes: added/removed line tints and their text, on <html data-diff-theme>. */
+/* Atelier: the workbench's blue-grey; neutral-600/700 lifted to 0.58/0.50 so 11–12.5px meta stays legible. */
+[data-theme="atelier"] {
+  --color-bg: oklch(0.165 0.006 260);
+  --color-surface: oklch(0.195 0.008 260);
+  --color-text: oklch(0.95 0.005 260);
+  --color-divider: oklch(0.32 0.01 260);
+  --color-accent: oklch(0.62 0.18 278);
+  --color-accent-100: oklch(0.97 0.02 278);
+  --color-accent-200: oklch(0.9 0.06 278);
+  --color-accent-300: oklch(0.8 0.11 278);
+  --color-accent-400: oklch(0.7 0.15 278);
+  --color-accent-500: oklch(0.62 0.18 278);
+  --color-accent-600: oklch(0.62 0.18 278 / 0.55);
+  --color-accent-700: oklch(0.62 0.18 278 / 0.45);
+  --color-accent-800: oklch(0.62 0.18 278 / 0.28);
+  --color-accent-900: oklch(0.62 0.18 278 / 0.16);
+  --color-neutral-100: oklch(0.98 0.003 260);
+  --color-neutral-200: oklch(0.95 0.005 260);
+  --color-neutral-300: oklch(0.88 0.006 260);
+  --color-neutral-400: oklch(0.78 0.008 260);
+  --color-neutral-500: oklch(0.68 0.01 260);
+  --color-neutral-600: oklch(0.58 0.01 260);
+  --color-neutral-700: oklch(0.5 0.01 260);
+  --color-neutral-800: oklch(0.27 0.01 260);
+  --color-neutral-900: oklch(0.225 0.009 260);
+  --shadow-sm: 0 0 0 1px oklch(0.27 0.01 260);
+  --shadow-md: 0 12px 40px oklch(0 0 0 / 0.45), 0 1px 0 oklch(1 0 0 / 0.04);
+  --shadow-lg: 0 18px 56px oklch(0 0 0 / 0.55), 0 1px 0 oklch(1 0 0 / 0.05);
+}
+
+[data-theme="darkula"] {
+  --color-bg: #2b2b2b;
+  --color-surface: #313335;
+  --color-text: #e4e2dd;
+  --color-divider: color-mix(in srgb, #e4e2dd 16%, transparent);
+  --color-accent: #c9a45a;
+  --color-accent-100: #fbf5e6;
+  --color-accent-200: #f2e4c4;
+  --color-accent-300: #e3cd9c;
+  --color-accent-400: #d4b675;
+  --color-accent-500: #c9a45a;
+  --color-accent-600: #a3843f;
+  --color-accent-700: #7c6531;
+  --color-accent-800: #574823;
+  --color-accent-900: #3b3320;
+  --color-neutral-100: #f6f5f2;
+  --color-neutral-200: #e8e6e1;
+  --color-neutral-300: #d2cfc8;
+  --color-neutral-400: #b2aea6;
+  --color-neutral-500: #918d85;
+  --color-neutral-600: #746f68;
+  --color-neutral-700: #575350;
+  --color-neutral-800: #3f3f41;
+  --color-neutral-900: #323234;
+  --shadow-sm: 0 0 0 1px #3f3f41;
+  --shadow-md: 0 0 0 1px #575350, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px #918d85, 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+
+/* Neon: the only palette whose --shadow-lg ring carries the accent. */
+[data-theme="neon"] {
+  --color-bg: #0b0e13;
+  --color-surface: #121722;
+  --color-text: #eaf4ff;
+  --color-divider: color-mix(in srgb, #7ff3e0 22%, transparent);
+  --color-accent: #52e3c2;
+  --color-accent-100: #eefffb;
+  --color-accent-200: #ccfdf1;
+  --color-accent-300: #9df3e2;
+  --color-accent-400: #6ee9ce;
+  --color-accent-500: #52e3c2;
+  --color-accent-600: #33b39a;
+  --color-accent-700: #24866f;
+  --color-accent-800: #1a5a4c;
+  --color-accent-900: #123830;
+  --color-neutral-100: #f4f9ff;
+  --color-neutral-200: #e2ebf6;
+  --color-neutral-300: #c6d4e4;
+  --color-neutral-400: #9fb0c4;
+  --color-neutral-500: #7c8da3;
+  --color-neutral-600: #5f6f84;
+  --color-neutral-700: #465364;
+  --color-neutral-800: #29323f;
+  --color-neutral-900: #171d27;
+  --shadow-sm: 0 0 0 1px #29323f;
+  --shadow-md: 0 0 0 1px #465364, 0 8px 24px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 0 0 1px #52e3c2, 0 18px 48px rgba(0, 0, 0, 0.8);
+}
+
+/* Daylight: the one light palette. Both ramps are inverted — 100 is ink, 900 is paper. */
+[data-theme="daylight"] {
+  --color-bg: #f7f7f9;
+  --color-surface: #ffffff;
+  --color-text: #1c1e26;
+  --color-divider: #d9dae1;
+  --color-accent: #5b4fd6;
+  --color-accent-100: #24206a;
+  --color-accent-200: #33297f;
+  --color-accent-300: #4a3fbb;
+  --color-accent-400: #5b4fd6;
+  --color-accent-500: #6e63e0;
+  --color-accent-600: #9c95ec;
+  --color-accent-700: #c3bef5;
+  --color-accent-800: #ded9fb;
+  --color-accent-900: #eeebff;
+  --color-neutral-100: #14161c;
+  --color-neutral-200: #24272f;
+  --color-neutral-300: #3b3f4a;
+  --color-neutral-400: #565b66;
+  --color-neutral-500: #6f7480;
+  --color-neutral-600: #8a8f9a;
+  --color-neutral-700: #b7bbc4;
+  --color-neutral-800: #dcdee4;
+  --color-neutral-900: #f0f1f4;
+  --shadow-sm: 0 0 0 1px #e3e4ea;
+  --shadow-md: 0 0 0 1px #dcdee4, 0 6px 18px rgba(20, 22, 28, 0.1);
+  --shadow-lg: 0 0 0 1px #cfd2da, 0 18px 44px rgba(20, 22, 28, 0.16);
+}
+
+/* Surface style on <html data-style>. Framed = Nocturne as authored; Tonal = borderless, separation by surface steps.
+   Components read only these tokens; nothing is styled per style. */
+
+:root,
+[data-style="framed"] {
+  --seam: var(--color-divider);
+  --hairline: var(--color-divider);
+  --chrome-bg: var(--color-bg);
+  --panel-bg: transparent;
+  --pop-bg: var(--color-surface);
+  --ctl-bg: var(--color-surface);
+  --btn-bg: transparent;
+  --r-pop: var(--radius-md);
+}
+
+[data-style="tonal"] {
+  --seam: transparent;
+  --color-divider: transparent;
+  --hairline: var(--color-neutral-800);
+  --chrome-bg: var(--color-surface);
+  --panel-bg: var(--color-neutral-900);
+  --pop-bg: var(--color-neutral-900);
+  --ctl-bg: var(--color-neutral-900);
+  --btn-bg: var(--color-neutral-900);
+  --r-pop: 8px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 6px;
+  --shadow-sm: none;
+}
+
+/* Diff themes on <html data-diff-theme>: added/removed tints as rgb + alpha so a light palette can derive its own
+   fills (below) instead of authoring a twin. The composed --diff-*-bg live in app.css. */
 
 [data-diff-theme="nocturne"] {
-  --diff-add-bg: rgba(111, 170, 126, 0.13);
-  --diff-del-bg: rgba(196, 123, 123, 0.13);
+  --diff-add-rgb: 111, 170, 126;
+  --diff-del-rgb: 196, 123, 123;
+  --diff-add-alpha: 0.13;
+  --diff-del-alpha: 0.13;
   --diff-add-fg: #cfe4d5;
   --diff-del-fg: #e8cdcd;
 }
 
 [data-diff-theme="muted"] {
-  --diff-add-bg: rgba(140, 150, 170, 0.14);
-  --diff-del-bg: rgba(170, 140, 150, 0.14);
+  --diff-add-rgb: 140, 150, 170;
+  --diff-del-rgb: 170, 140, 150;
+  --diff-add-alpha: 0.14;
+  --diff-del-alpha: 0.14;
   --diff-add-fg: #dcdfe8;
   --diff-del-fg: #e6dade;
 }
 
 [data-diff-theme="vivid"] {
-  --diff-add-bg: rgba(86, 190, 120, 0.2);
-  --diff-del-bg: rgba(226, 96, 96, 0.18);
+  --diff-add-rgb: 86, 190, 120;
+  --diff-del-rgb: 226, 96, 96;
+  --diff-add-alpha: 0.2;
+  --diff-del-alpha: 0.18;
   --diff-add-fg: #e2f5e7;
   --diff-del-fg: #fbdede;
 }
 
 [data-diff-theme="paper"] {
-  --diff-add-bg: rgba(200, 205, 180, 0.14);
-  --diff-del-bg: rgba(205, 185, 170, 0.14);
+  --diff-add-rgb: 200, 205, 180;
+  --diff-del-rgb: 205, 185, 170;
+  --diff-add-alpha: 0.14;
+  --diff-del-alpha: 0.14;
   --diff-add-fg: #eceada;
   --diff-del-fg: #f0e2d8;
+}
+
+[data-diff-theme="darkula"] {
+  --diff-add-rgb: 83, 120, 80;
+  --diff-del-rgb: 125, 72, 72;
+  --diff-add-alpha: 0.26;
+  --diff-del-alpha: 0.26;
+  --diff-add-fg: #d9e8cf;
+  --diff-del-fg: #f0d2d2;
+}
+
+[data-diff-theme="neon"] {
+  --diff-add-rgb: 57, 255, 178;
+  --diff-del-rgb: 255, 64, 140;
+  --diff-add-alpha: 0.16;
+  --diff-del-alpha: 0.16;
+  --diff-add-fg: #c6ffe6;
+  --diff-del-fg: #ffd0e2;
+}
+
+[data-diff-theme="solar"] {
+  --diff-add-rgb: 133, 153, 0;
+  --diff-del-rgb: 220, 50, 47;
+  --diff-add-alpha: 0.2;
+  --diff-del-alpha: 0.16;
+  --diff-add-fg: #e7ebcf;
+  --diff-del-fg: #f7d7d3;
+}
+
+[data-diff-theme="acid"] {
+  --diff-add-rgb: 166, 226, 46;
+  --diff-del-rgb: 249, 38, 114;
+  --diff-add-alpha: 0.15;
+  --diff-del-alpha: 0.15;
+  --diff-add-fg: #e9f6cd;
+  --diff-del-fg: #fbd4e3;
+}
+
+/* Light-mode derivation: every set is mixed for a dark ground, so on Daylight the fills rise and the text turns to ink. */
+[data-theme="daylight"][data-diff-theme] {
+  --diff-add-alpha: 0.3;
+  --diff-del-alpha: 0.26;
+  --diff-add-fg: #173a26;
+  --diff-del-fg: #4b1c1c;
 }

@@ -1,0 +1,31 @@
+/* Self-hosted faces (@fontsource) so the app looks the same offline and inside the installed window.
+   Inter = UI and prose. JetBrains Mono = interface mono (paths, refs, counts) — never changes.
+   The other three are code faces for the diff body only, picked in Settings → Appearance → Code font. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/fira-code/400.css';
+@import '@fontsource/fira-code/500.css';
+@import '@fontsource/source-code-pro/400.css';
+@import '@fontsource/source-code-pro/500.css';
+
+:root {
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Code font axis (<html data-code-font>). Falls back to interface mono. */
+  --font-code: var(--font-mono);
+}
+
+[data-code-font='ibm-plex-mono'] {
+  --font-code: 'IBM Plex Mono', ui-monospace, monospace;
+}
+[data-code-font='fira-code'] {
+  --font-code: 'Fira Code', ui-monospace, monospace;
+}
+[data-code-font='source-code-pro'] {
+  --font-code: 'Source Code Pro', ui-monospace, monospace;
+}

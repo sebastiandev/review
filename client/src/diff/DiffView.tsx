@@ -2,6 +2,7 @@ import { ArrowsOutLineVertical, Check } from '@phosphor-icons/react'
 import { Fragment, type ReactNode, type RefObject } from 'react'
 import type { DiffFile } from '@review/shared'
 import { Segmented } from '../shell/Segmented'
+import { DiffToolbarAppearance } from './DiffToolbarAppearance'
 import { FileHeader } from './FileHeader'
 import { ChatMarker, LineActionButton, type LineRef } from './LineActionButton'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
@@ -51,6 +52,8 @@ type DiffViewProps = {
   headerActions?: ReactNode
   /** Rendered inside the scrolling body (the Ask pill). */
   children?: ReactNode
+  /** Raw markdown stays on interface mono; code diffs take the user's code face (`--font-code`). */
+  codeFace?: boolean
   /** Full new-side content of a file, for expanding unchanged context; null when the source has none (patch files). */
   loadFile: (path: string) => Promise<string | null>
 }
@@ -293,6 +296,7 @@ export function DiffView({
   toolbar,
   headerActions,
   children,
+  codeFace = true,
   loadFile,
 }: DiffViewProps) {
   const context = useExpandedContext(file.path, parsed?.hunks ?? NO_HUNKS, loadFile)
@@ -314,6 +318,7 @@ export function DiffView({
           ]}
           onChange={onMode}
         />
+        <DiffToolbarAppearance />
         {headerActions}
         <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
           {viewed ? (
@@ -325,7 +330,7 @@ export function DiffView({
           )}
         </button>
       </FileHeader>
-      <div ref={bodyRef} className="diff-body" onMouseOver={(e) => touch(e.target)} onFocus={(e) => touch(e.target)}>
+      <div ref={bodyRef} className={codeFace ? 'diff-body diff-body-code' : 'diff-body'} onMouseOver={(e) => touch(e.target)} onFocus={(e) => touch(e.target)}>
         {!parsed || parsed.hunks.length === 0 ? (
           <p className="notice">Binary file or no textual changes.</p>
         ) : (

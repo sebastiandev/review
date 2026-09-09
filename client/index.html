@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="nocturne" data-diff-theme="nocturne">
+<html lang="en" data-theme="nocturne" data-style="framed" data-diff-theme="nocturne" data-code-font="jetbrains-mono">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,11 +8,6 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0b0d12" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-    />
     <script>
       // Apply the persisted themes before first paint to avoid a flash. Keys mirror src/theme/useTheme.ts.
       ;(function () {
@@ -21,8 +16,10 @@
           return allowed.indexOf(stored) >= 0 ? stored : fallback
         }
         var root = document.documentElement
-        root.setAttribute('data-theme', pick('review.theme', ['nocturne', 'ember', 'slate'], 'nocturne'))
-        root.setAttribute('data-diff-theme', pick('review.diffTheme', ['nocturne', 'muted', 'vivid', 'paper'], 'nocturne'))
+        root.setAttribute('data-theme', pick('review.theme', ['nocturne', 'ember', 'slate', 'atelier', 'darkula', 'neon', 'daylight'], 'nocturne'))
+        root.setAttribute('data-style', pick('review.styleMode', ['framed', 'tonal'], 'framed'))
+        root.setAttribute('data-diff-theme', pick('review.diffTheme', ['nocturne', 'muted', 'vivid', 'paper', 'darkula', 'neon', 'solar', 'acid'], 'nocturne'))
+        root.setAttribute('data-code-font', pick('review.codeFont', ['jetbrains-mono', 'ibm-plex-mono', 'fira-code', 'source-code-pro'], 'jetbrains-mono'))
       })()
     </script>
   </head>
