@@ -83,6 +83,8 @@ export type ChatEvent =
 /** Events pushed over /api/events. Chat events carry the scope (`local` | `pr:<id>`) they belong to. */
 export type ServerEvent =
   | (ChatEvent & { scope: string })
+  /** `review diff <target>` (or the open form) pointed the `local` scope at something new. */
+  | { type: 'scope.opened'; scope: 'local' }
   | { type: 'sync.started'; repoId: number }
   | { type: 'sync.finished'; repoId: number; added: number; updated: number }
   | { type: 'sync.failed'; repoId: number; message: string }

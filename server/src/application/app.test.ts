@@ -258,6 +258,7 @@ describe('PR mode app', () => {
         const opened = await app.request('/api/scopes/local', json('POST', { target: join(dir, 'change.diff') }))
         expect(opened.status).toBe(201)
         expect(await opened.json()).toEqual({ source: { kind: 'patch', path: join(dir, 'change.diff') } })
+        expect(events.events).toContainEqual({ type: 'scope.opened', scope: 'local' })
         const diff = await (await app.request('/api/scopes/local/diff')).json()
         expect(diff).toMatchObject({ source: { kind: 'patch' }, files: [{ path: 'src/a.py' }] })
         expect(await (await app.request('/api/scopes/local/threads')).json()).toEqual([{ id: 'dock', anchor: null }])

@@ -115,6 +115,10 @@ export function useSyncInvalidation(): void {
       case 'worktree.removed':
         void client.invalidateQueries({ queryKey: keys.worktrees })
         break
+      case 'scope.opened':
+        void client.invalidateQueries({ queryKey: ['diff', event.scope] })
+        void client.invalidateQueries({ queryKey: ['threads', event.scope] })
+        break
       case 'account.pending':
       case 'account.connected':
       case 'account.failed':

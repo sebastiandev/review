@@ -198,6 +198,16 @@ export function App() {
     [setMode, goInbox, view],
   )
 
+  // `?mode=diff` (from `review diff …` against a running server) switches to the local scope; the param is dropped once consumed.
+  useEffect(() => {
+    if (!probed) return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('mode') !== 'diff') return
+    url.searchParams.delete('mode')
+    window.history.replaceState(null, '', url.pathname + (url.search || ''))
+    switchMode('diff')
+  }, [probed, switchMode])
+
   const selectRepo = useCallback(
     (id: number) => {
       setRepoId(id)

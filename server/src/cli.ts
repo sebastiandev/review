@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { DEFAULT_CACHE_DIR, startDiffMode, startPrMode } from './application/main.ts'
 import { formatReview, parsePrTarget, ReviewClient } from './application/cliReview.ts'
@@ -91,10 +92,20 @@ async function startPr() {
 }
 
 async function startDiff(path: string) {
-  await stopRunningServer(cacheDir, port, console.error)
+  const target = resolve(path)
+  const base = values.base ?? null
+  // A running server takes the scope (one-off diffs open in a new window); otherwise this process becomes a diff-mode server.
+  const client = new ReviewClient(serverUrl, console.error)
+  if (await client.reachable()) {
+    await client.openLocalScope(target, base)
+    const url = `${uiUrl}/?mode=diff`
+    console.log(`review: ${url}`)
+    openUi(url, openMode, cacheDir, console.error)
+    return
+  }
   // Diff mode opens a chat session at startup, so opencode has to be there first.
   await ensureOpencode(values.opencode, console.error)
-  await startDiffMode({ ...common, target: path, base: values.base ?? null })
+  await startDiffMode({ ...common, target, base })
   console.log(`review: ${uiUrl}`)
   openUi(uiUrl, openMode, cacheDir, console.error)
 }

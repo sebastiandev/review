@@ -39,6 +39,11 @@ export class ReviewClient {
     }
   }
 
+  /** Point the running server's `local` scope at a folder or patch file (`review diff` against a live server). */
+  async openLocalScope(target: string, base: string | null): Promise<void> {
+    await this.json('/api/scopes/local', { method: 'POST', body: JSON.stringify({ target, base }) })
+  }
+
   /** The tracked repo for `target`, tracking it first when needed. */
   async ensureRepo(target: PrTarget): Promise<RepoSummary> {
     const repos = await this.json<RepoSummary[]>('/api/repos')

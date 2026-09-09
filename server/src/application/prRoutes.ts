@@ -45,6 +45,7 @@ export function prRoutes(deps: PrRoutesDeps) {
   app.post('/api/scopes/local', async (c) => {
     const body = (await c.req.json()) as { target: string; base?: string | null }
     const source = await deps.local.open({ target: body.target, base: body.base ?? null })
+    deps.events.emit({ type: 'scope.opened', scope: 'local' })
     return c.json({ source: source.ref }, 201)
   })
 
