@@ -42,13 +42,13 @@ describe('ghProvider', () => {
     const page = JSON.parse(fixture('graphql_list_open.json'))[0]
     const search = { data: { viewer: page.data.viewer, search: { nodes: page.data.repository.pullRequests.nodes } } }
     const { run, calls } = fakeRunner(() => JSON.stringify([search]))
-    const prs = await ghProvider(run).listReviewRequested(repo)
+    const prs = await ghProvider(run).listReviewRequested(repo, new Date('2026-08-10T12:00:00Z'))
     expect(prs.map((p) => [p.number, p.reviewRequested])).toEqual([
       [415, true],
       [416, true],
     ])
     expect(calls[0].args).toContain('--paginate')
-    expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open review-requested:@me')
+    expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open review-requested:@me updated:>=2026-08-10')
   })
 
   it('viewerLogin asks graphql for the viewer', async () => {

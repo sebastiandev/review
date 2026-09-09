@@ -106,9 +106,9 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
       calls.push('listAccountRepos')
       return fake.accountRepos
     },
-    async listReviewRequested() {
+    async listReviewRequested(_repo, since) {
       calls.push('listReviewRequested')
-      return [...remote.values()].filter((p) => p.state === 'open' && p.reviewRequested)
+      return [...remote.values()].filter((p) => p.state === 'open' && p.reviewRequested && new Date(p.updatedAt) >= since)
     },
     async listOpen() {
       calls.push('listOpen')

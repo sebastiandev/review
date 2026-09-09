@@ -54,6 +54,16 @@ describe('syncRepo', () => {
     expect(events.events.map((e) => e.type)).toEqual(['sync.started', 'sync.finished'])
   })
 
+  it('only fetches review-requested PRs updated within settings.lookbackDays', async () => {
+    store.settings.write({ ...store.settings.read(), lookbackDays: 7 })
+    provider.remote.set(1, remotePr({ number: 1, updatedAt: '2026-09-01T00:00:00.000Z' }))
+    provider.remote.set(2, remotePr({ number: 2, updatedAt: '2026-08-01T00:00:00.000Z' }))
+
+    await syncRepo(deps, { repoId })
+
+    expect(store.pullRequests.listByRepo(repoId, {}).map((p) => p.number)).toEqual([1])
+  })
+
   it('keeps the diff but refreshes comments when the head is unchanged', async () => {
     provider.remote.set(1, remotePr({ number: 1 }))
     await syncRepo(deps, { repoId })

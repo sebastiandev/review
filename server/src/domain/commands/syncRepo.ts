@@ -12,7 +12,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type SyncRepoDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed' | 'submissions'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed' | 'submissions' | 'settings'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'remove'>
   events: Events
@@ -21,8 +21,10 @@ export type SyncRepoDeps = {
 
 export type SyncRepoResult = { added: number; updated: number; released: number }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 /**
- * Refresh one repo from its provider: review-requested and locally known PRs are upserted,
+ * Refresh one repo from its provider: review-requested PRs updated within `settings.lookbackDays` and locally known PRs are upserted,
  * new heads get their diff cached (viewed marks carried for files whose change did not move),
  * active PRs get their comments replaced and the user's own provider-side reviews recorded, worktrees of finished
  * PRs are released — unless an agent review is running there, which keeps the worktree until the
@@ -44,7 +46,8 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
     const local = store.pullRequests.listByRepo(repo.id, {})
     const localByNumber = new Map(local.map((p) => [p.number, p]))
 
-    const listed = await provider.listReviewRequested(repo)
+    const since = new Date(new Date(clock()).getTime() - store.settings.read().lookbackDays * DAY_MS)
+    const listed = await provider.listReviewRequested(repo, since)
     const wanted = listed
     const listedNumbers = new Set(listed.map((r) => r.number))
     const vanished = local.filter((p) => p.state === 'open' && !listedNumbers.has(p.number))

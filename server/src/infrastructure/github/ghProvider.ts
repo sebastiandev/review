@@ -87,8 +87,8 @@ export function ghProvider(run: Runner): PullRequestProvider {
       return (JSON.parse(out) as ViewerReposPage).data.viewer.repositories.nodes.map(mapAccountRepo)
     },
 
-    async listReviewRequested(repo) {
-      const q = `repo:${slug(repo)} is:pr is:open review-requested:@me`
+    async listReviewRequested(repo, since) {
+      const q = `repo:${slug(repo)} is:pr is:open review-requested:@me updated:>=${since.toISOString().slice(0, 10)}`
       const out = await run('gh', ['api', 'graphql', '--paginate', '--slurp', '-F', `q=${q}`, '-f', `query=${LIST_REVIEW_REQUESTED}`])
       const pages = JSON.parse(out) as SearchPage[]
       return pages.flatMap((page) =>

@@ -102,8 +102,8 @@ export type PullRequestProvider = {
   viewerLogin(): Promise<string>
   /** Repos the authenticated user owns, collaborates on or reaches via an org, most recently pushed first. */
   listAccountRepos(): Promise<AccountRepo[]>
-  /** Open PRs whose review is requested from me, directly or via a team. One request per repo. */
-  listReviewRequested(repo: RepoRef): Promise<RemotePullRequest[]>
+  /** Open PRs whose review is requested from me, directly or via a team, updated at or after `since`. One request per repo. */
+  listReviewRequested(repo: RepoRef, since: Date): Promise<RemotePullRequest[]>
   /** Most recently updated open PRs (one page), for picking ones not assigned to me. */
   listOpen(repo: RepoRef): Promise<RemotePullRequest[]>
   get(repo: RepoRef, number: number): Promise<RemotePullRequest | null>
