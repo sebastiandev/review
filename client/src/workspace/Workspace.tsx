@@ -74,6 +74,8 @@ type WorkspaceProps = {
   /** False while the scope cannot chat yet (PR without worktree); `chatNotice` is shown in the dock instead. */
   chatEnabled: boolean
   chatNotice?: string
+  /** Stacked above the chat in the dock (the PR description). */
+  dockAbove?: ReactNode
   /** Sidebar header: the scope selector (diff mode) or the PR header block. */
   sidebarHeader: ReactNode
   sidebarFooter?: ReactNode
@@ -96,6 +98,7 @@ export function Workspace({
   defaultDiffMode,
   chatEnabled,
   chatNotice,
+  dockAbove,
   sidebarHeader,
   sidebarFooter,
   topBarLead,
@@ -548,6 +551,7 @@ export function Workspace({
         error={dock.error}
         config={config.data}
         notice={chatEnabled ? undefined : chatNotice}
+        above={dockAbove}
         provenance={dockProvenance}
         turn={turn}
         lastTurn={dock.lastTurn}

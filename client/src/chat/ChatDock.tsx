@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CaretLeft, CaretRight, PaperPlaneRight, Stop } from '@phosphor-icons/react'
 import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { ChatMarkdown } from './ChatMarkdown'
@@ -17,6 +17,8 @@ type ChatDockProps = Omit<ChatPanelProps, 'placeholder' | 'autoFocus' | 'message
   fileCount: number
   /** Replaces messages and composer with one line while the scope cannot chat yet (no worktree, inbox). */
   notice?: string
+  /** Panel stacked above the chat (the PR description). */
+  above?: ReactNode
   onToggle: () => void
   /** Open width in px; the dock is resizable from its left edge. */
   width?: number
@@ -448,6 +450,7 @@ export function ChatDock({
   error,
   config,
   notice,
+  above,
   provenance,
   turn,
   lastTurn,
@@ -490,6 +493,7 @@ export function ChatDock({
         {currentFile && <span className="context-chip">{currentFile}</span>}
         <span className="context-chip">{fileCount} files</span>
       </div>
+      {above}
       {notice ? (
         <p className="notice dock-notice">{notice}</p>
       ) : (

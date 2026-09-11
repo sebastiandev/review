@@ -25,6 +25,7 @@ import { isActive, labelFor, submitHints } from './agentReview'
 import { AgentReviewPanel } from './AgentReviewPanel'
 import { countByPath, groupThreads } from './comments'
 import { useDismissedFindings } from './dismissedFindings'
+import { PrDescription } from './PrDescription'
 import { PrTreeFooter, PrTreeHeader } from './PrTreeChrome'
 import { keys, usePrDetail } from './queries'
 import { RunReviewModal } from './RunReviewModal'
@@ -280,6 +281,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         viewed={viewed}
         defaultDiffMode={defaultDiffMode}
         chatEnabled={worktree.status === 'ready'}
+        dockAbove={<PrDescription author={pr.author} body={pr.body} headRef={pr.headRef} createdAt={pr.createdAt} now={now} />}
         chatNotice={
           worktree.status === 'failed' ? `worktree failed: ${worktree.message}` : `worktree not ready · ${worktreeLabel(worktree)}…`
         }
