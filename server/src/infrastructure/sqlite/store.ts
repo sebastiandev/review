@@ -1,5 +1,5 @@
 import type { DatabaseSync, SQLInputValue, SQLOutputValue } from 'node:sqlite'
-import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
+import type { DiffSelection, InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from '../../domain/pullRequests.ts'
 import type { AgentFinding, AgentReview } from '../../domain/agentReview.ts'
 import type { DraftComment, ReviewDraft, Submission } from '../../domain/review.ts'
@@ -249,6 +249,17 @@ export function sqliteStore(db: DatabaseSync): Store {
       },
     },
 
+    chatSessions: {
+      list: (scopeKey) =>
+        q('SELECT thread_id, session_id, anchor_json FROM chat_session WHERE scope_key = ? ORDER BY rowid')
+          .all(scopeKey)
+          .map((r) => ({ threadId: str(r.thread_id), sessionId: str(r.session_id), anchor: r.anchor_json ? (JSON.parse(str(r.anchor_json)) as DiffSelection) : null })),
+      set(scopeKey, thread) {
+        q(
+          'INSERT INTO chat_session (scope_key, thread_id, session_id, anchor_json) VALUES (?, ?, ?, ?) ON CONFLICT(scope_key, thread_id) DO UPDATE SET session_id = excluded.session_id, anchor_json = excluded.anchor_json',
+        ).run(scopeKey, thread.threadId, thread.sessionId, thread.anchor ? JSON.stringify(thread.anchor) : null)
+      },
+    },
     settings: {
       read() {
         const row = q('SELECT json FROM settings WHERE id = 1').get()

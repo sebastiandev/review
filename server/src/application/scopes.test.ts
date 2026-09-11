@@ -51,6 +51,22 @@ describe('prScopes', () => {
   })
   afterEach(() => close())
 
+  it('hands the chat a persisted session map keyed by the PR scope, so a restart reopens the transcript', async () => {
+    store.transaction(() => store.pullRequests.update(pr.id, { worktreePath: '/wt/3' }))
+    await scopes.resolve(`pr:${pr.id}`)
+
+    const sessions = opened[0]!.sessions!
+    sessions.set({ threadId: 'dock', sessionId: 'ses_1', anchor: null })
+    sessions.set({ threadId: 'line:src/a.py:2', sessionId: 'ses_2', anchor: { path: 'src/a.py', startLine: 2, endLine: 2, side: 'RIGHT', text: 'x' } })
+
+    expect(store.chatSessions.list(`pr:${pr.id}`)).toEqual([
+      { threadId: 'dock', sessionId: 'ses_1', anchor: null },
+      { threadId: 'line:src/a.py:2', sessionId: 'ses_2', anchor: { path: 'src/a.py', startLine: 2, endLine: 2, side: 'RIGHT', text: 'x' } },
+    ])
+    expect(sessions.list()).toEqual(store.chatSessions.list(`pr:${pr.id}`))
+    expect(store.chatSessions.list('pr:999')).toEqual([])
+  })
+
   it('builds the scope from the cached diff and the worktree, once per PR', async () => {
     store.transaction(() => store.pullRequests.update(pr.id, { worktreePath: '/wt/3' }))
 

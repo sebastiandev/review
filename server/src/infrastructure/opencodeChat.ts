@@ -1,5 +1,6 @@
 import { createOpencodeClient, type Event, type Message, type Part } from '@opencode-ai/sdk'
 import type { ChatEvent, ChatPart, ChatThreadRef, DiffSelection } from '@review/shared'
+import type { ChatSessionRow } from '../domain/store.ts'
 import {
   composePrompt,
   lineThreadId,
@@ -17,6 +18,8 @@ export type OpencodeChatOptions = {
   /** Sent once, ahead of the first dock message. */
   systemContext: string
   defaultAgent: string | null
+  /** Persisted thread → session map for this scope; when given, a restart reopens the same transcripts. */
+  sessions?: { list(): ChatSessionRow[]; set(row: ChatSessionRow): void }
 }
 
 type Client = ReturnType<typeof createOpencodeClient>
@@ -29,21 +32,30 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatH
   const client = createOpencodeClient({ baseUrl: opts.baseUrl })
   const query = { directory: opts.directory }
 
-  const rootID = await createSession(client, query, opts.title)
+  const saved = new Map((opts.sessions?.list() ?? []).map((row) => [row.threadId, row]))
+  const savedDock = saved.get('dock')
+  const rootID = savedDock && (await sessionExists(client, query, savedDock.sessionId)) ? savedDock.sessionId : await createSession(client, query, opts.title)
+  if (rootID !== savedDock?.sessionId) opts.sessions?.set({ threadId: 'dock', sessionId: rootID, anchor: null })
   const threads = new Map<string, ChatThread>()
   const threadBySession = new Map<string, string>()
   const roles = new Map<string, Message['role']>()
   const listeners = new Set<(e: ChatEvent) => void>()
   const emit = (e: ChatEvent) => listeners.forEach((l) => l(e))
 
-  const register = (ref: ChatThreadRef, sessionID: string, preamble: string): ChatThread => {
-    const thread = makeThread(client, query, ref, sessionID, preamble, opts.defaultAgent, roles)
+  const register = (ref: ChatThreadRef, sessionID: string, preamble: string, reopened = false): ChatThread => {
+    const thread = makeThread(client, query, ref, sessionID, preamble, opts.defaultAgent, roles, reopened)
     threads.set(ref.id, thread)
     threadBySession.set(sessionID, ref.id)
     return thread
   }
 
-  const dock = register({ id: 'dock', anchor: null }, rootID, opts.systemContext)
+  const dock = register({ id: 'dock', anchor: null }, rootID, opts.systemContext, rootID === savedDock?.sessionId)
+  // Line threads only come back when their root did: a fresh root means a fresh scope.
+  if (rootID === savedDock?.sessionId) {
+    for (const row of saved.values()) {
+      if (row.anchor && (await sessionExists(client, query, row.sessionId))) register({ id: row.threadId, anchor: row.anchor }, row.sessionId, lineThreadPreamble(row.anchor), true)
+    }
+  }
   void relayEvents(client, opts.directory, threadBySession, roles, emit)
 
   return {
@@ -53,6 +65,7 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatH
       const existing = threads.get(id)
       if (existing) return existing
       const childID = await createSession(client, query, `${opts.title} · ${id}`, rootID)
+      opts.sessions?.set({ threadId: id, sessionId: childID, anchor })
       return register({ id, anchor }, childID, lineThreadPreamble(anchor))
     },
     threads: () => [...threads.values()].map((t) => t.ref),
@@ -62,6 +75,11 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatH
       return () => listeners.delete(listener)
     },
   }
+}
+
+async function sessionExists(client: Client, query: { directory: string }, id: string): Promise<boolean> {
+  const res = await client.session.get({ path: { id }, query })
+  return Boolean(res.data)
 }
 
 async function createSession(client: Client, query: { directory: string }, title: string, parentID?: string) {
@@ -78,8 +96,10 @@ function makeThread(
   preamble: string,
   defaultAgent: string | null,
   roles: Map<string, Message['role']>,
+  reopened: boolean,
 ): ChatThread {
-  let primed = false
+  // A reopened session already received its preamble in an earlier process.
+  let primed = reopened
   return {
     ref,
     async send(input: ChatInput) {

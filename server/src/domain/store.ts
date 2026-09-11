@@ -1,7 +1,10 @@
-import type { InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
+import type { DiffSelection, InboxRow, PastReviewRow, PrDetail, RepoSummary, UserSettings, Verdict, WorktreeRow } from '@review/shared'
 import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, ParsedFinding } from './agentReview.ts'
 import type { PrDiff, PullRequest, RemoteComment, RemotePullRequest, Repo, RepoRef } from './pullRequests.ts'
 import type { DraftComment, ReviewDraft, Submission } from './review.ts'
+
+/** One persisted chat thread: `anchor` is null for the dock. */
+export type ChatSessionRow = { threadId: string; sessionId: string; anchor: DiffSelection | null }
 
 /**
  * The one persistence port. Grouped by aggregate; every Command writes across aggregates in
@@ -84,6 +87,11 @@ export type Store = {
     list(prId: number): { path: string; headSha: string }[]
     /** `null` clears the mark. */
     set(prId: number, path: string, headSha: string | null): void
+  }
+  /** Opencode session ids behind chat threads, so a restart reopens the same transcript. */
+  chatSessions: {
+    list(scopeKey: string): ChatSessionRow[]
+    set(scopeKey: string, thread: ChatSessionRow): void
   }
   settings: {
     read(): UserSettings

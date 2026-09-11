@@ -70,7 +70,7 @@ export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; s
       if (pr.worktreePath !== null) enqueueUnreviewed(pr)
     }
   })
-  const local = localScopes({ opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat })
+  const local = localScopes({ store: deps.store, opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat })
   const app = createApp({
     scopes: combinedScopes(local, prScopes({ store: deps.store, opencodeUrl: deps.opencodeUrl, events: deps.events, openChat: deps.openChat })),
     store: deps.store,

@@ -19,11 +19,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005'])
+    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005', '0006'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(5)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(6)
     second.close()
   })
 

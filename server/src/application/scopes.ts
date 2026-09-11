@@ -3,7 +3,7 @@ import type { DiffSource } from '../domain/diff.ts'
 import { NotFound, WorktreeMissing } from '../domain/errors.ts'
 import type { Events } from '../domain/ports.ts'
 import { repoLabel, type PrDiff, type PullRequest, type Repo } from '../domain/pullRequests.ts'
-import type { Store } from '../domain/store.ts'
+import type { ChatSessionRow, Store } from '../domain/store.ts'
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { localRepoSource, patchFileSource, prDiffSource } from '../infrastructure/diffSources.ts'
@@ -45,7 +45,12 @@ export type LocalScopes = ScopeRegistry & {
  * The `local` scope of a PR-mode server: absent until the user opens a folder or patch from the UI,
  * then one at a time. Chat events reach the bus stamped `local`.
  */
-export function localScopes(deps: { opencodeUrl: string; events: Events; openChat?: (opts: OpencodeChatOptions) => Promise<ChatHub> }): LocalScopes {
+export function localScopes(deps: {
+  store: Pick<Store, 'chatSessions'>
+  opencodeUrl: string
+  events: Events
+  openChat?: (opts: OpencodeChatOptions) => Promise<ChatHub>
+}): LocalScopes {
   const openChat = deps.openChat ?? openOpencodeChat
   let scope: Scope | null = null
   let unsubscribe: (() => void) | null = null
@@ -67,6 +72,7 @@ export function localScopes(deps: { opencodeUrl: string; events: Events; openCha
         title: `review: ${target}`,
         systemContext: localContext(source),
         defaultAgent: null,
+        sessions: scopeSessions(deps.store, `${LOCAL_SCOPE}:${target}`),
       })
       unsubscribe?.()
       unsubscribe = chat.subscribe((e) => deps.events.emit({ ...e, scope: LOCAL_SCOPE }))
@@ -74,6 +80,11 @@ export function localScopes(deps: { opencodeUrl: string; events: Events; openCha
       return source
     },
   }
+}
+
+/** The persisted thread → session map of one scope (`pr:<id>` or `local:<target>`). */
+function scopeSessions(store: Pick<Store, 'chatSessions'>, scopeKey: string) {
+  return { list: () => store.chatSessions.list(scopeKey), set: (row: ChatSessionRow) => store.chatSessions.set(scopeKey, row) }
 }
 
 /** A registry that answers `local` from `local` and everything else from `rest`. */
@@ -99,7 +110,7 @@ export function localContext(source: DiffSource): string {
 }
 
 export type PrScopesDeps = {
-  store: Pick<Store, 'repos' | 'pullRequests' | 'diffs'>
+  store: Pick<Store, 'repos' | 'pullRequests' | 'diffs' | 'chatSessions'>
   opencodeUrl: string
   events: Events
   /** Defaults to `openOpencodeChat`; tests inject a fake. */
@@ -130,6 +141,7 @@ export function prScopes(deps: PrScopesDeps): ScopeRegistry {
       title: `${repoLabel(repo)}#${pr.number}`,
       systemContext: prContext(repo, pr, diff),
       defaultAgent: null,
+      sessions: scopeSessions(deps.store, prScopeId(prId)),
     })
     forwardChatEvents(chat, prScopeId(prId), deps.events)
     return { source, chat }
