@@ -1156,13 +1156,12 @@ button {
 }
 
 .turn-user {
-  align-self: flex-end;
-  max-width: 90%;
+  align-self: stretch;
   font-size: 12.5px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-900);
-  color: var(--color-accent-100);
+  line-height: 1.5;
+  padding: 4px 10px;
+  border-left: 2px solid var(--color-accent);
+  color: var(--color-neutral-300);
 }
 
 .turn-assistant {
@@ -3398,4 +3397,80 @@ button {
 
 .palette-footer-right {
   margin-left: auto;
+}
+
+/* ── Chat markdown (agent turns) ───────────────────────────────────────── */
+
+.chat-md > :first-child {
+  margin-top: 0;
+}
+.chat-md > :last-child {
+  margin-bottom: 0;
+}
+.chat-md p,
+.chat-md ul,
+.chat-md ol,
+.chat-md pre,
+.chat-md table,
+.chat-md blockquote {
+  margin: 0 0 8px;
+}
+.chat-md ul,
+.chat-md ol {
+  padding-left: 20px;
+}
+.chat-md li + li {
+  margin-top: 2px;
+}
+.chat-md h1,
+.chat-md h2,
+.chat-md h3,
+.chat-md h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.chat-md code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-neutral-900);
+  color: var(--color-accent-300);
+}
+.chat-md pre {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-900);
+  overflow-x: auto;
+}
+.chat-md pre code {
+  padding: 0;
+  background: transparent;
+  color: var(--color-neutral-200);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.chat-md a {
+  color: var(--color-accent-300);
+}
+.chat-md blockquote {
+  padding: 0 10px;
+  border-left: 2px solid var(--color-neutral-700);
+  color: var(--color-neutral-400);
+}
+.chat-md table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.chat-md th,
+.chat-md td {
+  padding: 3px 8px;
+  border: 1px solid var(--color-divider);
+  text-align: left;
+}
+.chat-md hr {
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  margin: 8px 0;
 }

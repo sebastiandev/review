@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CaretLeft, CaretRight, PaperPlaneRight, Stop } from '@phosphor-icons/react'
 import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
+import { ChatMarkdown } from './ChatMarkdown'
 import { Picker, type PickerItem } from './Picker'
 import { splitQuotes, type Quote } from './quotes'
 import { LOCAL_COMMANDS, completeMention, mentionAt, parseSlashCommand, slashPrefix, type LocalCommand } from './slashCommand'
@@ -72,7 +73,7 @@ function PartView({ part, onJumpTo }: PartViewProps) {
       }
       return (
         <div className="turn turn-assistant">
-          <p className="turn-text">{part.text}</p>
+          <ChatMarkdown text={part.text} />
         </div>
       )
     case 'tool':
