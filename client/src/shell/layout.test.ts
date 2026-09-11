@@ -47,7 +47,7 @@ describe('clampDockWidth', () => {
   it.each([
     ['keeps a width inside the range', 400, 1440, 306, 400],
     ['raises to the minimum', 100, 1440, 306, 280],
-    ['caps at 640 on a wide viewport', 900, 2000, 306, 640],
+    ['caps at 960 on a wide viewport', 1200, 2000, 306, 960],
     ['caps so the centre keeps 480px', 640, 1300, 306, 1300 - 48 - 306 - 480],
     ['the minimum wins when the viewport cannot fit 480px of centre', 400, 900, 306, 280],
   ])('%s', (_, width, viewportW, sidebarW, expected) => {

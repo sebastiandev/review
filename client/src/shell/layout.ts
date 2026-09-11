@@ -1,7 +1,7 @@
 export const RAIL_WIDTH = 48
 export const DOCK_OPEN_WIDTH = 344
 export const DOCK_MIN = 280
-export const DOCK_MAX = 640
+export const DOCK_MAX = 960
 export const DOCK_RAIL_WIDTH = 44
 export const SIDEBAR_DEFAULT = 306
 export const SIDEBAR_MIN = 220
@@ -13,7 +13,7 @@ export const NARROW_BELOW = 1300
 export const DOCK_AUTO_COLLAPSE_BELOW = 1060
 export const COMPACT_HEADER_BELOW = 720
 
-/** Dock width clamped to `[280, min(640, viewportW − rail − sidebar − 480)]`; the lower bound wins when they cross. */
+/** Dock width clamped to `[280, min(960, viewportW − rail − sidebar − 480)]`; the lower bound wins when they cross. */
 export function clampDockWidth(width: number, viewportW: number, sidebarW: number): number {
   const max = Math.max(DOCK_MIN, Math.min(DOCK_MAX, viewportW - RAIL_WIDTH - sidebarW - CENTER_MIN))
   return Math.max(DOCK_MIN, Math.min(max, width))
