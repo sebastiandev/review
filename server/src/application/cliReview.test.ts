@@ -32,6 +32,7 @@ describe('formatReview', () => {
       summary: 'One thing to fix.',
       error: null,
       invalidAnchorCount: 1,
+      coverage: 'complete',
       startedAt: null,
       finishedAt: null,
     },
@@ -47,7 +48,7 @@ describe('formatReview', () => {
     expect(text).toContain('agent: pr-reviewer · openai/gpt-5 · high')
     expect(text).toContain('Feedback\n  One thing to fix.')
     expect(text).toContain('Conclusion: REQUEST_CHANGES')
-    expect(text).toContain('Comments (2) · 1 dropped for bad anchors')
+    expect(text).toContain('Comments (2) · 1 invalid inline anchors — see summary')
     expect(text).toContain('  src/a.py:2-4  [BLOCK]\n    wrong helper')
     expect(text).toContain('  src/b.py:9 (old)  [QUESTION]\n    why remove this?')
   })

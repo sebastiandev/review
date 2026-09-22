@@ -16,6 +16,7 @@ function review(over: Partial<AgentReview> = {}): AgentReview {
     summary: 'Two blockers.',
     error: null,
     invalidAnchorCount: 0,
+    coverage: 'complete',
     startedAt: null,
     finishedAt: '2026-09-07T10:00:00Z',
     ...over,
@@ -65,6 +66,8 @@ describe('labelFor', () => {
     [review({ status: 'queued' }), { label: 'Reviewing…', disabled: false, action: 'open' }],
     [review({ status: 'running' }), { label: 'Reviewing…', disabled: false, action: 'open' }],
     [review({ status: 'ready' }), { label: 'Agent review · 4', disabled: false, action: 'open' }],
+    [review({ coverage: 'incomplete' }), { label: 'Incomplete review · 4', disabled: false, action: 'open' }],
+    [review({ coverage: 'unknown' }), { label: 'Coverage unknown · 4', disabled: false, action: 'open' }],
     [review({ status: 'failed' }), { label: 'Review failed', disabled: false, action: 'open' }],
   ])('maps %o', (input, expected) => {
     expect(labelFor(input, 4)).toEqual(expected)
@@ -72,6 +75,12 @@ describe('labelFor', () => {
 })
 
 describe('submitHints', () => {
+  it.each(['incomplete', 'unknown'] as const)('does not imply approval confidence for %s coverage', (coverage) => {
+    const detail = { review: review({ coverage }), findings: [] }
+    expect(submitHints({ agentReview: detail, drafts: [] }).APPROVE).toBe(
+      coverage === 'incomplete' ? 'Agent review incomplete' : 'Agent review coverage unknown',
+    )
+  })
   it('reports agreement as kept findings over the run total when a ready run exists', () => {
     const detail: AgentReviewDetail = { review: review(), findings: [finding({ id: 1 }), finding({ id: 2 }), finding({ id: 3 }), finding({ id: 4 })] }
     const drafts = [draft({ id: 1, findingId: 1 }), draft({ id: 2, findingId: 2 }), draft({ id: 3 })]
@@ -104,7 +113,13 @@ describe('agentStatusLabel', () => {
     ['ready', 'APPROVE', { text: 'agent: approve', tone: 'ready' }],
     ['failed', null, { text: 'agent failed', tone: 'failed' }],
   ] as const)('%s / %s', (status, verdict, expected) => {
-    expect(agentStatusLabel(status, verdict)).toEqual(expected)
+    expect(agentStatusLabel(status, verdict, 'complete')).toEqual(expected)
+  })
+
+  it.each(['incomplete', 'unknown'] as const)('shows %s coverage in the inbox', (coverage) => {
+    expect(agentStatusLabel('ready', 'COMMENT', coverage)?.text).toBe(
+      coverage === 'incomplete' ? 'agent: incomplete review' : 'agent: coverage unknown',
+    )
   })
 })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildReviewPrompt, InvalidPayload, parsePayload, severityOf } from './agentReview.ts'
+import { buildReviewPrompt, extractInlinePayload, InvalidPayload, parsePayload, severityOf } from './agentReview.ts'
 import { GITHUB_REPO, NOW, remotePr } from './testing/fakes.ts'
 
 const anchors = { 'src/a.py': [1, 2, 3] }
@@ -7,7 +7,7 @@ const payload = (over: Record<string, unknown> = {}) =>
   JSON.stringify({ pr: 1, repo: 'acme/widgets', event: 'REQUEST_CHANGES', body: 'Summary.', comments: [], ...over })
 
 describe('parsePayload', () => {
-  it('maps event, body and anchored comments; drops and counts the rest', () => {
+  it('keeps valid comments inline and preserves invalid ones in the summary', () => {
     const text = payload({
       comments: [
         { path: 'src/a.py', line: 2, side: 'RIGHT', body: 'Block: nope' },
@@ -16,15 +16,23 @@ describe('parsePayload', () => {
         { path: 'other.py', line: 1, side: 'RIGHT', body: 'wrong file' },
       ],
     })
-    expect(parsePayload(text, anchors)).toEqual({
+    const parsed = parsePayload(text, anchors)
+    expect(parsed).toMatchObject({
       verdict: 'REQUEST_CHANGES',
-      body: 'Summary.',
       invalid: 2,
+      coverage: 'unknown',
       findings: [
         { path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', severity: 'block', body: 'Block: nope' },
         { path: 'src/a.py', line: 3, startLine: 2, side: 'RIGHT', severity: 'question', body: 'Question: why?' },
       ],
     })
+    expect(parsed.body).toContain('Summary.')
+    expect(parsed.body).toContain('src/a.py:99')
+    expect(parsed.body).toContain('floating')
+    expect(parsed.body).toContain('other.py:1')
+    expect(parsed.body).toContain('wrong file')
+    expect(parsed.body).not.toContain('Block: nope')
+    expect(parsed.body).not.toContain('Question: why?')
   })
 
   it.each([
@@ -57,22 +65,16 @@ describe('severityOf', () => {
 describe('buildReviewPrompt', () => {
   const pr = { ...remotePr({ number: 415 }), id: 1, repoId: 1, addedByUser: false, reviewOnOpen: false, specRef: null, doneAt: null, worktreePath: '/wt', syncedAt: NOW }
 
-  const input = { pr, repo: GITHUB_REPO, worktreePath: '/wt', diffPath: '/payloads/p.diff', payloadPath: '/payloads/p.json', priorComments: [], specPath: null }
+  const input = { pr, repo: GITHUB_REPO, worktreePath: '/wt', diffPath: '/payloads/p.diff', priorComments: [], specPath: null }
 
-  it('names the PR, the worktree, the diff file, the payload path and the github-mode rules', () => {
+  it('supplies the source context and a parseable revision-bound JSON contract', () => {
     const prompt = buildReviewPrompt(input)
-    expect(prompt).toContain('Review PR 415 in repo acme/widgets in github mode.')
-    expect(prompt).toContain("worktree at /wt: the head commit sha-415-a of\nbranch feature-415 is checked out, targeting main")
-    expect(prompt).toContain('PR: https://github.com/acme/widgets/pull/415')
-    expect(prompt).toContain('Title: PR 415')
-    expect(prompt).toContain('The unified diff is at /payloads/p.diff')
-    expect(prompt).not.toContain('gh pr diff')
-    expect(prompt).toContain('Write it to /payloads/p.json with exactly this shape:')
-    expect(prompt).toContain('"event": "COMMENT" | "REQUEST_CHANGES"')
-    expect(prompt).toContain('Start each comment body with `Block:`, `Question:` or `Note:`')
-    expect(prompt).toContain('`event` is REQUEST_CHANGES when you have any Block, otherwise COMMENT. Never APPROVE')
-    expect(prompt).not.toContain('ALREADY')
-    expect(prompt).not.toContain('spec')
+    expect(prompt).toContain(input.diffPath)
+    expect(prompt).toContain(input.worktreePath)
+    expect(prompt).toContain(pr.url)
+    const contract = JSON.parse(extractInlinePayload(prompt)!)
+    expect(contract).toMatchObject({ pr: pr.number, repo: 'acme/widgets', commit_id: pr.headSha, coverage: 'complete', event: 'COMMENT' })
+    expect(Array.isArray(contract.comments)).toBe(true)
   })
 
   it('lists prior comments and the linked spec when given', () => {

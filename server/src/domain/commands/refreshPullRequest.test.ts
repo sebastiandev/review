@@ -101,6 +101,24 @@ describe('refreshPullRequest', () => {
     expect(store.diffs.get(prId, 'sha-b')).not.toBeNull()
     expect(worktrees.checkedOut).toEqual([])
     expect(worktrees.heads.get(path)).toBe('sha-a')
+    store.transaction(() => store.agentReviews.update(run.id, { status: 'ready' }))
+    const retried = await refreshPullRequest(deps, { prId })
+    expect(retried).toMatchObject({ headMoved: false, worktreeDeferred: false })
+    expect(worktrees.heads.get(path)).toBe('sha-b')
+  })
+
+  it('repairs a worktree after sync already advanced the cached head', async () => {
+    const path = '/wt/acme/widgets/1'
+    worktrees.paths.add(path)
+    worktrees.heads.set(path, 'sha-a')
+    store.transaction(() => store.pullRequests.update(prId, { worktreePath: path }))
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+    await syncRepo({ ...deps, worktrees }, { repoId: store.pullRequests.get(prId)!.repoId })
+
+    const result = await refreshPullRequest(deps, { prId })
+
+    expect(result).toMatchObject({ headMoved: false, worktreeDeferred: false })
+    expect(worktrees.heads.get(path)).toBe('sha-b')
   })
 
   it('leaves the worktree alone when the head moved but none is on disk', async () => {

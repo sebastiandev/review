@@ -1,4 +1,4 @@
-import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, DraftCommentRow, Verdict } from '@review/shared'
+import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, DraftCommentRow, ReviewCoverage, Verdict } from '@review/shared'
 import { lineKey } from '../diff/DiffView'
 import { relativeTime } from '../inbox/inboxRows'
 
@@ -30,7 +30,7 @@ export function labelFor(review: AgentReview | null, findingCount = 0): ReviewBu
     case 'running':
       return { label: 'Reviewing…', disabled: false, action: 'open' }
     case 'ready':
-      return { label: `Agent review · ${findingCount}`, disabled: false, action: 'open' }
+      return { label: `${review.coverage === 'complete' ? 'Agent review' : review.coverage === 'incomplete' ? 'Incomplete review' : 'Coverage unknown'} · ${findingCount}`, disabled: false, action: 'open' }
     case 'failed':
       return { label: 'Review failed', disabled: false, action: 'open' }
   }
@@ -53,7 +53,11 @@ export function submitHints({ agentReview, drafts }: HintsInput): Record<Verdict
   const kept = drafts.filter((d) => d.findingId !== null).length
   return {
     COMMENT: 'Submit notes without a verdict',
-    APPROVE: ready ? `Agent agreed on ${kept} of ${ready.findings.length} findings` : 'Agent not run',
+    APPROVE: ready
+      ? ready.review.coverage === 'complete'
+        ? `Agent agreed on ${kept} of ${ready.findings.length} findings`
+        : ready.review.coverage === 'incomplete' ? 'Agent review incomplete' : 'Agent review coverage unknown'
+      : 'Agent not run',
     REQUEST_CHANGES: ready?.review.verdict === 'REQUEST_CHANGES' ? 'Agent suggests this' : '',
   }
 }
@@ -61,7 +65,7 @@ export function submitHints({ agentReview, drafts }: HintsInput): Record<Verdict
 export type AgentStatusLabel = { text: string; tone: 'running' | 'ready' | 'failed' }
 
 /** Inbox row text: `agent reviewing…`, `agent: request changes`, `agent failed`; null when no run exists. */
-export function agentStatusLabel(status: AgentReviewStatus | null, verdict: Verdict | null): AgentStatusLabel | null {
+export function agentStatusLabel(status: AgentReviewStatus | null, verdict: Verdict | null, coverage: ReviewCoverage | null): AgentStatusLabel | null {
   switch (status) {
     case null:
       return null
@@ -69,6 +73,7 @@ export function agentStatusLabel(status: AgentReviewStatus | null, verdict: Verd
     case 'running':
       return { text: 'agent reviewing…', tone: 'running' }
     case 'ready':
+      if (coverage !== 'complete') return { text: coverage === 'incomplete' ? 'agent: incomplete review' : 'agent: coverage unknown', tone: 'ready' }
       return { text: `agent: ${verdict ? VERDICT_TEXT[verdict].toLowerCase() : 'done'}`, tone: 'ready' }
     case 'failed':
       return { text: 'agent failed', tone: 'failed' }

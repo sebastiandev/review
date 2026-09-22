@@ -62,7 +62,7 @@ describe('PR mode app', () => {
     provider = fakeProvider([remotePr({ number: 415, title: 'Fix widgets' })])
     worktrees = fakeWorktrees()
     const payloads = memoryPayloads()
-    runner = fakeRunner(payloads, { kind: 'write', text: PAYLOAD })
+    runner = fakeRunner({ kind: 'reply', text: PAYLOAD })
     events = memoryEvents()
     credentials = fakeCredentialStore()
     deviceFlow = fakeDeviceFlow()
@@ -181,10 +181,11 @@ describe('PR mode app', () => {
     expect(await (await app.request('/api/reviews?verdict=APPROVE')).json()).toEqual([])
   })
 
-  it('runs an agent review, lists it, and keeps a finding into the draft', async () => {
+  it.each(['complete', 'incomplete', 'unknown'] as const)('shows %s coverage and keeps the agent finding into the draft', async (coverage) => {
     const repo = await trackRepo()
     await syncRepo(repo.id)
     const [pr]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    runner.behaviour = { kind: 'reply', text: JSON.stringify({ ...JSON.parse(PAYLOAD), coverage, commit_id: 'sha-415-a' }) }
     const ready = nextEvent('worktree.ready')
     await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
     await ready
@@ -197,7 +198,7 @@ describe('PR mode app', () => {
     expect(runner.runs).toMatchObject([{ directory: '/wt/acme/widgets/415', agent: 'reviewer', model: null, variant: null }])
 
     const runs: AgentReviewDetail[] = await (await app.request(`/api/prs/${pr.id}/reviews`)).json()
-    expect(runs).toMatchObject([{ review: { status: 'ready', verdict: 'COMMENT', summary: 'One remark.', agent: 'reviewer' }, findings: [{ line: 2, severity: 'note' }] }])
+    expect(runs).toMatchObject([{ review: { status: 'ready', coverage, verdict: 'COMMENT', summary: 'One remark.', agent: 'reviewer' }, findings: [{ line: 2, severity: 'note' }] }])
     const [{ review, findings }] = runs
 
     const kept = await app.request(`/api/prs/${pr.id}/findings/${findings[0].id}/keep`, { method: 'POST' })
@@ -206,7 +207,9 @@ describe('PR mode app', () => {
     const detail: PrDetail = await (await app.request(`/api/prs/${pr.id}`)).json()
     expect(detail.agentReview).toEqual({ review, findings })
     expect(detail.draft?.comments).toMatchObject([{ origin: 'agent', findingId: findings[0].id }])
-    expect(detail.pr).toMatchObject({ agentStatus: 'ready', agentVerdict: 'COMMENT' })
+    expect(detail.pr).toMatchObject({ agentStatus: 'ready', agentVerdict: 'COMMENT', agentCoverage: coverage })
+    const inbox: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    expect(inbox.find((row) => row.id === pr.id)?.agentCoverage).toBe(coverage)
 
     expect((await app.request(`/api/prs/${pr.id}/findings/${findings[0].id}/keep`, { method: 'DELETE' })).status).toBe(204)
     const all = await app.request(`/api/prs/${pr.id}/reviews/${review.id}/keep-all`, { method: 'POST' })
@@ -215,6 +218,7 @@ describe('PR mode app', () => {
 
   it('starts a review on worktree.ready for PRs added with reviewOnOpen, once per head', async () => {
     const repo = await trackRepo()
+    runner.behaviour = { kind: 'reply', text: JSON.stringify({ ...JSON.parse(PAYLOAD), pr: 7 }) }
     provider.remote.set(7, remotePr({ number: 7, reviewRequested: false }))
     const [added]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`, json('POST', { numbers: [7], reviewOnOpen: true }))).json()
 
@@ -228,6 +232,59 @@ describe('PR mode app', () => {
     await ready
     await new Promise((r) => setTimeout(r, 0))
     expect(runner.runs).toHaveLength(1)
+  })
+
+  it('shows the blocking explanation when every inline anchor is invalid', async () => {
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const [pr]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    const ready = nextEvent('worktree.ready')
+    await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
+    await ready
+    runner.behaviour = { kind: 'reply', text: JSON.stringify({
+      ...JSON.parse(PAYLOAD), event: 'REQUEST_CHANGES', body: 'Review finished.',
+      comments: [
+        { path: 'src/a.py', line: 585, side: 'RIGHT', body: 'Block: the lock is missing.' },
+        { path: 'src/a.py', line: 541, side: 'RIGHT', body: 'Question: reuse the existing helper?' },
+      ],
+    }) }
+    const reviewed = nextEvent('review.ready')
+    await app.request(`/api/prs/${pr.id}/review`, json('POST', { agent: 'pr-reviewer' }))
+    await reviewed
+
+    const detail: PrDetail = await (await app.request(`/api/prs/${pr.id}`)).json()
+    expect(detail.agentReview?.review).toMatchObject({ verdict: 'REQUEST_CHANGES', invalidAnchorCount: 2 })
+    expect(detail.agentReview?.findings).toEqual([])
+    expect(detail.agentReview?.review.summary).toContain('Block: the lock is missing.')
+    expect(detail.agentReview?.review.summary).toContain('Question: reuse the existing helper?')
+  })
+
+  it('reviews the new source revision after sync advances an already-open PR', async () => {
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const [pr]: InboxRow[] = await (await app.request(`/api/repos/${repo.id}/prs`)).json()
+    const worktreeReady = nextEvent('worktree.ready')
+    await app.request(`/api/prs/${pr.id}/open`, { method: 'POST' })
+    await worktreeReady
+    const path = store.pullRequests.get(pr.id)!.worktreePath!
+    const oldHead = worktrees.heads.get(path)
+    provider.remote.set(415, remotePr({ number: 415, headSha: 'new-head' }))
+    await syncRepo(repo.id)
+    expect(worktrees.heads.get(path)).toBe(oldHead)
+
+    runner.behaviour = { kind: 'reply', text: JSON.stringify({ ...JSON.parse(PAYLOAD), commit_id: 'new-head', coverage: 'complete' }) }
+    const run = runner.run
+    runner.run = async (...args) => {
+      expect(await worktrees.headSha(args[0].directory)).toBe('new-head')
+      return run(...args)
+    }
+    const reviewReady = nextEvent('review.ready')
+    await app.request(`/api/prs/${pr.id}/review`, json('POST', { agent: 'pr-reviewer' }))
+    await reviewReady
+
+    const detail: PrDetail = await (await app.request(`/api/prs/${pr.id}`)).json()
+    expect(detail.agentReview?.review).toMatchObject({ status: 'ready', headSha: 'new-head', coverage: 'complete' })
+    expect(worktrees.checkedOut).toEqual([{ path, headSha: 'new-head' }])
   })
 
   it('tracks a repo with autoReview and patches it', async () => {

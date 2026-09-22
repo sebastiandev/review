@@ -17,12 +17,12 @@ export type RefreshPullRequestDeps = {
   clock: Clock
 }
 
-/** `worktreeDeferred`: the head moved but an agent review is running, so the checkout waits for the next refresh. */
+/** `worktreeDeferred`: the checkout is stale but an agent is using it, so repair waits for the next refresh. */
 export type RefreshResult = { pr: PullRequest; headMoved: boolean; worktreeDeferred: boolean }
 
 /**
  * Bring one PR up to date now, regardless of the poll interval: row, comments, and — when the
- * head moved — its diff and the worktree checkout.
+ * head moved — its diff. Repair a stale worktree even if sync already updated the row.
  * Pre-conditions:
  * - the PR and its repo exist (else `NotFound`); the PR still exists remotely (else `NotFound`)
  * Post-conditions:
@@ -64,10 +64,10 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
   })
 
   let worktreeDeferred = false
-  if (headMoved && pr.worktreePath && (await deps.worktrees.exists(pr.worktreePath))) {
+  if (pr.worktreePath && (await deps.worktrees.exists(pr.worktreePath)) && (await deps.worktrees.headSha(pr.worktreePath)) !== pr.headSha) {
     if (store.agentReviews.active(pr.id)) {
       worktreeDeferred = true
-    } else if ((await deps.worktrees.headSha(pr.worktreePath)) !== pr.headSha) {
+    } else {
       await deps.worktrees.checkout(
         pr.worktreePath,
         { repo, cloneUrl: provider.cloneUrl(repo), number: pr.number, headRef: pr.headRef, headSha: pr.headSha },

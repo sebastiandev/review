@@ -21,14 +21,17 @@ Flags: `--cache-dir DIR` (default `~/.cache/review`), `--opencode URL` (default 
    `on_current_head`. `started_at` set but `finished_at` null for minutes = the run died with
    the server (a restart marks it failed on next boot). `on_current_head = 0` = the PR moved;
    the UI shows "Run agent review" again even though this run is fine.
-2. **findings** — what was ingested. Empty with `bad_anchors > 0` = the agent commented on
-   lines outside the diff; they were dropped.
+2. **findings** — valid inline comments. Empty with `bad_anchors > 0` = invalid line anchors;
+   the current app preserves those comments in the summary. Older runs may have dropped
+   them; their original text remains in the saved payload. Check whether the agent copied
+   Read's `.diff` file line prefixes instead of source-file line numbers.
 3. **payload files** — `.diff` = what the Command handed the agent; `.json` = what came back.
-   No `.json` = the agent never wrote (see the session for a denied `apply_patch`/`write`).
+   The app saves `.json` from the final reply. No `.json` means no valid JSON reply was
+   received or persistence failed. Check the transcript and run error.
 4. **opencode session** — every tool call with status. Look for:
-   - `TOOL apply_patch error` / `write error` with "rule which prevents" → an opencode
-     permission (usually `external_directory`) blocked the payload write. Fix in the agent's
-     `.md` (`permission.external_directory`), not in the app.
+    - `TOOL apply_patch error` / `write error` → stale instructions tried to write a file.
+      The current contract is read-only with JSON in the final reply; reload the agent
+      configuration and check `buildReviewPrompt`, rather than granting write permission.
    - `bash gh pr view/diff` → the agent ignored the supplied diff and re-fetched; check the
      prompt in `server/src/domain/agentReview.ts:buildReviewPrompt`.
    - many `read`/`grep` then a final reply with an empty `comments` array → the model decided

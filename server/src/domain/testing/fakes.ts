@@ -145,7 +145,7 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
 
 export type MemoryPayloads = PayloadFiles & { files: Map<string, string> }
 
-/** In-memory `PayloadFiles`; the fake runner writes into `files`. */
+/** In-memory `PayloadFiles`; the Command persists supplied diffs and responses here. */
 export function memoryPayloads(): MemoryPayloads {
   const files = new Map<string, string>()
   return {
@@ -162,48 +162,42 @@ export function memoryPayloads(): MemoryPayloads {
 }
 
 export type FakeRunnerBehaviour =
-  /** Write `text` where the prompt says, then go idle. */
-  | { kind: 'write'; text: string }
-  /** Answer with `text` instead of writing a file (a read-only agent). */
+  /** Answer with `text`; the app owns persistence. */
   | { kind: 'reply'; text: string }
   /** Go idle without writing anything. */
   | { kind: 'silent' }
   | { kind: 'fail'; error: Error }
-  /** Never settle. */
+  /** Stay busy until the deadline, then cancel. */
   | { kind: 'hang' }
 
-export type FakeRunner = AgentRunner & { runs: AgentRunRequest[]; behaviour: FakeRunnerBehaviour; sessionId: string }
+export type FakeRunner = AgentRunner & { runs: AgentRunRequest[]; behaviour: FakeRunnerBehaviour; sessionId: string; cancelled: string[] }
 
 /**
- * An `AgentRunner` standing in for the agent: it reads the payload path out of the prompt the
- * way the real agent does and writes there. Reports `sessionId` before "running".
+ * An `AgentRunner` that returns a response or reports failure after cancellation.
+ * Reports `sessionId` before running.
  */
-export function fakeRunner(payloads: MemoryPayloads, behaviour: FakeRunnerBehaviour = { kind: 'silent' }): FakeRunner {
+export function fakeRunner(behaviour: FakeRunnerBehaviour = { kind: 'silent' }): FakeRunner {
   const fake: FakeRunner = {
     runs: [],
     behaviour,
     sessionId: 'ses_fake',
+    cancelled: [],
     async run(req, onSession, onStep = () => {}) {
       fake.runs.push(req)
       onSession(fake.sessionId)
       const b = fake.behaviour
       switch (b.kind) {
-        case 'write': {
-          const m = /Write it to (\S+) with exactly this shape/.exec(req.prompt)
-          if (!m) throw new Error('fake runner: prompt names no payload path')
-          onStep({ tool: 'read', title: 'Read src/a.py' })
-          payloads.files.set(m[1], b.text)
-          onStep({ tool: 'write', title: `Write ${m[1]}` })
-          return { finalText: `${m[1]} written` }
-        }
         case 'reply':
+          onStep({ tool: 'read', title: 'Read src/a.py' })
           return { finalText: b.text }
         case 'silent':
           return { finalText: null }
         case 'fail':
           throw b.error
         case 'hang':
-          return new Promise(() => {})
+          await new Promise((resolve) => setTimeout(resolve, req.timeoutMs))
+          fake.cancelled.push(fake.sessionId)
+          throw new Error('agent did not finish within the deadline')
       }
     },
   }
@@ -220,7 +214,7 @@ export type FakeWorktrees = Worktrees & {
   removed: string[]
   /** When set, `create` waits on it before finishing; lets a test hold a creation open. */
   gate: Promise<void> | null
-  /** Make `create` reject with this. */
+  /** Make worktree creation or checkout reject with this. */
   failWith: Error | null
 }
 
@@ -249,6 +243,7 @@ export function fakeWorktrees(): FakeWorktrees {
       return fake.heads.get(path) ?? 'unknown'
     },
     async checkout(path, req, onStage) {
+      if (fake.failWith) throw fake.failWith
       for (const s of ['fetching', 'checking-out', 'ready'] as const) onStage(s)
       fake.heads.set(path, req.headSha)
       fake.checkedOut.push({ path, headSha: req.headSha })

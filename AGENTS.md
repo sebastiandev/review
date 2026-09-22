@@ -52,8 +52,11 @@ client/src/
    comments + record my GitHub reviews for active PRs, release worktrees of finished PRs (unless a review runs).
 2. **Open PR** (`openPullRequest`): clone/fetch/checkout → `pr.worktreePath`; `worktree.*` events.
 3. **Scope** (`scopes.ts`): `pr:<id>` = cached diff + opencode chat session in the worktree; `local` = diff mode.
-4. **Agent review** (`reviewQueue` → `runReview`): write the diff file, prompt the agent in the worktree,
-   ingest the payload (file or inline JSON), one `agent_review` row per run, `review.*` events.
+4. **Agent review** (`reviewQueue` → `runReview`): reserve the run, fetch/checkout a stale worktree
+   to the cached diff's head and verify it, then write the diff file and prompt the agent there,
+   persist the agent's inline JSON response, validate revision/anchors, and store coverage
+   (`complete`, `incomplete`, or `unknown`), one `agent_review` row per run, `review.*` events.
+   The runner cancels the OpenCode session on timeout before returning failure.
 5. **Submit** (`submitReview`): re-check remote state/head, push draft comments + verdict via `gh`, mark files viewed.
 6. **Events**: every state change emits a `ServerEvent` (`shared/index.ts`) on the bus → `/api/events` SSE →
    `useSyncInvalidation` refetches the right queries. Also logged to `~/.cache/review/logs/`.

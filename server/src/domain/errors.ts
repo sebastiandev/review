@@ -47,6 +47,13 @@ export class WorktreeMissing extends DomainError {
   }
 }
 
+/** The checkout cannot supply source for the revision being reviewed. */
+export class WorktreeRevisionMismatch extends DomainError {
+  constructor(expected: string, actual: string) {
+    super('worktree_revision_mismatch', `worktree is at ${actual}, expected ${expected}; refresh the PR before reviewing`)
+  }
+}
+
 /** The provider's CLI is not logged in, so there is no token to borrow. */
 export class CliNotAuthenticated extends DomainError {
   constructor(cli: string) {

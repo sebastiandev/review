@@ -55,7 +55,7 @@ export function Inbox({ repo, subtitle, rows, selectedPrId, now, onOpenPr }: Inb
               <span>{pr.remoteCommentCount} comments</span>
               {pr.draftCommentCount > 0 && <span>{pr.draftCommentCount} pending</span>}
               {pr.addedByUser && <span className="added-pill">added by you</span>}
-              <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} />
+              <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} coverage={pr.agentCoverage} />
             </div>
             {pr.specRef && (
               <div className="inbox-card-spec">

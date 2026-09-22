@@ -1,14 +1,16 @@
 import { join } from 'node:path'
 import { buildReviewPrompt, extractInlinePayload, InvalidPayload, parsePayload, type RunReviewRequest, type RunReviewResult } from '../agentReview.ts'
 import type { AgentRunner, PayloadFiles } from '../agentRunner.ts'
-import { NotFound, WorktreeMissing } from '../errors.ts'
+import { NotFound, WorktreeMissing, WorktreeRevisionMismatch } from '../errors.ts'
 import type { Clock, Events } from '../ports.ts'
 import { repoLabel, type ProviderKind, type PullRequestProvider } from '../pullRequests.ts'
 import type { Store } from '../store.ts'
+import type { Worktrees } from '../worktrees.ts'
 
 export type RunReviewDeps = {
   store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews'>
-  providers: Record<ProviderKind, Pick<PullRequestProvider, 'viewerLogin'>>
+  providers: Record<ProviderKind, Pick<PullRequestProvider, 'viewerLogin' | 'cloneUrl'>>
+  worktrees: Pick<Worktrees, 'exists' | 'headSha' | 'checkout'>
   runner: AgentRunner
   payloads: PayloadFiles
   /** Absolute path exists on disk. Used for the linked spec. */
@@ -27,8 +29,10 @@ export const DEFAULT_REVIEW_TIMEOUT_MS = 20 * 60_000
  * - the PR and its repo exist (else `NotFound`)
  * - the PR has a worktree path (else `WorktreeMissing`) and a cached diff for its head (else `NotFound`)
  * Post-conditions:
+ * - the worktree is fetched/checked out to the run's head before the agent starts;
+ *   preparation failures are recorded without launching an agent
  * - one `agent_review` row moves queued → running → ready with verdict, summary and findings;
- *   comments the agent anchored outside the diff are dropped and counted in `invalidAnchorCount`
+ *   comments outside the diff are preserved in the summary and counted in `invalidAnchorCount`
  * - `review.queued`, `review.running`, one `review.progress` per completed tool call, then
  *   `review.ready` emitted; on any failure after the
  *   row exists it is marked failed with the message, `review.failed` emitted, and the error rethrown
@@ -53,6 +57,25 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
     store.transaction(() => store.agentReviews.update(review.id, { status: 'running', startedAt: deps.clock() }))
     events.emit({ type: 'review.running', prId: pr.id, agentReviewId: review.id })
 
+    // Sync can advance the cached diff without moving an existing checkout. Reserve the
+    // run before preparing its source so refresh/release paths see it as active.
+    if (!(await deps.worktrees.exists(worktreePath))) throw new WorktreeMissing(pr.id)
+    if ((await deps.worktrees.headSha(worktreePath)) !== pr.headSha) {
+      try {
+        await deps.worktrees.checkout(
+          worktreePath,
+          { repo, cloneUrl: deps.providers[repo.provider].cloneUrl(repo), number: pr.number, headRef: pr.headRef, headSha: pr.headSha },
+          (stage) => events.emit({ type: 'worktree.progress', prId: pr.id, stage }),
+        )
+        const preparedHead = await deps.worktrees.headSha(worktreePath)
+        if (preparedHead !== pr.headSha) throw new WorktreeRevisionMismatch(pr.headSha, preparedHead)
+        events.emit({ type: 'worktree.ready', prId: pr.id, path: worktreePath })
+      } catch (error) {
+        events.emit({ type: 'worktree.failed', prId: pr.id, message: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    }
+
     const viewer = await deps.providers[repo.provider].viewerLogin()
     const priorComments = store.comments
       .list(pr.id)
@@ -64,24 +87,23 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
     const payloadPath = deps.payloads.pathFor(review)
     const diffPath = deps.payloads.diffPathFor(review)
     await deps.payloads.write(diffPath, diff.patch)
-    const prompt = buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPath, priorComments, specPath: spec })
-    const outcome = await withTimeout(
-      deps.runner.run(
-        { directory: worktreePath, title: `review ${repoLabel(repo)}#${pr.number}`, agent: req.agent, model: req.model, variant: req.variant, prompt },
-        (sessionId) => store.transaction(() => store.agentReviews.update(review.id, { sessionId })),
-        (step) => events.emit({ type: 'review.progress', prId: pr.id, agentReviewId: review.id, tool: step.tool, title: step.title }),
-      ),
-      deps.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
+    const prompt = buildReviewPrompt({ pr, repo, worktreePath, diffPath, priorComments, specPath: spec })
+    const actualHead = await deps.worktrees.headSha(worktreePath)
+    if (actualHead !== pr.headSha) throw new WorktreeRevisionMismatch(pr.headSha, actualHead)
+    const outcome = await deps.runner.run(
+      {
+        directory: worktreePath, title: `review ${repoLabel(repo)}#${pr.number}`,
+        agent: req.agent, model: req.model, variant: req.variant, prompt,
+        timeoutMs: deps.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
+      },
+      (sessionId) => store.transaction(() => store.agentReviews.update(review.id, { sessionId })),
+      (step) => events.emit({ type: 'review.progress', prId: pr.id, agentReviewId: review.id, tool: step.tool, title: step.title }),
     )
 
-    // Agents without write permission answer with the JSON inline; keep a copy where the file would be.
-    let text = await deps.payloads.read(payloadPath)
-    if (text === null) {
-      text = extractInlinePayload(outcome.finalText)
-      if (text !== null) await deps.payloads.write(payloadPath, text)
-    }
-    if (text === null) throw new InvalidPayload(`agent wrote nothing to ${payloadPath} and replied without a JSON payload`)
-    const parsed = parsePayload(text, diff.anchors)
+    const text = extractInlinePayload(outcome.finalText)
+    if (text === null) throw new InvalidPayload('agent replied without a valid JSON payload')
+    await deps.payloads.write(payloadPath, text)
+    const parsed = parsePayload(text, diff.anchors, { pr: pr.number, repo: repoLabel(repo), headSha: pr.headSha })
 
     const result = store.transaction(() => {
       store.agentReviews.update(review.id, {
@@ -89,6 +111,7 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
         verdict: parsed.verdict,
         summary: parsed.body,
         invalidAnchorCount: parsed.invalid,
+        coverage: parsed.coverage,
         finishedAt: deps.clock(),
       })
       const findings = store.agentReviews.insertFindings(review.id, parsed.findings)
@@ -102,12 +125,4 @@ export async function runReview(deps: RunReviewDeps, req: RunReviewRequest): Pro
     events.emit({ type: 'review.failed', prId: pr.id, agentReviewId: review.id, message })
     throw e
   }
-}
-
-function withTimeout<T>(run: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`agent did not finish within ${Math.round(ms / 60_000)} min`)), ms)
-  })
-  return Promise.race([run, timeout]).finally(() => clearTimeout(timer))
 }

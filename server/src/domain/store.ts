@@ -77,7 +77,7 @@ export type Store = {
     insert(r: Pick<AgentReview, 'prId' | 'headSha' | 'agent' | 'model' | 'variant'>): AgentReview
     update(
       id: number,
-      patch: Partial<Pick<AgentReview, 'status' | 'sessionId' | 'verdict' | 'summary' | 'error' | 'invalidAnchorCount' | 'startedAt' | 'finishedAt'>>,
+      patch: Partial<Pick<AgentReview, 'status' | 'sessionId' | 'verdict' | 'summary' | 'error' | 'invalidAnchorCount' | 'coverage' | 'startedAt' | 'finishedAt'>>,
     ): void
     findings(reviewId: number): AgentFinding[]
     getFinding(id: number): AgentFinding | null

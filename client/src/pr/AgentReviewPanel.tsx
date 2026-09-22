@@ -83,6 +83,12 @@ export function AgentReviewPanel({ detail, steps, now, busy, error, onClose, onJ
         {review.status === 'ready' && (
           <>
             <div className="conclusion">
+              {review.coverage !== 'complete' && (
+                <p className="notice" role="status">
+                  {review.coverage === 'incomplete' ? 'Incomplete review' : 'Review coverage unknown'}
+                  {' — these findings do not establish that the whole change was reviewed.'}
+                </p>
+              )}
               <div className="overline conclusion-overline">Suggested conclusion</div>
               <div className="conclusion-verdict">{review.verdict ? VERDICT_TEXT[review.verdict] : '—'}</div>
               {review.summary && (
@@ -93,7 +99,7 @@ export function AgentReviewPanel({ detail, steps, now, busy, error, onClose, onJ
             </div>
             <div className="overline panel-count">
               {findings.length} {findings.length === 1 ? 'finding' : 'findings'}
-              {review.invalidAnchorCount > 0 && ` · ${review.invalidAnchorCount} dropped (off-diff)`}
+              {review.invalidAnchorCount > 0 && ` · ${review.invalidAnchorCount} invalid inline anchors — see summary`}
             </div>
             <div className="panel-findings">
               {findings.map((finding) => {

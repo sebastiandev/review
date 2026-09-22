@@ -218,6 +218,7 @@ export function sqliteStore(db: DatabaseSync): Store {
           summary: (v) => v,
           error: (v) => v,
           invalidAnchorCount: (v) => v,
+          coverage: (v) => v,
           startedAt: (v) => v,
           finishedAt: (v) => v,
         })
@@ -381,7 +382,8 @@ const INBOX_SELECT = `SELECT pr.*, r.owner || '/' || r.name AS repo,
          (SELECT s.verdict FROM submission s
            WHERE s.pr_id = pr.id AND s.head_sha = pr.head_sha ORDER BY s.submitted_at DESC, s.id DESC LIMIT 1) AS submitted_verdict,
          (SELECT ar.status FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_status,
-         (SELECT ar.verdict FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_verdict
+          (SELECT ar.verdict FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_verdict,
+          (SELECT ar.coverage FROM agent_review ar WHERE ar.pr_id = pr.id AND ar.head_sha = pr.head_sha ORDER BY ar.id DESC LIMIT 1) AS agent_coverage
   FROM pull_request pr JOIN repo r ON r.id = pr.repo_id`
 
 // --- row mapping ---------------------------------------------------------------------------
@@ -556,6 +558,7 @@ function toInboxRow(r: Row): InboxRow {
     submittedVerdict: (r.submitted_verdict as Verdict | null) ?? null,
     agentStatus: (r.agent_status as InboxRow['agentStatus']) ?? null,
     agentVerdict: (r.agent_verdict as Verdict | null) ?? null,
+    agentCoverage: (r.agent_coverage as InboxRow['agentCoverage']) ?? null,
   }
 }
 
@@ -573,6 +576,7 @@ function toAgentReview(r: Row): AgentReview {
     summary: (r.summary as string | null) ?? null,
     error: (r.error as string | null) ?? null,
     invalidAnchorCount: num(r.invalid_anchor_count),
+    coverage: str(r.coverage) as AgentReview['coverage'],
     startedAt: (r.started_at as string | null) ?? null,
     finishedAt: (r.finished_at as string | null) ?? null,
   }

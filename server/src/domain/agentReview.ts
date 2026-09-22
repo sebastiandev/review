@@ -1,4 +1,4 @@
-import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, ModelRef, Verdict } from '@review/shared'
+import type { AgentFinding, AgentReview, AgentReviewDetail, AgentReviewStatus, ModelRef, ReviewCoverage, Verdict } from '@review/shared'
 import { repoLabel, type PullRequest, type RepoRef } from './pullRequests.ts'
 import { isAnchorable } from './review.ts'
 
@@ -20,11 +20,12 @@ export type ParsedPayload = {
   verdict: Verdict
   body: string
   findings: ParsedFinding[]
-  /** Comments dropped because they did not anchor to the diff. */
+  /** Comments moved to the summary because their inline anchors were invalid. */
   invalid: number
+  coverage: ReviewCoverage
 }
 
-/** The agent's payload file is missing or does not follow the github-mode schema. */
+/** The agent's response is missing or does not follow the review schema. */
 export class InvalidPayload extends Error {
   constructor(detail: string) {
     super(`review payload: ${detail}`)
@@ -34,13 +35,14 @@ export class InvalidPayload extends Error {
 
 const VERDICTS: readonly Verdict[] = ['COMMENT', 'REQUEST_CHANGES', 'APPROVE']
 const SIDES = ['LEFT', 'RIGHT'] as const
+const COVERAGE: readonly ReviewCoverage[] = ['complete', 'incomplete', 'unknown']
 
 /**
  * Parse the payload the agent wrote (`{ pr, repo, event, body, comments[] }`) into a verdict,
- * a summary and anchored findings. Comments not anchorable against `anchors` are dropped and
+ * a summary and anchored findings. Unanchorable comments are preserved in the summary and
  * counted in `invalid`. Throws `InvalidPayload` when the shape is wrong.
  */
-export function parsePayload(text: string, anchors: Record<string, number[]>): ParsedPayload {
+export function parsePayload(text: string, anchors: Record<string, number[]>, expected?: { pr: number; repo: string; headSha: string }): ParsedPayload {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -51,15 +53,33 @@ export function parsePayload(text: string, anchors: Record<string, number[]>): P
   if (!isVerdict(raw.event)) throw new InvalidPayload(`event must be one of ${VERDICTS.join(', ')}`)
   if (typeof raw.body !== 'string') throw new InvalidPayload('body must be a string')
   if (!Array.isArray(raw.comments)) throw new InvalidPayload('comments must be an array')
+  if (raw.coverage !== undefined && !COVERAGE.includes(raw.coverage as ReviewCoverage)) {
+    throw new InvalidPayload('coverage must be complete, incomplete, or unknown')
+  }
+  if (raw.commit_id !== undefined && typeof raw.commit_id !== 'string') throw new InvalidPayload('commit_id must be a string')
+  if (expected) {
+    if (raw.pr != null && raw.pr !== expected.pr) throw new InvalidPayload('PR does not match this run')
+    if (raw.repo != null && raw.repo !== expected.repo) throw new InvalidPayload('repo does not match this run')
+    if (raw.commit_id !== undefined && raw.commit_id !== expected.headSha) throw new InvalidPayload('commit_id does not match the reviewed head')
+  }
+  // Missing revision evidence cannot establish completeness, even if the agent claims it.
+  const reported = (raw.coverage as ReviewCoverage | undefined) ?? 'unknown'
+  const coverage = reported === 'complete' && !raw.commit_id ? 'unknown' : reported
 
   const findings: ParsedFinding[] = []
-  let invalid = 0
+  const unanchored: string[] = []
   raw.comments.forEach((c: unknown, i) => {
     const finding = parseComment(c, i)
     if (isAnchorable(anchors, finding)) findings.push(finding)
-    else invalid++
+    else {
+      const range = finding.startLine === null ? `${finding.line}` : `${finding.startLine}-${finding.line}`
+      unanchored.push(`- Reported location: \`${finding.path}:${range}\` (${finding.side}, unverified). ${finding.body}`)
+    }
   })
-  return { verdict: raw.event, body: raw.body, findings, invalid }
+  const body = unanchored.length
+    ? [raw.body, 'Findings without valid inline anchors (preserved for manual review):', ...unanchored].filter(Boolean).join('\n\n')
+    : raw.body
+  return { verdict: raw.event, body, findings, invalid: unanchored.length, coverage }
 }
 
 function parseComment(c: unknown, index: number): ParsedFinding {
@@ -100,7 +120,6 @@ export type ReviewPromptInput = {
   worktreePath: string
   /** Where the Command wrote the cached unified diff for this head. */
   diffPath: string
-  payloadPath: string
   priorComments: string[]
   specPath: string | null
 }
@@ -109,7 +128,7 @@ export type ReviewPromptInput = {
  * The reviewer's instructions. The PR is already fetched: metadata inline, the diff on disk,
  * the head checked out in the cwd, so the agent spends its budget reading code, not `gh`.
  */
-export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPath, priorComments, specPath }: ReviewPromptInput): string {
+export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, priorComments, specPath }: ReviewPromptInput): string {
   const slug = repoLabel(repo)
   const lines = [
     `Review PR ${pr.number} in repo ${slug} in github mode.`,
@@ -121,7 +140,7 @@ export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPat
     `PR: ${pr.url}`,
     `Title: ${pr.title}`,
     `Author: ${pr.author}`,
-    `The unified diff is at ${diffPath}; read it from there (git diff against ${pr.baseSha} shows the same).`,
+    `The authoritative unified diff is at ${diffPath}; read it from there. Do not fetch or generate another diff.`,
     '',
     'Description:',
     pr.body.trim() ? pr.body.trim() : '(none)',
@@ -138,14 +157,16 @@ export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPat
     '',
     '## Output contract',
     '',
-    `Your review is a JSON file. Write it to ${payloadPath} with exactly this shape:`,
+    'Return one JSON object directly in your final response, without fences or surrounding prose. The app saves it:',
     '',
     '```json',
     '{',
     `  "pr": ${pr.number},`,
     `  "repo": "${slug}",`,
-    '  "event": "COMMENT" | "REQUEST_CHANGES",',
-    '  "body": "<overall feedback: two or three sentences, no list of the inline comments>",',
+    `  "commit_id": "${pr.headSha}",`,
+    '  "coverage": "complete",',
+    '  "event": "COMMENT",',
+    '  "body": "<overall feedback, unanchorable findings, and any coverage limitations>",',
     '  "comments": [',
     '    { "path": "path/in/repo.py", "line": 42, "side": "RIGHT", "body": "Question: <finding>" },',
     '    { "path": "path/in/repo.py", "start_line": 40, "line": 44, "side": "RIGHT", "body": "Block: <multi-line finding>" }',
@@ -154,20 +175,24 @@ export function buildReviewPrompt({ pr, repo, worktreePath, diffPath, payloadPat
     '```',
     '',
     'Rules:',
-    '- Every finding that belongs to a line goes in `comments`, one object per finding, whatever its severity.',
+    '- Findings with valid diff anchors go in `comments`, one object per finding. Put unanchorable findings in `body`.',
+    '- Set coverage to complete only when you reviewed the whole supplied diff with matching source context.',
+    '  Use incomplete when budget or access prevents completion; name the unreviewed areas in body.',
+    '  Use unknown when completeness cannot be established. An incomplete review is not a clean review.',
+    '- commit_id identifies the reviewed head. Verify context matches it; never substitute another revision.',
     '- Start each comment body with `Block:`, `Question:` or `Note:`. Block = correctness, data leakage,',
     '  transaction or security problems; Question = design / naming you want answered; Note = minor.',
     '- `line` is the line number in the post-change file (`side: "RIGHT"`) and MUST be a line the diff',
-    '  adds or shows as context. For a removed line use the old-file number with `side: "LEFT"`. A',
-    '  comment on a line the diff does not touch is dropped.',
+    '  shows in its hunks. Numbers displayed by Read for the .diff file are PATCH FILE OFFSETS,',
+    '  not source-file lines. Never copy those numbers into comments. Use the hunk header',
+    '  (@@ -old,count +new,count @@) or Read the actual source file to obtain source lines.',
+    '  Before returning, check each comment against the source file and the supplied hunk.',
+    '  Put deletion-only findings without a RIGHT-side anchor in body.',
+    '  Invalid inline anchors are preserved in the summary, not submitted as inline comments.',
     '- `event` is REQUEST_CHANGES when you have any Block, otherwise COMMENT. Never APPROVE: the human',
     '  decides that.',
     '- No findings at all? Write an empty `comments` array and one honest line in `body`.',
-    '- Do not submit anything to GitHub and do not edit files in the worktree.',
-    '',
-    'Your final message MUST contain the complete payload in a ```json block, whether or not the file',
-    'write succeeded (a denied write is not an error you can ignore). After the block, one line: the',
-    'payload path, the event, and the inline comment count.',
+    '- Do not submit anything, write files, or invoke external validator scripts. The app persists and validates your response.',
   )
   return lines.join('\n')
 }

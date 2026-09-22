@@ -158,8 +158,9 @@ export function formatReview(pr: InboxRow, detail: AgentReviewDetail): string {
     `  ${(review.summary ?? '(none)').split('\n').join('\n  ')}`,
     '',
     `Conclusion: ${review.verdict ?? '—'}`,
+    `Coverage: ${review.coverage}`,
     '',
-    `Comments (${findings.length})${review.invalidAnchorCount ? ` · ${review.invalidAnchorCount} dropped for bad anchors` : ''}`,
+    `Comments (${findings.length})${review.invalidAnchorCount ? ` · ${review.invalidAnchorCount} invalid inline anchors — see summary` : ''}`,
   ]
   for (const f of findings) {
     const range = f.startLine && f.startLine !== f.line ? `${f.startLine}-${f.line}` : `${f.line}`

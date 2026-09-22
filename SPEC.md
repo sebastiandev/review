@@ -404,7 +404,7 @@ await client.session.promptAsync(session.id, {
   agent: settings.reviewAgent,
   parts: [{ type: "text", text: buildReviewPrompt(pr, priorComments, linkedSpecs) }],
 })
-// consume /event for progress; parse the payload the agent writes
+// consume /event for progress; parse and persist the agent's final JSON response
 ```
 
 Notes:
@@ -413,9 +413,16 @@ Notes:
   afternoon. Observed: ~2–15 min per PR depending on size.
 - Prior comments (mine and the bot's) are passed in, as the current script does, so a
   re-review does not repeat itself.
-- The agent writes a payload file; the server ingests it into `review_draft` +
-  `draft_comment`. Keeping the file contract means the CLI path and the app path stay
-  identical.
+- The agent returns one JSON object, without file writes or re-fetching the supplied diff.
+  The server saves the response and ingests it into `agent_review` + `agent_finding`.
+  The payload includes `pr`, `repo`, `commit_id`, `coverage`, `event`, `body`, and `comments`.
+  Supplied identity/revision must match the run. Coverage is `complete`, `incomplete`, or
+  `unknown`; legacy responses or completeness claims without a revision remain unknown.
+  Incomplete reviews retain their useful findings and explain limitations in `body`.
+  Keeping a finding copies it into the human's draft.
+- A run has a 20-minute deadline. The runner cancels the remote OpenCode session before
+  returning a timeout failure, with a bounded cancellation request. Cancellation failure
+  is explicit in the error; local event connections are closed in either case.
 - Failures are recorded on the draft (`status = failed`, `error`), surfaced in the rail, and
   retryable from the button. The current script silently swallows failures — do not carry
   that over.

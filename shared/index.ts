@@ -177,9 +177,11 @@ export type InboxRow = {
   agentStatus: AgentReviewStatus | null
   /** Verdict of that run once ready. */
   agentVerdict: Verdict | null
+  agentCoverage: ReviewCoverage | null
 }
 
 export type AgentReviewStatus = 'queued' | 'running' | 'ready' | 'failed'
+export type ReviewCoverage = 'complete' | 'incomplete' | 'unknown'
 
 /** One agent run over a PR head. */
 export type AgentReview = {
@@ -196,8 +198,10 @@ export type AgentReview = {
   /** The agent's general feedback (payload `body`). */
   summary: string | null
   error: string | null
-  /** Payload comments dropped because they did not anchor to the diff. */
+  /** Payload comments with invalid anchors, preserved in the summary rather than inline. */
   invalidAnchorCount: number
+  /** Whether the agent covered the supplied diff; legacy results remain unknown. */
+  coverage: ReviewCoverage
   startedAt: string | null
   finishedAt: string | null
 }

@@ -44,7 +44,7 @@ review update                       pull the latest version, install, build, re-
 
 - `~/.cache/review/review.sqlite` — repos, PRs, diffs, comments, drafts, submissions, agent runs
 - `~/.cache/review/repos/<owner>/<name>` — one clone per repo; `worktrees/<owner>/<name>/<n>` — one checkout per PR
-- `~/.cache/review/payloads/` — the diff handed to the agent and the payload it wrote, per run
+- `~/.cache/review/payloads/` — the supplied diff and the agent's JSON response saved by the app, per run
 - `~/.cache/review/logs/review-YYYY-MM-DD.log` — console + every server event, 7 days kept
 - GitHub token — macOS keychain (`security find-generic-password -s review -a github`)
 

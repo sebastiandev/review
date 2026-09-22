@@ -27,6 +27,7 @@ function row(over: Partial<InboxRow> & Pick<InboxRow, 'id' | 'updatedAt'>): Inbo
     submittedVerdict: null,
     agentStatus: null,
     agentVerdict: null,
+    agentCoverage: null,
     ...over,
   }
 }
