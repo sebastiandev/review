@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="_ds/nocturne-6975616d-a227-4ef0-8369-0ec513f170f2/styles.css">
+<script src="_ds/nocturne-6975616d-a227-4ef0-8369-0ec513f170f2/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+html, body { height: 100%; overflow: hidden; }
+body { font-size: 14px; }
+a { color: var(--color-accent-300); }
+a:hover { color: var(--color-accent-200); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+</style>
+</helmet>
+<div style="height: 100vh; display: flex; flex-direction: column; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); overflow: hidden; --seam: color-mix(in srgb, var(--color-text) 9%, transparent); --panel: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg)); --mono: 'JetBrains Mono', ui-monospace, monospace; --add: #6faa7e; --del: #c47b7b; --chrome: var(--panel); --side-bg: transparent; --sep: 1px solid var(--seam); --code-bg: var(--color-bg); --chip-bg: transparent; --ctl-bg: var(--color-bg); --pop: var(--color-surface); --r-chip: 14px; --card-shadow: var(--shadow-sm); --bubble-bg: var(--color-neutral-900); --dock-ctl: var(--ctl-bg); --code-chip: var(--color-neutral-900); --add-bg: rgba(111,170,126,0.13); --del-bg: rgba(196,123,123,0.13); --add-gut: rgba(111,170,126,0.22); --del-gut: rgba(196,123,123,0.22); --add-fg: #cfe4d5; --del-fg: #e8cdcd; --add-sign: #6faa7e; --del-sign: #c47b7b; {{ themeVars }}">
+
+  <div style="display: flex; align-items: center; gap: 14px; padding: 0 14px; height: 46px; flex: none; border-bottom: 1px solid var(--seam); background: var(--chrome); {{ chromeHide }}">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-family: var(--mono); font-size: 15px; color: var(--color-accent);">&lt;/&gt;</span>
+      <span style="font-weight: 500;">Review</span>
+    </div>
+    <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--seam); border-radius: var(--radius-md);">
+      <span style="padding: 3px 10px; border-radius: 6px; font-size: 13px; background: var(--color-accent-900); color: var(--color-accent-200);">PR mode</span>
+      <span style="padding: 3px 10px; border-radius: 6px; font-size: 13px; color: var(--color-neutral-500);">Diff mode</span>
+    </div>
+    <div style="flex: 1; max-width: 340px; display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 30px; border: 1px solid var(--seam); background: var(--ctl-bg); border-radius: var(--radius-md); color: var(--color-neutral-500); font-size: 13px;">
+      <i class="ph ph-magnifying-glass"></i><span>Open a pull request</span>
+      <span style="margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--color-neutral-600);">⌘K</span>
+    </div>
+    <div style="margin-left: auto; display: flex; gap: 8px;">
+      <button class="btn btn-secondary" style="height: 30px; font-size: 13px;">?</button>
+      <button class="btn btn-secondary" style="height: 30px; font-size: 13px;">Dock</button>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+
+    <div style="width: 48px; flex: none; border-right: 1px solid var(--seam); background: var(--chrome); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; {{ chromeHide }}">
+      <button onClick="{{ goInbox }}" title="Inbox" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: var(--color-accent-900); color: var(--color-accent-200); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;"><i class="ph ph-tray"></i></button>
+      <span style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--color-neutral-500); font-size: 16px;"><i class="ph ph-clock-counter-clockwise"></i></span>
+      <span style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--color-neutral-500); font-size: 16px;"><i class="ph ph-gear-six"></i></span>
+      <span style="margin-top: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--color-accent-800); border: 1px solid var(--color-accent-700); font-size: 10px; display: flex; align-items: center; justify-content: center; color: var(--color-accent-200);">SD</span>
+    </div>
+
+    <div style="{{ sidebarStyle }}">
+      <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; height: 100%;">
+          <div style="padding: 12px 14px 4px; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent);"></span>
+            <span>shiphero/Shiphero-API</span>
+            <i class="ph ph-caret-down" style="margin-left: auto; color: var(--color-neutral-500);"></i>
+          </div>
+          <div style="padding: 8px 14px 4px; display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 15px; font-weight: 500;">Pull requests</span>
+            <span style="font-size: 12px; color: var(--color-neutral-500);">97</span>
+            <button class="btn btn-ghost" style="margin-left: auto; font-size: 12px;">Add PR</button>
+            <button class="btn btn-ghost" style="font-size: 12px;">Refresh</button>
+          </div>
+          <div style="padding: 0 14px 10px; font-size: 11px; color: var(--color-neutral-600); font-family: var(--mono);">fetched 13h ago · gh · 39 assigned</div>
+          <div style="overflow-y: auto; flex: 1; min-height: 0;">
+            <sc-for list="{{ prList }}" as="p" hint-placeholder-count="6">
+              <div onClick="{{ p.onSelect }}" style="padding: 10px 14px; border-top: var(--sep); cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">
+                <div style="display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--color-neutral-500);">
+                  <span>#{{ p.n }}</span>
+                  <span style="padding: 0 5px; border-radius: 8px; border: 1px solid var(--color-neutral-700); font-size: 10px;">{{ p.state }}</span>
+                  <span style="margin-left: auto;">{{ p.upd }}</span>
+                </div>
+                <div style="margin-top: 4px; font-size: 13.5px; line-height: 1.35; text-wrap: pretty;">{{ p.title }}</div>
+                <div style="margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 11px; font-family: var(--mono); color: var(--color-neutral-500);">
+                  <span>{{ p.author }}</span>
+                  <span style="color: var(--add);">+{{ p.add }}</span>
+                  <span style="color: var(--del);">−{{ p.del }}</span>
+                  <sc-for list="{{ p.badges }}" as="b" hint-placeholder-count="0">
+                    <span style="{{ b.style }}">{{ b.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isPr }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; height: 100%;">
+          <div style="padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; align-items: center;">
+              <button onClick="{{ goInbox }}" class="btn btn-ghost" style="font-size: 12.5px; padding-left: 0;"><i class="ph ph-arrow-left"></i>All PRs</button>
+              <button class="btn btn-ghost" style="margin-left: auto; font-size: 12.5px;">Done</button>
+            </div>
+            <div style="font-size: 13.5px; line-height: 1.35;"><span style="font-family: var(--mono); font-size: 11.5px; color: var(--color-neutral-500);">#{{ pr.n }}</span> {{ pr.title }}</div>
+            <div style="font-family: var(--mono); font-size: 11px; color: var(--color-neutral-500); display: flex; gap: 8px; align-items: center;"><span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ pr.branch }}</span><span style="margin-left: auto; flex: none; white-space: nowrap; color: var(--color-accent-300);">GitHub <i class="ph ph-arrow-square-out"></i></span></div>
+          </div>
+          <button onClick="{{ goOverview }}" style="{{ sideOverviewStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">
+            <i class="ph ph-article"></i><span>Overview</span>
+            <sc-if value="{{ prNeedsCount }}" hint-placeholder-val="{{ false }}"><span style="margin-left: auto; font-size: 11px; padding: 0 6px; border-radius: 9px; background: var(--color-accent-800); color: var(--color-accent-200);">{{ prNeedsCount }}</span></sc-if>
+          </button>
+          <div style="padding: 14px 14px 6px; display: flex; font-size: 11px; letter-spacing: 0.08em; color: var(--color-neutral-500);"><span>FILES</span><span style="margin-left: auto; letter-spacing: 0;">{{ viewedLabel }}</span></div>
+          <div style="overflow-y: auto; flex: 1; min-height: 0;">
+            <sc-for list="{{ sideFiles }}" as="f" hint-placeholder-count="3">
+              <div onClick="{{ f.open }}" title="{{ f.path }}" style="{{ f.rowStyle }}" style-hover="background: color-mix(in srgb, var(--color-text) 5%, transparent);">
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+                  <span style="font-size: 10.5px; line-height: 1.3; color: var(--color-neutral-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.dir }}</span>
+                  <span style="{{ f.nameStyle }}">{{ f.name }}</span>
+                </span>
+                <sc-if value="{{ f.hasThreads }}" hint-placeholder-val="{{ false }}"><span style="{{ f.threadStyle }}"><i class="ph ph-chats"></i>{{ f.threads }}</span></sc-if>
+                <sc-if value="{{ f.hasChats }}" hint-placeholder-val="{{ false }}"><span style="display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; color: var(--color-accent-300);"><i class="ph ph-chat-teardrop-dots"></i>{{ f.chats }}</span></sc-if>
+                <button onClick="{{ f.toggleViewed }}" style="{{ f.boxStyle }}" title="Viewed"><i class="{{ f.boxIcon }}"></i></button>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noDiff }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 6px 14px; font-size: 12px; color: var(--color-neutral-500);">Files load when the worktree is ready.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;">
+
+      <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ true }}">
+        <div data-center-scroll="1" style="flex: 1; overflow-y: auto; min-height: 0;">
+          <div style="max-width: 1040px; padding: 26px 32px 80px;">
+            <div style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+              <div style="flex: 1 1 240px; min-width: 0;">
+                <h3 style="margin: 0 0 4px; font-size: 22px;">Needs your attention</h3>
+                <div style="font-size: 13px; color: var(--color-neutral-500);">Mentions and replies clear once you open them. Every PR stays in the sidebar.</div>
+              </div>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <button onClick="{{ collapseAll }}" class="btn btn-ghost" style="font-size: 12px; white-space: nowrap; flex: none;"><i class="ph ph-arrows-in-line-vertical"></i>Collapse all</button>
+                <button onClick="{{ expandAll }}" class="btn btn-ghost" style="font-size: 12px; white-space: nowrap; flex: none;"><i class="ph ph-arrows-out-line-vertical"></i>Expand all</button>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; margin: 18px 0 8px; flex-wrap: wrap;">
+              <sc-for list="{{ filters }}" as="fl" hint-placeholder-count="4">
+                <button onClick="{{ fl.onClick }}" style="{{ fl.style }}">{{ fl.label }}<span style="{{ fl.countStyle }}">{{ fl.count }}</span></button>
+              </sc-for>
+            </div>
+
+            <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="3">
+              <div style="margin-top: 18px;">
+                <button onClick="{{ sec.toggle }}" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 0; background: transparent; border: 0; color: var(--color-text); cursor: pointer; text-align: left; font-family: var(--font-body);">
+                  <i class="ph ph-caret-down" style="{{ sec.caret }}"></i>
+                  <i class="{{ sec.icon }}" style="color: var(--color-accent-300); font-size: 15px;"></i>
+                  <span style="font-size: 16px; font-weight: 500;">{{ sec.title }}</span>
+                  <span style="font-size: 12px; color: var(--color-neutral-500);">{{ sec.count }}</span>
+                  <span style="margin-left: auto; font-size: 12px; color: var(--color-neutral-500);">{{ sec.hint }}</span>
+                </button>
+                <sc-if value="{{ sec.open }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                    <sc-if value="{{ sec.empty }}" hint-placeholder-val="{{ false }}">
+                      <div style="padding: 14px 16px; font-size: 13px; color: var(--color-neutral-500); border: 1px dashed var(--seam); background: var(--chip-bg); border-radius: var(--radius-md);">You’re caught up.</div>
+                    </sc-if>
+                    <sc-for list="{{ sec.groups }}" as="g" hint-placeholder-count="2">
+                      <div style="background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--card-shadow); overflow: hidden;">
+                        <div onClick="{{ g.toggle }}" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 14px; cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent);">
+                          <i class="ph ph-caret-down" style="{{ g.caret }}"></i>
+                          <span style="font-family: var(--mono); font-size: 12px; color: var(--color-neutral-500);">#{{ g.n }}</span>
+                          <span style="flex: 1 1 200px; font-size: 13.5px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ g.title }}</span>
+                          <span style="margin-left: auto; flex: none; font-size: 12px; color: var(--color-neutral-500);">{{ g.countLabel }}</span>
+                          <sc-if value="{{ g.canMark }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ g.markRead }}" class="btn btn-ghost" style="flex: none; white-space: nowrap; font-size: 12px; height: 24px; padding: 0 8px;"><i class="ph ph-checks"></i>Mark read</button>
+                          </sc-if>
+                          <button onClick="{{ g.openPr }}" class="btn btn-ghost" style="flex: none; white-space: nowrap; font-size: 12px; height: 24px; padding: 0 8px;">Open PR</button>
+                        </div>
+                        <sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+                          <div>
+                            <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+                              <div onClick="{{ it.open }}" style="display: grid; grid-template-columns: 8px 26px minmax(0, 1fr); gap: 0 10px; padding: 11px 14px 10px; border-top: var(--sep); cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-accent) 6%, transparent);">
+                                <span style="{{ it.dotStyle }}"></span>
+                                <span style="{{ it.avStyle }}">{{ it.ini }}</span>
+                                <div style="min-width: 0;">
+                                  <div style="display: flex; align-items: baseline; gap: 8px; font-size: 12px; min-width: 0;">
+                                    <span style="font-weight: 500; color: var(--color-text); flex: none;">{{ it.author }}</span>
+                                    <span style="{{ it.kindStyle }}">{{ it.kindLabel }}</span>
+                                    <span title="{{ it.fullLoc }}" style="font-family: var(--mono); font-size: 11.5px; color: var(--color-neutral-500); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ it.loc }}</span>
+                                    <span style="margin-left: auto; flex: none; color: var(--color-neutral-500);">{{ it.date }}</span>
+                                  </div>
+                                  <sc-if value="{{ it.hasQuote }}" hint-placeholder-val="{{ false }}">
+                                    <div style="display: flex; gap: 6px; margin-top: 5px; font-size: 12px; color: var(--color-neutral-500); min-width: 0;"><i class="ph ph-arrow-bend-down-right" style="flex: none;"></i><span style="flex: none;">You:</span><span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ it.quote }}</span></div>
+                                  </sc-if>
+                                  <div style="{{ it.bodyStyle }}"><sc-for list="{{ it.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div>
+                                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px; font-size: 12px;">
+                                    <sc-if value="{{ it.long }}" hint-placeholder-val="{{ false }}">
+                                      <button onClick="{{ it.toggleBody }}" style="background: transparent; border: 0; padding: 0; color: var(--color-neutral-400); font-size: 12px; cursor: pointer; font-family: var(--font-body);" style-hover="color: var(--color-text);">{{ it.moreLabel }}</button>
+                                    </sc-if>
+                                    <span style="margin-left: auto; flex: none; white-space: nowrap; color: var(--color-accent-300); display: inline-flex; align-items: center; gap: 4px;">{{ it.cta }}<i class="ph ph-arrow-right"></i></span>
+                                  </div>
+                                </div>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPr }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; flex: 1;">
+          <div style="display: flex; align-items: stretch; gap: 2px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--seam); height: 42px; flex: none; white-space: nowrap; min-width: 0;">
+            <button onClick="{{ goOverview }}" style="{{ tabOverviewStyle }}"><i class="ph ph-article"></i>Overview</button>
+            <button onClick="{{ goDiff }}" style="{{ tabDiffStyle }}"><i class="ph ph-file-code"></i>Files changed<span style="font-size: 11px; color: var(--color-neutral-500);">{{ fileCount }}</span></button>
+            <div style="margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px;">
+              <sc-if value="{{ isDiff }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ nextConversation }}" class="btn btn-ghost" title="Next conversation" style="font-size: 12.5px; height: 28px; padding: 0 8px;"><i class="ph ph-arrow-down"></i></button>
+              </sc-if>
+              <button class="btn btn-secondary" title="Refresh" style="font-size: 12.5px; height: 28px; padding: 0 8px;"><i class="ph ph-arrows-clockwise"></i></button>
+              <button class="btn btn-primary" style="font-size: 12.5px; height: 28px;">Run agent review</button>
+            </div>
+          </div>
+
+          <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ false }}">
+            <div data-center-scroll="1" style="flex: 1; overflow-y: auto; min-height: 0;">
+              <div style="max-width: 920px; padding: 24px 32px 80px;">
+                <div style="font-size: 11px; letter-spacing: 0.08em; color: var(--color-neutral-500);">OVERVIEW · #{{ pr.n }}</div>
+                <h3 style="margin: 6px 0 8px; font-size: 22px; text-wrap: pretty;">{{ pr.title }}</h3>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; color: var(--color-neutral-500); font-family: var(--mono);">
+                  <span style="color: var(--color-neutral-300);">{{ pr.author }}</span>
+                  <span>{{ pr.branch }} → master</span>
+                  <span style="padding: 0 6px; border-radius: 8px; border: 1px solid var(--color-neutral-700);">{{ pr.state }}</span>
+                  <span style="color: var(--add);">+{{ pr.add }}</span><span style="color: var(--del);">−{{ pr.del }}</span>
+                </div>
+
+                <sc-if value="{{ hasDesc }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top: 22px; background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--card-shadow); overflow: hidden;">
+                    <div onClick="{{ toggleDesc }}" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; border-bottom: 1px solid var(--seam);" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent);">
+                      <i class="ph ph-caret-down" style="{{ descCaret }}"></i>
+                      <span style="font-size: 13.5px; font-weight: 500;">Description</span>
+                      <span style="font-family: var(--mono); font-size: 11.5px; color: var(--color-neutral-500);">{{ pr.author }} · 07 Aug 2026</span>
+                      <span style="margin-left: auto; font-size: 12px; color: var(--color-neutral-400);">{{ descToggleLabel }}</span>
+                    </div>
+                    <sc-if value="{{ descVisible }}" hint-placeholder-val="{{ true }}">
+                      <div style="position: relative;">
+                        <div style="{{ descBodyStyle }}">
+                          <sc-for list="{{ desc }}" as="b" hint-placeholder-count="4">
+                            <div>
+                              <sc-if value="{{ b.isH }}" hint-placeholder-val="{{ false }}"><div style="font-size: 16px; font-weight: 500; margin: 14px 0 6px;">{{ b.text }}</div></sc-if>
+                              <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><div style="margin: 0 0 8px; line-height: 1.6; color: var(--color-neutral-200);"><sc-for list="{{ b.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div></sc-if>
+                              <sc-if value="{{ b.isLi }}" hint-placeholder-val="{{ false }}"><div style="display: grid; grid-template-columns: 16px minmax(0, 1fr); margin: 0 0 5px; line-height: 1.6; color: var(--color-neutral-200);"><span style="color: var(--color-neutral-600);">•</span><span><sc-for list="{{ b.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></span></div></sc-if>
+                              <sc-if value="{{ b.isCode }}" hint-placeholder-val="{{ false }}"><div style="margin: 4px 0 10px; padding: 8px 12px; border-radius: 6px; background: var(--color-bg); border: 1px solid var(--seam); font-family: var(--mono); font-size: 12.5px; color: var(--color-neutral-200);">{{ b.text }}</div></sc-if>
+                              <sc-if value="{{ b.isImg }}" hint-placeholder-val="{{ false }}"><div style="display: inline-flex; align-items: center; gap: 8px; margin: 4px 0; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--seam); font-size: 12.5px; color: var(--color-neutral-300);"><i class="ph ph-image"></i>{{ b.text }}<span style="color: var(--color-accent-300);">Open</span></div></sc-if>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <sc-if value="{{ descClamped }}" hint-placeholder-val="{{ true }}">
+                          <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(to bottom, transparent, var(--color-surface) 75%); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px;">
+                            <button onClick="{{ toggleDesc }}" class="btn btn-secondary" style="font-size: 12.5px; height: 28px; background: var(--color-surface);">Show full description<i class="ph ph-caret-down"></i></button>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; align-items: center; gap: 12px; margin: 30px 0 10px; flex-wrap: wrap;">
+                  <span style="font-size: 16px; font-weight: 500;">Your conversations</span>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <sc-for list="{{ ovFilters }}" as="fl" hint-placeholder-count="4">
+                      <button onClick="{{ fl.onClick }}" style="{{ fl.style }}">{{ fl.label }}<span style="{{ fl.countStyle }}">{{ fl.count }}</span></button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <sc-if value="{{ ovEmpty }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding: 14px 16px; font-size: 13px; color: var(--color-neutral-500); border: 1px dashed var(--seam); background: var(--chip-bg); border-radius: var(--radius-md);">Nothing here.</div>
+                  </sc-if>
+                  <sc-for list="{{ ovThreads }}" as="t" hint-placeholder-count="3">
+                    <div data-scroll-id="{{ t.sid }}" style="{{ t.cardStyle }}">
+                      <div onClick="{{ t.toggle }}" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer;" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent);">
+                        <i class="ph ph-caret-down" style="{{ t.caret }}"></i>
+                        <span style="{{ t.tagStyle }}">{{ t.tag }}</span>
+                        <span title="{{ t.fullLoc }}" style="font-family: var(--mono); font-size: 12px; color: var(--color-neutral-300); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ t.loc }}</span>
+                        <sc-if value="{{ t.outdated }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; color: var(--color-neutral-500); border: 1px solid var(--color-neutral-700); border-radius: 8px; padding: 0 6px;">outdated</span></sc-if>
+                        <span style="margin-left: auto; flex: none; font-size: 12px; color: var(--color-neutral-500);">{{ t.meta }}</span>
+                      </div>
+                      <sc-if value="{{ t.collapsed }}" hint-placeholder-val="{{ true }}">
+                        <div onClick="{{ t.toggle }}" style="padding: 0 14px 12px 38px; font-size: 13px; color: var(--color-neutral-300); line-height: 1.5; cursor: pointer; max-height: 3.3em; overflow: hidden;"><span style="color: var(--color-neutral-500);">{{ t.previewAuthor }}:</span> {{ t.preview }}</div>
+                      </sc-if>
+                      <sc-if value="{{ t.open }}" hint-placeholder-val="{{ false }}">
+                        <div>
+                          <sc-for list="{{ t.comments }}" as="c" hint-placeholder-count="2">
+                            <div style="{{ c.rowStyle }}">
+                              <span style="{{ c.avStyle }}">{{ c.ini }}</span>
+                              <div style="min-width: 0;">
+                                <div style="display: flex; gap: 8px; align-items: baseline; font-size: 12px;"><span style="font-weight: 500;">{{ c.a }}</span><span style="color: var(--color-neutral-500);">{{ c.d }}</span><sc-if value="{{ c.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--color-accent-800); color: var(--color-accent-200);">new</span></sc-if></div>
+                                <div style="font-size: 13.5px; line-height: 1.55; color: var(--color-neutral-200); margin-top: 2px; word-break: break-word;"><sc-for list="{{ c.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div>
+                              </div>
+                            </div>
+                          </sc-for>
+                          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: var(--sep);">
+                            <sc-if value="{{ t.canOpen }}" hint-placeholder-val="{{ true }}">
+                              <button onClick="{{ t.openDiff }}" class="btn btn-primary" style="font-size: 12.5px; height: 28px;"><i class="ph ph-file-code"></i>Open in diff</button>
+                            </sc-if>
+                            <sc-if value="{{ t.cantOpen }}" hint-placeholder-val="{{ false }}">
+                              <span style="font-size: 12px; color: var(--color-neutral-500);">{{ t.cantOpenLabel }}</span>
+                            </sc-if>
+                            <span style="margin-left: auto; font-size: 12px; color: var(--color-neutral-500);">Reply on GitHub <i class="ph ph-arrow-square-out"></i></span>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isDiff }}" hint-placeholder-val="{{ false }}">
+            <div data-center-scroll="1" data-diff-scroll="1" style="flex: 1; overflow-y: auto; min-height: 0; padding: 14px 20px 120px;">
+              <sc-if value="{{ noDiff }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 14px 16px; font-size: 13px; color: var(--color-neutral-500); border: 1px dashed var(--seam); background: var(--chip-bg); border-radius: var(--radius-md);">This prototype only carries the diff for #46675.</div>
+              </sc-if>
+              <sc-if value="{{ hasDiff }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                  <div style="display: flex; gap: 2px; padding: 2px; border: 1px solid var(--seam); background: var(--ctl-bg); border-radius: var(--radius-md);">
+                    <button onClick="{{ setMerged }}" title="Merged (u)" style="{{ mergedStyle }}">Merged</button>
+                    <button onClick="{{ setSplit }}" title="Side by side (s)" style="{{ splitStyle }}">{{ splitLabel }}</button>
+                  </div>
+                  <div style="position: relative; flex: none;">
+                    <button onClick="{{ toggleThemeMenu }}" class="btn btn-secondary" title="Diff theme" style="height: 28px; font-size: 12px; gap: 7px; white-space: nowrap;">
+                      <span style="display: flex; gap: 3px;"><span style="width: 9px; height: 9px; border-radius: 2px; background: var(--add-sign);"></span><span style="width: 9px; height: 9px; border-radius: 2px; background: var(--del-sign);"></span></span>
+                      <span>{{ themeLabel }}</span><i class="ph ph-caret-down" style="color: var(--color-neutral-500);"></i>
+                    </button>
+                    <sc-if value="{{ themeMenuOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="position: absolute; left: 0; top: 34px; z-index: 30; width: 190px; background: var(--pop); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 4px;">
+                        <sc-for list="{{ themeItems }}" as="ti" hint-placeholder-count="8">
+                          <button onClick="{{ ti.onSelect }}" style="{{ ti.style }}" style-hover="background: color-mix(in srgb, var(--color-text) 8%, transparent);">
+                            <span style="display: flex; gap: 3px; flex: none;"><span style="{{ ti.addSw }}"></span><span style="{{ ti.delSw }}"></span></span>
+                            <span style="flex: 1; text-align: left;">{{ ti.label }}</span>
+                            <span style="font-size: 9px; color: var(--color-accent);">{{ ti.mark }}</span>
+                          </button>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <button onClick="{{ toggleThreadsAll }}" class="btn btn-secondary" title="Collapse or expand every conversation (x)" style="height: 28px; font-size: 12px; white-space: nowrap;"><i class="{{ threadsAllIcon }}"></i>{{ threadsAllLabel }}<span style="font-family: var(--mono); font-size: 10px; padding: 0 4px; border-radius: 3px; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-500);">X</span></button>
+                  <button onClick="{{ toggleFocus }}" class="btn btn-secondary" title="Hide everything but the files, the diff and chat (f)" style="height: 28px; font-size: 12px; white-space: nowrap;"><i class="{{ focusIcon }}"></i>{{ focusLabel }}<span style="font-family: var(--mono); font-size: 10px; padding: 0 4px; border-radius: 3px; border: 1px solid var(--color-neutral-700); color: var(--color-neutral-500);">{{ focusKey }}</span></button>
+                  <span style="margin-left: auto; font-size: 12px; color: var(--color-neutral-500); white-space: nowrap;">Click a line number or <i class="ph ph-chat-teardrop-dots"></i> to ask the agent · shift-click for a range · <span style="font-family: var(--mono);">J / K</span> files</span>
+                </div>
+                <sc-for list="{{ files }}" as="f" hint-placeholder-count="2">
+                  <div data-scroll-id="{{ f.sid }}" style="border: 1px solid var(--seam); border-radius: var(--radius-md); margin-bottom: 16px; overflow: clip; background: var(--code-bg);">
+                    <div style="position: sticky; top: -14px; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--color-surface); border-bottom: 1px solid var(--seam); font-size: 12.5px;">
+                      <button onClick="{{ f.toggle }}" style="background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; padding: 2px; display: flex;"><i class="ph ph-caret-down" style="{{ f.caret }}"></i></button>
+                      <span style="font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><span style="color: var(--color-neutral-500);">{{ f.dir }}</span><span style="color: var(--color-text);">{{ f.name }}</span></span>
+                      <span style="font-family: var(--mono); font-size: 11.5px; color: var(--add); flex: none;">+{{ f.add }}</span>
+                      <span style="font-family: var(--mono); font-size: 11.5px; color: var(--del); flex: none;">−{{ f.del }}</span>
+                      <span style="display: flex; gap: 1px; flex: none;"><sc-for list="{{ f.stat }}" as="sq" hint-placeholder-count="5"><span style="{{ sq.s }}"></span></sc-for></span>
+                      <sc-if value="{{ f.hasThreads }}" hint-placeholder-val="{{ false }}"><span style="{{ f.threadStyle }}"><i class="ph ph-chats"></i>{{ f.threads }}</span></sc-if>
+                      <div style="margin-left: auto; flex: none; display: flex; align-items: center; gap: 2px; font-family: var(--mono); font-size: 11px; color: var(--color-neutral-500);">
+                        <button onClick="{{ prevFile }}" title="Previous file (k)" style="{{ prevStyle }}"><i class="ph ph-caret-up"></i></button>
+                        <span style="padding: 0 4px;">{{ filePos }}</span>
+                        <button onClick="{{ nextFile }}" title="Next file (j)" style="{{ nextStyle }}"><i class="ph ph-caret-down"></i></button>
+                      </div>
+                      <button onClick="{{ f.toggleViewed }}" style="flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--seam); background: transparent; color: var(--color-neutral-300); font-size: 12px; cursor: pointer; font-family: var(--font-body);" style-hover="border-color: var(--color-neutral-600);"><i class="{{ f.boxIcon }}" style="{{ f.boxIconStyle }}"></i>Viewed</button>
+                    </div>
+                    <sc-if value="{{ f.open }}" hint-placeholder-val="{{ true }}">
+                      <div style="{{ f.bodyStyle }}">
+                        <sc-for list="{{ f.rows }}" as="r" hint-placeholder-count="8">
+                          <div>
+                            <sc-if value="{{ r.isHunk }}" hint-placeholder-val="{{ false }}">
+                              <div style="display: flex; line-height: 28px; background: color-mix(in srgb, var(--color-accent) 7%, transparent); color: var(--color-neutral-400);">
+                                <span style="width: 107px; flex: none; text-align: center; background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-neutral-500);"><i class="ph ph-arrows-out-line-vertical"></i></span>
+                                <span style="padding-left: 62px; white-space: pre; overflow: hidden; text-overflow: ellipsis;">{{ r.text }}</span>
+                              </div>
+                            </sc-if>
+                            <sc-if value="{{ r.isLine }}" hint-placeholder-val="{{ true }}">
+                              <div data-selrow="{{ r.selAttr }}" data-scroll-id="{{ r.sid }}" onMouseEnter="{{ r.enter }}" onMouseLeave="{{ r.leave }}" style="{{ r.rowStyle }}">
+                                <span style="{{ r.barStyle }}"></span>
+                                <span onClick="{{ r.pick }}" style="{{ r.oStyle }}">{{ r.o }}</span>
+                                <span onClick="{{ r.pick }}" style="{{ r.nStyle }}">{{ r.n }}</span>
+                                <span style="{{ r.actStyle }}">
+                                  <sc-if value="{{ r.hasThread }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.toggleThread }}" title="Review conversation" style="{{ r.pillStyle }}"><i class="ph ph-chats"></i>{{ r.pillCount }}</button></sc-if>
+                                  <sc-if value="{{ r.showChat }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.chat }}" title="Ask the agent about this line" style="{{ r.chatStyle }}"><i class="ph ph-chat-teardrop-dots"></i></button></sc-if>
+                                </span>
+                                <span style="{{ r.signStyle }}">{{ r.sign }}</span>
+                                <span style="{{ r.codeStyle }}"><sc-for list="{{ r.toks }}" as="tk" hint-placeholder-count="1"><span style="{{ tk.s }}">{{ tk.t }}</span></sc-for></span>
+                              </div>
+                            </sc-if>
+                            <sc-if value="{{ r.isSplit }}" hint-placeholder-val="{{ false }}">
+                              <div data-selrow="{{ r.selAttr }}" data-scroll-id="{{ r.sid }}" onMouseEnter="{{ r.enter }}" onMouseLeave="{{ r.leave }}" style="{{ r.rowStyle }}">
+                                <span style="{{ r.barStyle }}"></span>
+                                <span onClick="{{ r.pickL }}" style="{{ r.lNumStyle }}">{{ r.lo }}</span>
+                                <span style="{{ r.lCodeStyle }}"><sc-for list="{{ r.lToks }}" as="tk" hint-placeholder-count="1"><span style="{{ tk.s }}">{{ tk.t }}</span></sc-for></span>
+                                <span onClick="{{ r.pickR }}" style="{{ r.rNumStyle }}">{{ r.rn }}</span>
+                                <span style="{{ r.actStyle }}">
+                                  <sc-if value="{{ r.hasThread }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.toggleThread }}" title="Review conversation" style="{{ r.pillStyle }}"><i class="ph ph-chats"></i>{{ r.pillCount }}</button></sc-if>
+                                  <sc-if value="{{ r.showChat }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.chat }}" title="Ask the agent about this line" style="{{ r.chatStyle }}"><i class="ph ph-chat-teardrop-dots"></i></button></sc-if>
+                                </span>
+                                <span style="{{ r.rCodeStyle }}"><sc-for list="{{ r.rToks }}" as="tk" hint-placeholder-count="1"><span style="{{ tk.s }}">{{ tk.t }}</span></sc-for></span>
+                              </div>
+                            </sc-if>
+                            <sc-if value="{{ r.hasThread }}" hint-placeholder-val="{{ false }}">
+                              <div data-scroll-id="{{ r.th.sid }}" style="{{ r.th.cardStyle }}">
+                                <div onClick="{{ r.th.toggle }}" style="display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; min-width: 0;" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent);">
+                                  <i class="ph ph-caret-down" style="{{ r.th.caret }}"></i>
+                                  <span style="{{ r.th.tagStyle }}">{{ r.th.tag }}</span>
+                                  <span style="font-size: 12px; color: var(--color-neutral-500); flex: none;">{{ r.th.count }}</span>
+                                  <sc-if value="{{ r.th.collapsed }}" hint-placeholder-val="{{ false }}"><span style="font-size: 12.5px; color: var(--color-neutral-400); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.th.preview }}</span></sc-if>
+                                  <button onClick="{{ r.th.ask }}" class="btn btn-ghost" style="margin-left: auto; flex: none; font-size: 12px; height: 24px; padding: 0 8px;"><i class="ph ph-chat-teardrop-dots"></i>Ask agent</button>
+                                </div>
+                                <sc-if value="{{ r.th.open }}" hint-placeholder-val="{{ false }}">
+                                  <div>
+                                    <sc-for list="{{ r.th.comments }}" as="c" hint-placeholder-count="2">
+                                      <div style="{{ c.rowStyle }}">
+                                        <span style="{{ c.avStyle }}">{{ c.ini }}</span>
+                                        <div style="min-width: 0;">
+                                          <div style="display: flex; gap: 8px; align-items: baseline; font-size: 12px;"><span style="font-weight: 500;">{{ c.a }}</span><span style="color: var(--color-neutral-500);">{{ c.d }}</span><sc-if value="{{ c.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--color-accent-800); color: var(--color-accent-200);">new</span></sc-if></div>
+                                          <div style="font-size: 13.5px; line-height: 1.55; color: var(--color-neutral-200); margin-top: 2px; word-break: break-word;"><sc-for list="{{ c.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div>
+                                        </div>
+                                      </div>
+                                    </sc-for>
+                                    <div style="padding: 8px 12px 10px; border-top: var(--sep);">
+                                      <div style="height: 30px; display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--seam); background: var(--ctl-bg); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--color-neutral-600);">Reply…</div>
+                                    </div>
+                                  </div>
+                                </sc-if>
+                              </div>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+
+    <div data-dock="1" style="width: clamp(260px, 26vw, 380px); flex: none; min-width: 0; overflow: hidden; border-left: 1px solid var(--seam); display: flex; flex-direction: column; min-height: 0; background: var(--panel);">
+      <div style="padding: 12px 14px 8px; display: flex; align-items: baseline; gap: 8px;">
+        <span style="font-size: 15px; font-weight: 500;">Chat</span>
+        <span style="font-family: var(--mono); font-size: 11px; color: var(--color-neutral-500);">{{ dockScope }}</span>
+        <i class="ph ph-caret-right" style="margin-left: auto; color: var(--color-neutral-500);"></i>
+      </div>
+      <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ true }}">
+        <div style="padding: 4px 14px; font-size: 13px; color: var(--color-neutral-500);">Open a pull request to chat about it.</div>
+      </sc-if>
+      <sc-if value="{{ isPr }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; min-height: 0; flex: 1;">
+          <div style="display: flex; flex-wrap: wrap; gap: 5px; padding: 0 14px 10px; border-bottom: 1px solid var(--seam);">
+            <sc-for list="{{ dockTabs }}" as="dt" hint-placeholder-count="2">
+              <button onClick="{{ dt.onClick }}" onMouseEnter="{{ dt.enter }}" onMouseLeave="{{ dt.leave }}" title="{{ dt.title }}" style="{{ dt.style }}"><i class="{{ dt.icon }}"></i><span>{{ dt.label }}</span></button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ dockIsLine }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 12px 14px 4px;">
+              <div data-dock-anchor="1" style="border: 1px solid var(--color-accent-500); border-radius: var(--radius-md); overflow: hidden; background: var(--code-bg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: color-mix(in srgb, var(--color-accent) 12%, transparent); font-size: 12px;">
+                  <i class="ph ph-crosshair" style="color: var(--color-accent-300);"></i>
+                  <span style="font-family: var(--mono); color: var(--color-accent-200); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ctx.label }}</span>
+                  <button onClick="{{ jumpToCtx }}" class="btn btn-ghost" style="margin-left: auto; flex: none; font-size: 11.5px; height: 22px; padding: 0 6px;">Jump</button>
+                  <button onClick="{{ closeCtx }}" title="Back to general chat" style="flex: none; background: transparent; border: 0; color: var(--color-neutral-400); cursor: pointer; display: flex; padding: 2px;"><i class="ph ph-x"></i></button>
+                </div>
+                <div style="font-family: var(--mono); font-size: 11.5px; max-height: 120px; overflow-y: auto;">
+                  <sc-for list="{{ ctx.lines }}" as="cl" hint-placeholder-count="1">
+                    <div style="{{ cl.style }}"><span style="width: 34px; flex: none; text-align: right; padding-right: 8px; color: var(--color-neutral-500);">{{ cl.n }}</span><span style="width: 12px; flex: none; color: var(--color-neutral-500);">{{ cl.sign }}</span><span style="white-space: pre-wrap; word-break: break-all;"><sc-for list="{{ cl.toks }}" as="tk" hint-placeholder-count="1"><span style="{{ tk.s }}">{{ tk.t }}</span></sc-for></span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <div style="flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; min-width: 0; padding: 10px 14px; display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere;">
+            <sc-if value="{{ msgsEmpty }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size: 13px; color: var(--color-neutral-500); line-height: 1.5;">{{ emptyHint }}</div>
+            </sc-if>
+            <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="0">
+              <div>
+                <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-left: 36px; padding: 8px 11px; border-radius: var(--radius-md); background: var(--bubble-bg); border: 1px solid var(--seam); font-size: 13px; line-height: 1.5;"><sc-for list="{{ m.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div>
+                </sc-if>
+                <sc-if value="{{ m.isAgent }}" hint-placeholder-val="{{ false }}">
+                  <div>
+                    <div style="font-size: 11px; color: var(--color-accent-300); margin-bottom: 3px; display: flex; align-items: center; gap: 4px;"><i class="ph ph-sparkle"></i>agent</div>
+                    <div style="font-size: 13px; line-height: 1.55; color: var(--color-neutral-200);"><sc-for list="{{ m.segs }}" as="sg" hint-placeholder-count="1"><span style="{{ sg.s }}">{{ sg.t }}</span></sc-for></div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size: 12px; color: var(--color-accent-300); animation: pulse 1.2s infinite;">agent is thinking…</div>
+            </sc-if>
+          </div>
+          <div style="padding: 10px 14px 14px; border-top: var(--sep);">
+            <div style="border: 1px solid var(--seam); border-radius: var(--radius-md); background: var(--dock-ctl); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+              <textarea value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onKey }}" placeholder="{{ placeholder }}" rows="2" style="resize: none; border: 0; outline: none; background: transparent; color: var(--color-text); font-family: var(--font-body); font-size: 13px; line-height: 1.5;"></textarea>
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--color-neutral-500); font-family: var(--mono);">
+                <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ composerCtx }}</span>
+                <button onClick="{{ send }}" class="btn btn-primary" style="flex: none; white-space: nowrap; height: 26px; font-size: 12px; padding: 0 10px;"><i class="ph ph-paper-plane-right"></i>Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="height: 24px; flex: none; border-top: var(--sep); background: var(--chrome); display: flex; align-items: center; padding: 0 12px; font-family: var(--mono); font-size: 11px; color: var(--color-neutral-600); {{ chromeHide }}">
+    <span>PR mode · shiphero/Shiphero-API</span><span style="margin-left: auto;">press ? for shortcuts</span>
+  </div>
+  {{ connector }}
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;surface&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Framed&quot;,&quot;Tonal&quot;],&quot;default&quot;:&quot;Framed&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;defaultDiffMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Merged&quot;,&quot;Side by side&quot;],&quot;default&quot;:&quot;Merged&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Diff&quot;},&quot;threadsDefault&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Unread only&quot;,&quot;All open&quot;,&quot;All collapsed&quot;],&quot;default&quot;:&quot;Unread only&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Diff&quot;},&quot;previewLines&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;default&quot;:2,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Inbox&quot;}}">
+const ME = 'sebastiandev';
+const P1 = 'kernel/src/kernel/domain/actions/pick_line_into_lpn.py';
+const P2 = 'kernel/src/kernel/domain/actions/inventory/lpn.py';
+const P3 = 'kernel/tests/domain/commands/picking_jobs/test_pick_line_into_lpn.py';
+
+const PRS = [
+  { n: 46675, title: '[EN-47059] Show order number in the LPN timeline (Kernel)', author: 'leagug', state: 'open', add: 214, del: 38, upd: '13h ago', branch: 'EN-47059-show-order-id-in-the-lpn-timeline' },
+  { n: 47329, title: 'EN-48135: Bridge LPN-to-LPN transfer inventory to the Kernel behind a feature flag', author: 'fgriberi', state: 'open', add: 912, del: 140, upd: '14h ago', branch: 'EN-48135-lpn-transfer-kernel' },
+  { n: 47807, title: 'Fix LPN warehouse restrictions when warehouse filter is omitted', author: 'mzalynas-shiphero', state: 'open', add: 88, del: 21, upd: '15h ago', branch: 'fix-lpn-warehouse-filter' },
+  { n: 47886, title: 'EN-48155: Wire UOM breakdown transfer inventory to Kernel', author: 'fgriberi', state: 'open', add: 640, del: 77, upd: '16h ago', branch: 'EN-48155-uom-breakdown' },
+  { n: 48208, title: '49999: migrate LPN-to-item-bin transfer inventory into Kernel [Part 1/2]', author: 'fgriberi', state: 'open', add: 1939, del: 119, upd: '14h ago', branch: '49999-lpn-to-item-bin-part-1' },
+  { n: 48242, title: 'EN-42855: Add wholesale automation execution export', author: 'Lacrymology', state: 'open', add: 402, del: 12, upd: '1d ago', branch: 'EN-42855-wholesale-export' },
+  { n: 47016, title: 'EN-45863: Add ProductUOM support into Kernel UOM breakdown transfer inventory', author: 'fgriberi', state: 'open', add: 733, del: 95, upd: '2d ago', branch: 'EN-45863-product-uom' },
+  { n: 47777, title: 'EN-49139: Add a generic reserve_sequence_range and reuse it from LPN and UOM barcodes', author: 'fgriberi', state: 'open', add: 318, del: 64, upd: '2d ago', branch: 'EN-49139-reserve-sequence-range' },
+  { n: 48131, title: 'Kernel: race-safe bin creation and signed `add_inventory`; PO receiving on Kernel behind a flag', author: 'beuno', state: 'open', add: 3777, del: 158, upd: '13h ago', branch: 'kernel-race-safe-bins' },
+  { n: 46060, title: 'Graceful timeout handling', author: 'diegomarcov', state: 'open', add: 2120, del: 106, upd: '13 days ago', branch: 'graceful-timeouts' },
+];
+
+const FILES = [
+  { path: P1, viewed: false, hunks: [
+    { o: 362, n: 362, h: 'def pick_line_into_lpn(', lines: [
+      ['c', 'def pick_line_into_lpn('], ['c', '    session: Session,'], ['c', '    request: PickLineIntoLpnRequest,'],
+      ['d', '    activity: str = "WHOLESALE_PICK",'], ['a', '    activity: str = "PICK",'],
+      ['c', ') -> PickLineIntoLpnResult:'],
+      ['c', '    job_line = _load_picking_job_line(session, request.picking_job_line_id)'],
+      ['c', '    lpn = _get_lpn_for_update(session, request.lpn_id)'],
+      ['a', '    pending_line = job_line.pending_shipment_line_item'],
+      ['a', '    order = pending_line.order if pending_line else None'],
+      ['a', '    reference = order.order_number if order else None'],
+      ['c', ''],
+      ['d', '    remove_items_from_lpn(session, lpn, request.items)'],
+      ['a', '    remove_items_from_lpn('], ['a', '        session,'], ['a', '        lpn,'],
+      ['a', '        RemoveItemsFromLpnRequest(items=request.items, activity=activity, reference=reference),'],
+      ['a', '    )'],
+      ['c', '    add_items_to_lpn(session, request.target_lpn, request.items, activity=activity)'],
+      ['c', '    return PickLineIntoLpnResult(lpn_id=lpn.id)'],
+    ] },
+  ] },
+  { path: P2, viewed: false, hunks: [
+    { o: 61, n: 61, h: 'class RemoveItemsFromLpnRequest:', lines: [
+      ['c', '@dataclass(frozen=True)'], ['c', 'class RemoveItemsFromLpnRequest:'], ['c', '    items: list[LpnItem]'],
+      ['c', '    activity: str = "PICK"'], ['a', '    reference: str | None = None'],
+      ['c', ''], ['c', ''],
+      ['c', 'def remove_items_from_lpn(session, lpn, request: RemoveItemsFromLpnRequest):'],
+      ['c', '    for item in request.items:'], ['c', '        _decrement(lpn, item)'],
+      ['d', '    message = f"{qty} {sku} Items removed from {lpn.barcode} and location {loc} on {activity}"'],
+      ['a', '    message = _timeline_message(request, lpn)'],
+      ['a', '    _write_timeline('],
+      ['a', '        session, lpn, message=message, activity=request.activity, reference=request.reference'],
+      ['a', '    )'],
+      ['c', ''],
+      ['a', 'def _timeline_message(request, lpn) -> str:'],
+      ['a', '    base = f"{request.qty} {request.sku} Items removed from {lpn.barcode} and location {request.location}"'],
+      ['a', '    suffix = f" on #{request.reference}" if request.reference else ""'],
+      ['a', '    return f"{base}{suffix} on {request.activity}"'],
+    ] },
+  ] },
+  { path: P3, viewed: true, hunks: [
+    { o: 140, n: 140, h: 'def test_pick_line_into_lpn_resolves_order_reference_without_extra_query(', lines: [
+      ['a', 'def test_pick_line_into_lpn_resolves_order_reference_without_extra_query(session, picking_job_line):'],
+      ['a', '    with count_queries(session) as queries:'],
+      ['a', '        pick_line_into_lpn(session, _request(picking_job_line))'],
+      ['a', '    assert queries.tables("orders") == ["picking_job_line"]'],
+    ] },
+  ] },
+];
+
+const ROWS = FILES.map((f) => {
+  const rows = [];
+  f.hunks.forEach((h) => {
+    const oc = h.lines.filter((l) => l[0] !== 'a').length, nc = h.lines.filter((l) => l[0] !== 'd').length;
+    rows.push({ hunk: true, text: `@@ -${h.o},${oc} +${h.n},${nc} @@ ${h.h}` });
+    let o = h.o, n = h.n;
+    h.lines.forEach(([t, x]) => {
+      if (t === 'c') rows.push({ t, x, o: o++, n: n++ });
+      else if (t === 'a') rows.push({ t, x, o: null, n: n++ });
+      else rows.push({ t, x, o: o++, n: null });
+    });
+  });
+  f.add = rows.filter((r) => r.t === 'a').length; f.del = rows.filter((r) => r.t === 'd').length;
+  return rows;
+});
+
+const THREADS = [
+  { id: 't1', pr: 46675, kind: 'mention', path: P1, line: 376, date: '20 Aug', comments: [
+    { a: ME, d: '12 Aug', b: 'The problem is that a simple "add a text in a timeline" starts triggering N+1 issues too **EVERY** pick into lpn calls, so the benefits are way outweighed by its cost. Kernel is way more stricter that other parts of the system so changes have to be made with care, specially the N+1 scenarios. So, please try to tackle this as part of this PR/Ticket' },
+    { a: 'leagug', d: '13 Aug', b: '`order_number` is resolved one level above, in `pick_line_into_lpn(...)`, from the already loaded `pending_shipment_line_item.order`, and then passed into `_update_lpn_contents_for_pick(...)` `activity` is caller-owned and passed end-to-end now.' },
+    { a: 'osw4lShipH3ro', d: '20 Aug', unread: true, b: 'hey @sebastiandev, checked this one close. the `orders` join is not new, it was already in `_PICKING_JOB_LINE_JOINED_LOADS` before this PR (via `pending_shipment_line_item.order`), so it already rides the same query that loads the `PickingJobLine`. no extra query happen when we read `order_number`. i tested it with a cold session (`dbsession.expire_all()` so nothing is cached in memory) and logged every SQL statement during the pick. `orders` table show up one time only, as a JOIN inside the `picking_job_line` query, not a separate select.' },
+  ] },
+  { id: 't2', pr: 46675, kind: 'reply', path: P2, line: 73, date: '13 Aug', comments: [
+    { a: ME, d: '12 Aug', b: 'Why does the message format change here? The other timeline entries only use `on <activity>`.' },
+    { a: 'leagug', d: '13 Aug', unread: true, b: 'I aligned this to the wording product asked for in the ticket (... on <reference> on <activity>), so I kept the message format consistent with that decision . I’m happy to revisit it and switch to a different wording' },
+  ] },
+  { id: 't4', pr: 46675, kind: 'reply', path: 'shiphero_app/shiphero_app/inventory/domain/primitives/lpn.py', line: null, date: '23 Sep', gone: true, comments: [
+    { a: ME, d: '22 Sep', b: 'Should the shiphero_app changes be part of this PR, given the kernel boundary guideline?' },
+    { a: 'osw4lShipH3ro', d: '23 Sep', unread: true, b: 'Agreed. I removed the shiphero_app changes to `remove_items_from_lpn`, `move_lpn_items` and `pick_lines_to_lpn`, so the order reference is only written by Kernel\'s `pick_line_into_lpn`. The legacy path keeps its previous behavior and goes away with the Kernel flag rollout. Following the shiphero-app-kernel-boundary guideline, this PR is now Kernel-only and the shiphero_app consumer lives in the stacked #48839. One more change: `activity` now defaults to `PICK` instead of `None`. That is the value Kernel hardcoded before this PR, so callers that do not send an activity keep the same timeline. The tests use a neutral `TEST_ACTIVITY` value instead of `WHOLESALE_PICK`.' },
+  ] },
+  { id: 't3', pr: 46675, kind: 'awaiting', path: P1, line: 44, outdated: true, date: '12 Aug', wait: '6 weeks', comments: [
+    { a: ME, d: '12 Aug', b: 'no wholesale in kernel, why do we need this? activities are user supplied, kernel takes what is been sent. No need to define defaults in kernel. If we do it shouldn\'t contain wholesale.' },
+  ] },
+  { id: 'm2', pr: 47329, kind: 'mention', path: 'shiphero_app/shiphero_app/inventory/helpers/kernel.py', line: null, date: '07 Sep', comments: [
+    { a: 'shiphero-toolbot', d: '07 Sep', unread: true, b: 'Thanks @fgriberi — I\'ll take a look at the change on #47329. Just to close the loop on what @sebastiandev and I landed on: the key things I\'ll be checking are (1) the `object_session(lpn).expire(...)` loop is gone entirely, and (2) the `List[ProductStockChange]` response is projected from the kernel\'s returned `stock_changes` via the adapter/DTOs rather than re-materialized ORM entities. If it\'s the adapter route, then great — no writer-connection re-read needed unless a downstream caller genuinely forces a fully-materialized entity. Marking this resolved on that basis.' },
+  ] },
+  { id: 'm3', pr: 47807, kind: 'mention', path: 'kernel/src/kernel/domain/rules/access.py', line: 158, date: '15 Sep', comments: [
+    { a: 'mzalynas-shiphero', d: '15 Sep', unread: true, b: 'hi @sebastiandev , can we resolve this comment and approve the PR ? Thanks.' },
+  ] },
+  { id: 'm4', pr: 47886, kind: 'mention', path: 'shiphero_app/shiphero_app/graphql/mutations/item_bin.py', line: null, date: '18 Sep', comments: [
+    { a: 'fgriberi', d: '18 Sep', unread: true, b: '@sebastiandev kernel gates that from `TransferInventoryCommand`. https://github.com/Shiphero/Shiphero-API/blob/master/kernel/src/kernel/domain/commands/inventory/transfer.py#L267. Here is the rule access https://github.com/Shiphero/Shiphero-API/blob/master/kernel/src/kernel/domain/rules/access.py#L454. And then, each `source item bin` must live in that same `warehouse` https://github.com/Shiphero/Shiphero-API/blob/master/kernel/src/kernel/domain/commands/inventory/transfer.py#L179.' },
+  ] },
+  { id: 'm5', pr: 47886, kind: 'mention', path: 'shiphero_app/shiphero_app/graphql/mutations/item_bin.py', line: null, date: '18 Sep', comments: [
+    { a: 'fgriberi', d: '18 Sep', unread: true, b: '@sebastiandev Initially didn\'t add it there because I want to avoid `target_product_uom_id` be part of the `from_item_bins` field from https://github.com/Shiphero/Shiphero-API/blob/master/shiphero_app/shiphero_app/graphql/mutations/item_bin.py#L284. I agree adding just `target_product_uom_id` there would simplify it.' },
+  ] },
+  { id: 'm6', pr: 48208, kind: 'mention', path: 'kernel/src/kernel/application/graphql/mutations/inventory/transfer.py', line: 106, date: '22 Sep', comments: [
+    { a: 'fgriberi', d: '22 Sep', unread: true, b: '@sebastiandev This is because legacy version is spreading it per line https://github.com/Shiphero/Shiphero-API/blob/master/shiphero_app/shiphero_app/inventory/domain/use_cases/transfer_item_bin.py#L222-L234, this is executed per `request.from_item_bins`' },
+  ] },
+  { id: 'm7', pr: 48208, kind: 'mention', path: 'kernel/src/kernel/application/graphql/mutations/inventory/transfer.py', line: 308, date: '22 Sep', comments: [
+    { a: 'fgriberi', d: '22 Sep', unread: true, b: '@sebastiandev Yeah is for the webhook. Legacy LPN→IB transfer path already writes a `LocationChangeLog` row and pushes its id into the `inventory_changed` signal, which ends up as `inventory_change_id` in the customer `INVENTORY_CHANGE` webhook. If kernel doesn\'t return it, every transfer that goes through kernel fires that webhook with `inventory_change_id: null` while the legacy path sets it.' },
+  ] },
+  { id: 'm8', pr: 48242, kind: 'mention', path: 'shiphero_app/shiphero_app/wholesale/domain/use_cases/export_wholesale_automation_history.py', line: 65, date: '11 Sep', comments: [
+    { a: 'Lacrymology', d: '11 Sep', unread: true, b: '@sebastiandev sorry what am I supposed to do here? I explicitly told the agent not to inject the kernel client because we\'d need the runtime user for it.' },
+  ] },
+  { id: 'r1', pr: 47016, kind: 'reply', path: 'kernel/src/kernel/domain/actions/inventory/transfer/between_item_bins_breaking_uom.py', line: null, date: '04 Sep', comments: [
+    { a: ME, d: '03 Sep', b: 'This loop is hard to follow. Could the UOM walk move into a helper like `convert_uom`?' },
+    { a: 'fgriberi', d: '04 Sep', unread: true, b: 'Correct, this walks the `component_uom_id` hierarchy from the source until the requested lower UOM is found... Gonna extract it into a `convert_uom` as you recommend .. Thx!' },
+  ] },
+  { id: 'r2', pr: 47016, kind: 'reply', path: 'kernel/src/kernel/domain/actions/inventory/transfer/between_item_bins_breaking_uom.py', line: null, date: '04 Sep', comments: [
+    { a: ME, d: '03 Sep', b: 'What does `target=None` mean here?' },
+    { a: 'fgriberi', d: '04 Sep', unread: true, b: '`target=None` represents a `breakdown` into `EACH`. It happens when the client omits the optional `target_product_uom_id` from uom breakdown request. In that case, the loop exits through the explicit `break` when the current UOM has no `component_uom_id`. Cycles, missing components, and persisted-primary boundaries also terminate with validation errors. I agree the current while condition makes that difficult to see, so I\'ll restructure it to make the two termination paths explicit.' },
+  ] },
+  { id: 'r3', pr: 47329, kind: 'reply', path: 'shiphero_app/shiphero_app/graphql/mutations/item_bin.py', line: null, date: '07 Sep', comments: [
+    { a: ME, d: '05 Sep', b: 'The `expire()` loop still re-reads from the writer here.' },
+    { a: 'fgriberi', d: '07 Sep', unread: true, b: 'Addressed on https://github.com/Shiphero/Shiphero-API/pull/47329/changes/76352f15900b8b559eaea5ff1247f9218ad4054d' },
+  ] },
+  { id: 'r4', pr: 47777, kind: 'reply', path: 'kernel/src/kernel/domain/actions/inventory/lpn_barcode.py', line: null, date: '04 Sep', comments: [
+    { a: ME, d: '03 Sep', b: 'The index name is hardcoded as a string here.' },
+    { a: 'Lacrymology', d: '04 Sep', unread: true, b: 'Why not just `LpnSequence.UNIQUE_INDEX_NAME` ?' },
+  ] },
+  { id: 'r5', pr: 47807, kind: 'reply', path: 'kernel/src/kernel/domain/commands/inventory/get_lpns.py', line: null, date: '07 Sep', comments: [
+    { a: ME, d: '06 Sep', b: 'Please apply the same warehouse filter default in `get_lpns`.' },
+    { a: 'mzalynas-shiphero', d: '07 Sep', unread: true, b: 'Done' },
+  ] },
+  { id: 'a2', pr: 48131, kind: 'awaiting', path: 'kernel/src/kernel/domain/actions/bins/create_bin.py', line: 88, date: '19 Sep', wait: '6 days', comments: [
+    { a: ME, d: '19 Sep', b: 'Is the unique constraint enough here, or do we also need the advisory lock for concurrent creators?' },
+  ] },
+  { id: 'a3', pr: 46060, kind: 'awaiting', path: 'shiphero_app/shiphero_app/http/timeouts.py', line: 41, date: '12 Sep', wait: '13 days', comments: [
+    { a: ME, d: '12 Sep', b: 'What happens to in-flight writes when the timeout fires mid-transaction?' },
+  ] },
+];
+THREADS.forEach((t) => {
+  t.fi = t.pr === 46675 && !t.outdated ? FILES.findIndex((f) => f.path === t.path) : -1;
+  t.row = t.fi >= 0 ? ROWS[t.fi].findIndex((r) => r.n === t.line) : -1;
+});
+const THREAD_AT = {};
+THREADS.forEach((t) => { if (t.row >= 0) THREAD_AT[`${t.fi}:${t.row}`] = t; });
+
+const DESC = [
+  ['h', 'Summary'],
+  ['p', 'Kernel-only part of EN-47059. When Kernel\'s `pick_line_into_lpn` removes items from a source LPN, the timeline entry now carries the order number of the picked line:'],
+  ['code', '3 sku-1 Items removed from LPN-SOURCE and location A1 on #0001 on PICK'],
+  ['li', '`RemoveItemsFromLpnRequest` gets an optional `reference`, written to the timeline row and added to the message.'],
+  ['li', '`pick_line_into_lpn` resolves the order number from `pending_shipment_line_item.order`, which is already joined in `_PICKING_JOB_LINE_JOINED_LOADS`. No extra query; `test_pick_line_into_lpn_resolves_order_reference_without_extra_query` guards it.'],
+  ['li', 'The `pickLineIntoLpn` mutation, command, action and SDK shortcut accept an `activity`. It defaults to `PICK`, the value that was hardcoded before, so callers that do not send one keep the same activity.'],
+  ['p', 'The shiphero_app consumer (wholesale passing `WHOLESALE_PICK`, exposing `reference` on the LPN timeline GraphQL type) is in the stacked PR #48839, following the shiphero-app-kernel-boundary guideline of not bundling Kernel operations with their consumers.'],
+  ['h', 'Behavior'],
+  ['li', 'Callers that do not send `activity`: same `PICK` activity on both timeline entries as before. The removal entry now also includes the order number and fills `reference`.'],
+  ['li', 'Lines with no order: message and `reference` unchanged.'],
+  ['li', 'The legacy shiphero_app pick path (`pick_lines_to_lpn` / `move_lpn_items`) is untouched. It keeps writing `on PICK` without a reference until the Kernel flags are fully rolled out.'],
+  ['h', 'Test plan'],
+  ['li', '`kernel/tests/domain/actions/inventory/test_lpn.py` and `kernel/tests/domain/commands/picking_jobs/test_pick_line_into_lpn.py`: reference plus activity message, no-reference message, `PICK` default, no extra `orders` query.'],
+  ['li', 'shiphero_app wholesale pick suites (`test_complete_pick.py`, `test_complete_only_pick.py`, consolidation batch) pass on this branch without the consumer changes.'],
+  ['p', 'Tested on DEV:'],
+  ['img', 'image · 1272 × 789'],
+];
+
+const THEMES = {
+  nocturne: { add: 'rgba(111,170,126,0.13)', del: 'rgba(196,123,123,0.13)', addFg: '#cfe4d5', delFg: '#e8cdcd', label: 'Nocturne' },
+  muted: { add: 'rgba(140,150,170,0.14)', del: 'rgba(170,140,150,0.14)', addFg: '#dcdfe8', delFg: '#e6dade', label: 'Muted' },
+  vivid: { add: 'rgba(86,190,120,0.20)', del: 'rgba(226,96,96,0.18)', addFg: '#e2f5e7', delFg: '#fbdede', label: 'Vivid' },
+  paper: { add: 'rgba(200,205,180,0.14)', del: 'rgba(205,185,170,0.14)', addFg: '#eceada', delFg: '#f0e2d8', label: 'Paper' },
+  darkula: { add: 'rgba(83,120,80,0.26)', del: 'rgba(125,72,72,0.26)', addFg: '#d9e8cf', delFg: '#f0d2d2', label: 'Darkula' },
+  neon: { add: 'rgba(57,255,178,0.16)', del: 'rgba(255,64,140,0.16)', addFg: '#c6ffe6', delFg: '#ffd0e2', label: 'Neon' },
+  solar: { add: 'rgba(133,153,0,0.20)', del: 'rgba(220,50,47,0.16)', addFg: '#e7ebcf', delFg: '#f7d7d3', label: 'Solar' },
+  mono: { add: 'rgba(166,226,46,0.15)', del: 'rgba(249,38,114,0.15)', addFg: '#e9f6cd', delFg: '#fbd4e3', label: 'Acid' },
+};
+const alpha = (c, f) => c.replace(/([\d.]+)\)$/, (m, a) => Math.min(1, f(+a)).toFixed(2) + ')');
+const SURFACES = {
+  Framed: '',
+  Tonal: '--seam: transparent; --color-divider: transparent; --chrome: var(--color-surface); --panel: var(--color-neutral-900); --side-bg: var(--color-neutral-900); --sep: 2px solid var(--color-bg); --code-bg: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg)); --chip-bg: var(--color-neutral-900); --ctl-bg: var(--color-neutral-900); --pop: var(--color-neutral-900); --r-chip: 3px; --radius-sm: 2px; --radius-md: 3px; --radius-lg: 6px; --card-shadow: none; --shadow-sm: none; --bubble-bg: var(--color-surface); --dock-ctl: var(--color-surface); --code-chip: var(--color-neutral-800);',
+};
+const C = { kw: 'var(--color-accent-400)', type: 'var(--color-accent-300)', fn: 'oklch(0.82 0.07 235)', str: 'oklch(0.82 0.08 75)', com: 'var(--color-neutral-600)' };
+function tok(src) {
+  const out = []; const re = /(#.*$)|(f?"(?:[^"\\]|\\.)*")|\b(def|return|for|in|if|else|None|class|and|or|not|True|False|with|as|assert)\b|(@\w+)|\b([A-Z]\w*)\b|\b(\w+)(?=\()/g;
+  let last = 0, m;
+  while ((m = re.exec(src))) {
+    if (m.index > last) out.push({ t: src.slice(last, m.index), s: '' });
+    const c = m[1] ? C.com : m[2] ? C.str : (m[3] || m[4]) ? C.kw : m[5] ? C.type : C.fn;
+    out.push({ t: m[0], s: 'color:' + c }); last = re.lastIndex;
+  }
+  if (last < src.length) out.push({ t: src.slice(last), s: '' });
+  if (!out.length) out.push({ t: ' ', s: '' });
+  return out;
+}
+
+const CODE_S = 'font-family:var(--mono);font-size:0.86em;padding:1px 5px;border-radius:4px;background:var(--code-chip);border:1px solid var(--seam);color:var(--color-neutral-100)';
+function segs(text) {
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*|@[\w-]+|https?:\/\/[^\s)]+)/).filter(Boolean).map((p) => {
+    if (p[0] === '`') return { t: p.slice(1, -1), s: CODE_S };
+    if (p.startsWith('**')) return { t: p.slice(2, -2), s: 'font-weight:600;color:var(--color-text)' };
+    if (p[0] === '@') return { t: p, s: p === '@' + ME ? 'color:var(--color-accent-200);background:color-mix(in srgb,var(--color-accent) 20%,transparent);border-radius:4px;padding:0 3px;font-weight:500' : 'color:var(--color-accent-300);font-weight:500' };
+    if (p.startsWith('http')) { const short = p.replace(/^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+\//, '').replace(/(changes\/)([0-9a-f]{7})[0-9a-f]+/, '$1$2'); return { t: short.length > 64 ? '…' + short.slice(-60) : short, s: 'color:var(--color-accent-300);text-decoration:underline;text-underline-offset:3px' }; }
+    return { t: p, s: '' };
+  });
+}
+const base = (p) => p.split('/').pop();
+const shortLoc = (t) => { const parts = t.path.split('/'); const s = parts.length > 2 ? '…/' + parts.slice(-2).join('/') : t.path; return s + (t.line ? ':' + t.line : ''); };
+const ini = (a) => a.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
+const avStyle = (a, size = 24) => `width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size < 26 ? 9.5 : 10}px;font-weight:500;flex:none;` + (a === ME ? 'background:var(--color-accent-800);color:var(--color-accent-200);border:1px solid var(--color-accent-700)' : 'background:var(--color-neutral-800);color:var(--color-neutral-300);border:1px solid var(--color-neutral-700)');
+const caret = (open) => `font-size:12px;color:var(--color-neutral-500);transition:transform .15s;flex:none;transform:rotate(${open ? 0 : -90}deg)`;
+const TAG_A = 'font-size:11px;padding:0 7px;border-radius:var(--r-chip);background:var(--color-accent-900);color:var(--color-accent-300);border:1px solid var(--color-accent-800);white-space:nowrap;flex:none;line-height:17px';
+const TAG_N = 'font-size:11px;padding:0 7px;border-radius:var(--r-chip);color:var(--color-neutral-400);border:1px solid var(--color-neutral-700);white-space:nowrap;flex:none;line-height:17px';
+const chipStyle = (on) => `display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:var(--r-chip);font-size:12.5px;cursor:pointer;font-family:var(--font-body);` + (on ? 'background:color-mix(in srgb,var(--color-accent) 14%,transparent);border:1px solid var(--color-accent);color:var(--color-accent-200)' : 'background:var(--chip-bg);border:1px solid var(--seam);color:var(--color-neutral-300)');
+const chipCount = (on) => `font-size:11px;font-family:var(--mono);color:${on ? 'var(--color-accent-300)' : 'var(--color-neutral-500)'}`;
+const PILL = 'display:inline-flex;align-items:center;gap:3px;height:16px;padding:0 5px;border-radius:8px;font-size:10.5px;font-family:var(--mono);cursor:pointer;line-height:1;';
+const pillStyle = (unread) => PILL + (unread ? 'background:var(--color-accent-700);color:var(--color-accent-100);border:1px solid var(--color-accent-400);box-shadow:0 0 8px color-mix(in srgb,var(--color-accent) 55%,transparent)' : 'background:var(--color-accent-900);color:var(--color-accent-300);border:1px solid var(--color-accent-700)');
+
+const lineKey = (fi, a, b) => `L${fi}:${a}-${b}`;
+const parseKey = (k) => { const m = /^L(\d+):(\d+)-(\d+)$/.exec(k || ''); return m ? { fi: +m[1], a: +m[2], b: +m[3] } : null; };
+const rowNo = (r) => r.n ?? r.o;
+const ctxLabel = (c) => `${base(FILES[c.fi].path)}:${rowNo(ROWS[c.fi][c.a])}${c.b !== c.a ? '–' + rowNo(ROWS[c.fi][c.b]) : ''}`;
+const i370 = ROWS[0].findIndex((r) => r.n === 370);
+
+const REPLIES = [
+  'Nothing on this line queries the database. `reference` comes from `pending_line.order`, and `_load_picking_job_line` already applies `_PICKING_JOB_LINE_JOINED_LOADS`, which joins `orders`. The new test asserts `orders` only appears inside the `picking_job_line` statement.',
+  'This only changes how the message string is built. `_timeline_message` keeps the old wording when `reference` is empty, so lines with no order produce the same text as before.',
+  'The test counts statements per table inside `count_queries`. It would fail if `pending_line.order` triggered a lazy load.',
+];
+
+class Component extends DCLogic {
+  state = {
+    view: 'inbox', prId: 46675, filter: 'all', foldSec: {}, foldGrp: {}, expBody: {}, read: {},
+    ovFilter: 'all', ovOpen: {}, descOpen: false, descHidden: false, fileFold: {}, viewed: { 2: true }, thOpen: {},
+    fileIdx: 0, dockCtx: 'g', split: this.props?.defaultDiffMode === 'Side by side', diffTheme: 'nocturne', themeMenu: false, focus: false, hover: null, target: null, draft: '', typing: null, conn: null,
+    chats: { [lineKey(0, i370, i370)]: [
+      { r: 'user', t: 'Does `pending_line.order` lazy-load here, or is it covered by the joined loads?' },
+      { r: 'agent', t: 'It is covered. `_load_picking_job_line` applies `_PICKING_JOB_LINE_JOINED_LOADS`, which includes `pending_shipment_line_item.order` as a joined load, so reading `.order` here does not emit a query. `test_pick_line_into_lpn_resolves_order_reference_without_extra_query` asserts the statement count.' },
+    ] },
+  };
+
+  componentDidMount() {
+    this._h = (e) => { if (e && e.type === 'resize') this.forceUpdate(); this.schedule(); };
+    window.addEventListener('resize', this._h);
+    document.addEventListener('scroll', this._h, true);
+    this._key = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))) return;
+      const s = this.state; if (s.view === 'inbox') return;
+      if (e.key === 'Escape') { if (s.themeMenu) this.setState({ themeMenu: false }); else if (s.focus) this.setState({ focus: false }); return; }
+      if (e.key === 'f') this.setState({ focus: !s.focus });
+      else if (e.key === 'x') this.toggleThreadsAll();
+      else if (e.key === 'u') this.setState({ split: false });
+      else if (e.key === 's') this.setState({ split: true });
+      else if (e.key === 'n' && this._next) this._next();
+      else if (e.key === 'j') this.goFile(1);
+      else if (e.key === 'k') this.goFile(-1);
+    };
+    document.addEventListener('keydown', this._key);
+    this.schedule();
+  }
+  componentWillUnmount() { window.removeEventListener('resize', this._h); document.removeEventListener('scroll', this._h, true); document.removeEventListener('keydown', this._key); }
+  goFile(d) {
+    const n = Math.max(0, Math.min(FILES.length - 1, this.state.fileIdx + d));
+    if (this.state.prId !== 46675) return;
+    this._pending = 'file-' + n;
+    this.setState((x) => ({ fileIdx: n, view: 'diff', fileFold: { ...x.fileFold, [n]: false } }));
+  }
+  thDefault(t) { const d = this.props.threadsDefault ?? 'Unread only'; return d === 'All open' ? true : d === 'All collapsed' ? false : this.isUnread(t); }
+  thIsOpen(t) { return this.state.thOpen[t.id] ?? this.thDefault(t); }
+  toggleThreadsAll() {
+    const ts = THREADS.filter((t) => t.pr === this.state.prId && t.row >= 0 && t.fi === this.state.fileIdx); if (!ts.length) return;
+    const to = !ts.some((t) => this.thIsOpen(t)); const thOpen = { ...this.state.thOpen }; const read = { ...this.state.read };
+    ts.forEach((t) => { thOpen[t.id] = to; if (to) read[t.id] = true; });
+    this.setState({ thOpen, read, view: 'diff' });
+  }
+  componentDidUpdate() {
+    if (this._pending) {
+      const el = document.querySelector(`[data-scroll-id="${this._pending}"]`), sc = document.querySelector('[data-center-scroll]');
+      if (el && sc) { sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 120; this._pending = null; }
+    }
+    this.schedule();
+  }
+  schedule() {
+    if (this._raf) return;
+    this._raf = requestAnimationFrame(() => { this._raf = null; this.measure(); });
+  }
+  measure() {
+    let conn = null;
+    const rows = document.querySelectorAll('[data-selrow="1"]'), anchor = document.querySelector('[data-dock-anchor]'),
+      sc = document.querySelector('[data-diff-scroll]'), dock = document.querySelector('[data-dock]');
+    if (rows.length && anchor && sc && dock) {
+      const r1 = rows[0].getBoundingClientRect(), r2 = rows[rows.length - 1].getBoundingClientRect(), a = anchor.getBoundingClientRect(), c = sc.getBoundingClientRect();
+      let y1 = (r1.top + r2.bottom) / 2; const off = r2.bottom < c.top || r1.top > c.bottom;
+      y1 = Math.max(c.top + 6, Math.min(c.bottom - 6, y1));
+      const x1 = r1.right, xs = dock.getBoundingClientRect().left, x2 = a.left, y2 = a.top + Math.min(15, a.height / 2);
+      const dy = y2 - y1, dir = Math.sign(dy), rad = Math.min(8, Math.abs(dy) / 2);
+      const d = Math.abs(dy) < 2 ? `M${x1},${y1} H${x2}` : `M${x1},${y1} H${xs - rad} Q${xs},${y1} ${xs},${y1 + dir * rad} V${y2 - dir * rad} Q${xs},${y2} ${xs + rad},${y2} H${x2}`;
+      conn = { d, x1, y1, x2, y2, off, bar: { top: Math.max(c.top, r1.top), bottom: Math.min(c.bottom, r2.bottom), x: x1 } };
+    }
+    if (JSON.stringify(conn) !== JSON.stringify(this.state.conn)) this.setState({ conn });
+  }
+
+  isUnread(t) { return t.kind !== 'awaiting' && !this.state.read[t.id]; }
+  markRead(ids) { this.setState((s) => { const read = { ...s.read }; ids.forEach((i) => { read[i] = true; }); return { read }; }); }
+
+  openThread(t) {
+    const s = this.state;
+    const patch = { prId: t.pr, target: t.id, read: { ...s.read, [t.id]: true } };
+    if (t.row >= 0) {
+      Object.assign(patch, { view: 'diff', fileIdx: t.fi, thOpen: { ...s.thOpen, [t.id]: true }, fileFold: { ...s.fileFold, [t.fi]: false } });
+      this._pending = 'th-' + t.id;
+    } else {
+      Object.assign(patch, { view: 'overview', ovFilter: 'all', ovOpen: { ...s.ovOpen, [t.id]: true } });
+      this._pending = 'ov-' + t.id;
+    }
+    if (t.pr !== s.prId) patch.dockCtx = 'g';
+    this.setState(patch);
+  }
+  openPr(n) { this._pending = null; this.setState({ prId: n, view: 'overview', dockCtx: this.state.prId === n ? this.state.dockCtx : 'g', target: null }); }
+  setCtx(key, scroll) {
+    const c = parseKey(key);
+    const patch = { dockCtx: key };
+    if (c && scroll) { patch.view = 'diff'; patch.fileIdx = c.fi; patch.fileFold = { ...this.state.fileFold, [c.fi]: false }; this._pending = `row-${c.fi}-${c.a}`; }
+    this.setState(patch);
+  }
+  pickRow(fi, idx, shift) {
+    const cur = parseKey(this.state.dockCtx);
+    if (shift && cur && cur.fi === fi) { this.setCtx(lineKey(fi, Math.min(cur.a, idx), Math.max(cur.b, idx))); return; }
+    const existing = Object.keys(this.state.chats).find((k) => { const c = parseKey(k); return c && c.fi === fi && idx >= c.a && idx <= c.b && this.state.chats[k].length; });
+    this.setCtx(existing || lineKey(fi, idx, idx));
+  }
+  send() {
+    const text = this.state.draft.trim(); if (!text) return;
+    const k = this.state.dockCtx === 'g' ? 'g' + this.state.prId : this.state.dockCtx;
+    this.setState((s) => ({ draft: '', typing: k, chats: { ...s.chats, [k]: [...(s.chats[k] || []), { r: 'user', t: text }] } }));
+    const c = parseKey(k);
+    const reply = c ? REPLIES[c.fi] : 'Across the three changed files, the only new read is `pending_line.order`, which is already covered by `_PICKING_JOB_LINE_JOINED_LOADS`. The open question is @osw4lShipH3ro\'s N+1 answer on `pick_line_into_lpn.py:376`, which you haven\'t read yet.';
+    setTimeout(() => this.setState((s) => ({ typing: null, chats: { ...s.chats, [k]: [...(s.chats[k] || []), { r: 'agent', t: reply }] } })), 900);
+  }
+
+  renderVals() {
+    const s = this.state, props = this.props;
+    const pr = PRS.find((p) => p.n === s.prId);
+    const isPr = s.view !== 'inbox', hasDiff = s.prId === 46675;
+    const tDefault = props.threadsDefault ?? 'Unread only';
+    const lines = props.previewLines ?? 2;
+
+    const prList = PRS.map((p) => {
+      const ts = THREADS.filter((t) => t.pr === p.n);
+      const m = ts.filter((t) => t.kind === 'mention' && this.isUnread(t)).length, r = ts.filter((t) => t.kind === 'reply' && this.isUnread(t)).length, w = ts.filter((t) => t.kind === 'awaiting').length;
+      const badges = [];
+      if (m) badges.push({ label: `@ ${m}`, style: TAG_A });
+      if (r) badges.push({ label: `${r} ${r === 1 ? 'reply' : 'replies'}`, style: TAG_A });
+      if (w) badges.push({ label: `${w} awaiting`, style: TAG_N });
+      return { ...p, badges, onSelect: () => this.openPr(p.n) };
+    });
+
+    const secDefs = [
+      { k: 'mention', title: 'Direct mentions', icon: 'ph ph-at', hint: 'Someone @-mentioned you', rows: THREADS.filter((t) => t.kind === 'mention' && this.isUnread(t)) },
+      { k: 'reply', title: 'Unread replies', icon: 'ph ph-arrow-bend-down-right', hint: 'New replies to your comments', rows: THREADS.filter((t) => t.kind === 'reply' && this.isUnread(t)) },
+      { k: 'awaiting', title: 'Awaiting their reply', icon: 'ph ph-hourglass-medium', hint: 'Your comments with no answer yet', rows: THREADS.filter((t) => t.kind === 'awaiting') },
+    ];
+    const total = secDefs.reduce((n, d) => n + d.rows.length, 0);
+    const filters = [{ k: 'all', label: 'All', count: total }, ...secDefs.map((d) => ({ k: d.k, label: d.title.replace('Awaiting their reply', 'Awaiting'), count: d.rows.length }))].map((f) => ({
+      ...f, style: chipStyle(s.filter === f.k), countStyle: chipCount(s.filter === f.k), onClick: () => this.setState({ filter: f.k }),
+    }));
+    const allGroupKeys = [];
+    const sections = secDefs.filter((d) => s.filter === 'all' || s.filter === d.k).map((d) => {
+      const byPr = new Map();
+      d.rows.forEach((t) => byPr.set(t.pr, [...(byPr.get(t.pr) || []), t]));
+      const groups = [...byPr].map(([n, ts]) => {
+        const p = PRS.find((x) => x.n === n), gk = d.k + n, open = !(s.foldGrp[gk] ?? true);
+        allGroupKeys.push(gk);
+        return {
+          n, title: p.title, caret: caret(open), open, countLabel: `${ts.length} ${ts.length === 1 ? 'conversation' : 'conversations'}` + (open ? '' : ' · ' + [...new Set(ts.map((t) => { const c = d.k === 'awaiting' ? t.comments[t.comments.length - 1] : (t.comments.find((x) => x.unread) || t.comments[t.comments.length - 1]); return c.a === ME ? 'you' : c.a; }))].slice(0, 2).join(', ')),
+          canMark: d.k !== 'awaiting', markRead: (e) => { e.stopPropagation(); this.markRead(ts.map((t) => t.id)); },
+          openPr: (e) => { e.stopPropagation(); this.openPr(n); },
+          toggle: () => this.setState((st) => ({ foldGrp: { ...st.foldGrp, [gk]: open } })),
+          items: ts.map((t) => {
+            const mine = t.comments.filter((c) => c.a === ME), key = d.k === 'awaiting' ? mine[mine.length - 1] : (t.comments.find((c) => c.unread) || t.comments[t.comments.length - 1]);
+            const quote = d.k === 'reply' && mine.length ? mine[mine.length - 1].b.replace(/`/g, '') : '';
+            const exp = !!s.expBody[t.id], long = key.b.length > lines * 120;
+            return {
+              author: key.a === ME ? 'You' : key.a, ini: ini(key.a), avStyle: avStyle(key.a, 26),
+              dotStyle: `width:7px;height:7px;border-radius:50%;margin-top:9px;` + (d.k === 'awaiting' ? 'border:1px solid var(--color-neutral-600)' : 'background:var(--color-accent);box-shadow:0 0 6px var(--color-accent)'),
+              kindLabel: d.k === 'mention' ? 'mentioned you' : d.k === 'reply' ? 'replied' : 'no reply',
+              kindStyle: d.k === 'awaiting' ? TAG_N : TAG_A,
+              loc: shortLoc(t), fullLoc: t.path + (t.line ? ':' + t.line : ''), date: d.k === 'awaiting' ? `waiting ${t.wait}` : key.d,
+              hasQuote: !!quote, quote, segs: segs(key.b), long, moreLabel: exp ? 'Show less' : 'Show more',
+              bodyStyle: `margin-top:5px;font-size:13.5px;line-height:1.55;color:var(--color-neutral-200);word-break:break-word;` + (exp || !long ? '' : `max-height:${(lines * 1.55).toFixed(2)}em;overflow:hidden;`),
+              toggleBody: (e) => { e.stopPropagation(); this.setState((st) => ({ expBody: { ...st.expBody, [t.id]: !exp } })); },
+              cta: t.row >= 0 ? 'Open in diff' : 'Open in overview',
+              open: () => this.openThread(t),
+            };
+          }),
+        };
+      });
+      const open = !s.foldSec[d.k];
+      return { title: d.title, icon: d.icon, hint: d.hint, count: d.rows.length, open, caret: caret(open), empty: !groups.length, groups, toggle: () => this.setState((st) => ({ foldSec: { ...st.foldSec, [d.k]: open } })) };
+    });
+    const collapseAll = () => { const f = {}; allGroupKeys.forEach((k) => { f[k] = true; }); this.setState({ foldGrp: f, foldSec: {} }); };
+    const expandAll = () => { const f = {}; allGroupKeys.forEach((k) => { f[k] = false; }); this.setState({ foldGrp: f, foldSec: {} }); };
+
+    // Overview
+    const prThreads = THREADS.filter((t) => t.pr === s.prId);
+    const status = (t) => this.isUnread(t) ? 'needs' : t.kind === 'awaiting' ? 'awaiting' : 'answered';
+    const ovDefs = [{ k: 'all', label: 'All' }, { k: 'needs', label: 'Needs you' }, { k: 'awaiting', label: 'Awaiting reply' }, { k: 'answered', label: 'Answered' }];
+    const ovFilters = ovDefs.map((f) => { const count = f.k === 'all' ? prThreads.length : prThreads.filter((t) => status(t) === f.k).length; return { ...f, count, style: chipStyle(s.ovFilter === f.k), countStyle: chipCount(s.ovFilter === f.k), onClick: () => this.setState({ ovFilter: f.k }) }; });
+    const order = { needs: 0, awaiting: 1, answered: 2 };
+    const buildComments = (t) => t.comments.map((c) => ({
+      a: c.a === ME ? 'You' : c.a, d: c.d, ini: ini(c.a), avStyle: avStyle(c.a), segs: segs(c.b), isNew: !!c.unread,
+      rowStyle: 'display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;padding:10px 12px;border-top:var(--sep);' + (c.unread ? 'background:color-mix(in srgb,var(--color-accent) 7%,transparent);' : ''),
+    }));
+    const ovThreads = prThreads.filter((t) => s.ovFilter === 'all' || status(t) === s.ovFilter).sort((a, b) => order[status(a)] - order[status(b)]).map((t) => {
+      const st = status(t), open = s.ovOpen[t.id] ?? false, key = t.comments.find((c) => c.unread && !s.read[t.id]) || t.comments[t.comments.length - 1];
+      const tag = st === 'needs' ? (t.kind === 'mention' ? 'Unread mention' : 'Unread reply') : st === 'awaiting' ? 'Awaiting reply' : 'Answered';
+      return {
+        sid: 'ov-' + t.id, open, collapsed: !open, caret: caret(open), tag, tagStyle: st === 'needs' ? TAG_A : TAG_N,
+        loc: t.path.split('/').slice(-2).join('/') + (t.line ? ':' + t.line : ''), fullLoc: t.path, outdated: !!t.outdated,
+        meta: `${t.comments.length} ${t.comments.length === 1 ? 'comment' : 'comments'} · ${st === 'awaiting' ? 'waiting ' + t.wait : t.date}`,
+        previewAuthor: key.a === ME ? 'You' : key.a, preview: key.b.replace(/`/g, ''),
+        comments: buildComments(t),
+        cardStyle: 'background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;' + (s.target === t.id ? 'box-shadow:0 0 0 1px var(--color-accent),0 0 18px color-mix(in srgb,var(--color-accent) 25%,transparent)' : 'box-shadow:var(--card-shadow)'),
+        canOpen: t.row >= 0, cantOpen: t.row < 0, cantOpenLabel: t.outdated ? 'Line changed since this comment · outdated' : t.gone ? 'File no longer in this diff' : 'Diff not loaded in this prototype',
+        toggle: () => { this.setState((x) => ({ ovOpen: { ...x.ovOpen, [t.id]: !open }, read: !open ? { ...x.read, [t.id]: true } : x.read })); },
+        openDiff: () => this.openThread(t),
+      };
+    });
+    const needsCount = prThreads.filter((t) => this.isUnread(t)).length;
+    const descOpen = s.descOpen;
+    const desc = DESC.map(([k, v]) => ({ isH: k === 'h', isP: k === 'p', isLi: k === 'li', isCode: k === 'code', isImg: k === 'img', text: v, segs: segs(v) }));
+
+    // Diff
+    const sel = parseKey(s.dockCtx);
+    const chatKeys = Object.keys(s.chats).filter((k) => parseKey(k) && s.chats[k].length);
+    const split = s.split, focus = s.focus && isPr, LH = focus ? 26 : 20, FS = focus ? '13.5px' : '12.5px';
+    const SEL = 'color-mix(in srgb,var(--color-accent) 20%,transparent)';
+    const TH_BG = 'color-mix(in srgb,var(--color-accent) 24%,transparent)';
+    const FILL = 'repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--color-text) 4%,transparent) 5px 6px)';
+    const bgOf = (t) => t === 'a' ? 'var(--add-bg)' : t === 'd' ? 'var(--del-bg)' : 'transparent';
+    const gutOf = (t) => t === 'a' ? 'var(--add-gut)' : t === 'd' ? 'var(--del-gut)' : 'transparent';
+    const fgOf = (t) => t === 'a' ? 'var(--add-fg)' : t === 'd' ? 'var(--del-fg)' : 'var(--color-neutral-200)';
+    const withSel = (bg, on) => on ? `linear-gradient(${SEL},${SEL}),${bg}` : bg;
+    const files = hasDiff ? FILES.map((f, fi) => {
+      const viewed = s.viewed[fi] ?? false, open = !(s.fileFold[fi] ?? viewed);
+      const fThreads = THREADS.filter((t) => t.fi === fi && t.row >= 0), fUnread = fThreads.some((t) => this.isUnread(t));
+      const tot = f.add + f.del, gs = Math.round((f.add / Math.max(tot, 1)) * 5);
+      const info = (idx) => {
+        if (idx == null) return null;
+        const r = ROWS[fi][idx], th = THREAD_AT[`${fi}:${idx}`];
+        const chatK = chatKeys.find((k) => { const c = parseKey(k); return c.fi === fi && idx >= c.a && idx <= c.b; });
+        return { r, idx, th, unread: !!(th && this.isUnread(th)), chatK, selected: !!(sel && sel.fi === fi && idx >= sel.a && idx <= sel.b), hk: `${fi}:${idx}` };
+      };
+      const numS = (i, gutBg) => `text-align:right;padding-right:10px;cursor:pointer;user-select:none;font-size:11.5px;` + (!i ? `background:${FILL};cursor:default;` : i.th ? `color:var(--color-accent-200);background:${TH_BG};` : i.selected ? 'color:var(--color-accent-200);' : `color:var(--color-neutral-600);background:${gutBg};`);
+      const edgeOf = (i) => !i || !i.selected ? '' : [i.idx === sel.a ? 'inset 0 1px 0 var(--color-accent-500)' : '', i.idx === sel.b ? 'inset 0 -1px 0 var(--color-accent-500)' : ''].filter(Boolean).join(',');
+      const thVals = (i, ml) => {
+        const th = i.th, tOpen = this.thIsOpen(th), last = th.comments.find((c) => c.unread && i.unread) || th.comments[th.comments.length - 1];
+        return {
+          sid: 'th-' + th.id, open: tOpen, collapsed: !tOpen, caret: caret(tOpen), count: `${th.comments.length} comments`,
+          tag: i.unread ? (th.kind === 'mention' ? 'Mentions you' : 'New reply') : th.kind === 'awaiting' ? 'Awaiting reply' : 'Read',
+          tagStyle: i.unread ? TAG_A : TAG_N, preview: `${last.a === ME ? 'You' : last.a}: ${last.b.replace(/`/g, '')}`,
+          comments: buildComments(th),
+          cardStyle: `margin:6px 16px 10px ${ml}px;max-width:860px;background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;font-family:var(--font-body);font-size:13.5px;line-height:1.55;` + (s.target === th.id ? 'box-shadow:0 0 0 1px var(--color-accent),0 0 18px color-mix(in srgb,var(--color-accent) 25%,transparent)' : i.unread ? 'box-shadow:0 0 0 1px var(--color-accent-700)' : 'box-shadow:0 0 0 1px var(--seam)'),
+          toggle: () => this.setState((x) => ({ thOpen: { ...x.thOpen, [th.id]: !tOpen }, read: { ...x.read, [th.id]: true } })),
+          ask: (e) => { e.stopPropagation(); this.setState({ dockCtx: lineKey(fi, i.idx, i.idx), draft: 'Summarize this conversation and tell me whether my concern is addressed.' }); },
+        };
+      };
+      const actVals = (i, gutBg, hover) => {
+        const tv = i.th ? thVals(i, split ? 51 : 107) : null;
+        return {
+          hasThread: !!i.th, th: tv, pillStyle: pillStyle(i.unread), pillCount: i.th ? i.th.comments.length : '',
+          toggleThread: () => tv && tv.toggle(),
+          showChat: !!(i.chatK || hover || i.selected),
+          chatStyle: 'width:18px;height:18px;border-radius:4px;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;padding:0;' + (i.selected ? 'background:var(--color-accent-600);color:var(--color-accent-100)' : i.chatK ? 'background:var(--color-accent-900);color:var(--color-accent-300)' : 'background:var(--color-neutral-800);color:var(--color-neutral-300)'),
+          chat: () => this.setCtx(i.chatK || lineKey(fi, i.idx, i.idx)),
+          actStyle: `display:flex;align-items:center;gap:2px;padding-left:4px;background:${i.th ? TH_BG : i.selected ? 'transparent' : gutBg};`,
+          enter: () => this.setState({ hover: i.hk }), leave: () => this.setState((x) => (x.hover === i.hk ? { hover: null } : null)),
+          sid: `row-${fi}-${i.idx}`,
+          barStyle: 'background:' + (i.selected || i.th ? 'var(--color-accent)' : 'transparent') + (i.unread ? ';box-shadow:0 0 8px var(--color-accent)' : ''),
+        };
+      };
+      const hunkRow = (r) => ({ isHunk: true, isLine: false, isSplit: false, hasThread: false, text: r.text });
+      const mergedRow = (i) => {
+        const r = i.r, gut = gutOf(r.t), hover = s.hover === i.hk, edges = edgeOf(i);
+        return {
+          ...actVals(i, gut, hover), isHunk: false, isLine: true, isSplit: false,
+          o: r.o ?? '', n: r.n ?? '', sign: r.t === 'a' ? '+' : r.t === 'd' ? '−' : '', toks: tok(r.x), selAttr: i.selected ? '1' : '0',
+          rowStyle: `display:grid;grid-template-columns:3px 52px 52px 44px 18px minmax(0,1fr);min-height:${LH}px;line-height:${LH}px;background:${withSel(bgOf(r.t), i.selected)};` + (edges ? `box-shadow:${edges};` : ''),
+          oStyle: numS(i, gut), nStyle: numS(i, gut), pick: (e) => this.pickRow(fi, i.idx, e.shiftKey),
+          signStyle: `text-align:center;user-select:none;color:${r.t === 'a' ? 'var(--add-sign)' : r.t === 'd' ? 'var(--del-sign)' : 'transparent'}`,
+          codeStyle: `padding-right:12px;white-space:pre-wrap;word-break:break-all;color:${fgOf(r.t)}`,
+        };
+      };
+      const signTok = (t) => ({ t: (t === 'a' ? '+' : t === 'd' ? '−' : ' ') + ' ', s: `user-select:none;color:${t === 'a' ? 'var(--add-sign)' : t === 'd' ? 'var(--del-sign)' : 'transparent'}` });
+      const splitRow = (li, ri) => {
+        const L = info(li), Rr = info(ri), P = (Rr && (Rr.th || !(L && L.th))) ? Rr : L, hover = s.hover === P.hk;
+        const selected = !!((L && L.selected) || (Rr && Rr.selected)), rGut = Rr ? gutOf(Rr.r.t) : 'transparent';
+        const edges = edgeOf(Rr && Rr.selected ? Rr : L);
+        const code = (i) => `padding:0 10px 0 4px;white-space:pre-wrap;word-break:break-all;color:${i ? fgOf(i.r.t) : 'inherit'};background:${i ? withSel(bgOf(i.r.t), selected) : FILL};`;
+        return {
+          ...actVals(P, rGut, hover), isHunk: false, isLine: false, isSplit: true, selAttr: selected ? '1' : '0',
+          lo: L ? L.r.o : '', rn: Rr ? Rr.r.n : '',
+          lToks: L ? [signTok(L.r.t), ...tok(L.r.x)] : [{ t: ' ', s: '' }], rToks: Rr ? [signTok(Rr.r.t), ...tok(Rr.r.x)] : [{ t: ' ', s: '' }],
+          lNumStyle: numS(L, L ? gutOf(L.r.t) : ''), rNumStyle: numS(Rr, rGut), lCodeStyle: code(L), rCodeStyle: code(Rr) + 'border-left:1px solid var(--color-neutral-800);',
+          pickL: (e) => L && this.pickRow(fi, L.idx, e.shiftKey), pickR: (e) => Rr && this.pickRow(fi, Rr.idx, e.shiftKey),
+          rowStyle: `display:grid;grid-template-columns:3px 46px minmax(0,1fr) 46px 44px minmax(0,1fr);min-height:${LH}px;line-height:${LH}px;` + (edges ? `box-shadow:${edges};` : ''),
+        };
+      };
+      let rows = [];
+      if (open && !split) rows = ROWS[fi].map((r, idx) => r.hunk ? hunkRow(r) : mergedRow(info(idx)));
+      if (open && split) {
+        const RW = ROWS[fi]; let k = 0;
+        while (k < RW.length) {
+          const r = RW[k];
+          if (r.hunk) { rows.push(hunkRow(r)); k++; continue; }
+          if (r.t === 'c') { const i = info(k); rows.push({ ...splitRow(k, k), lo: r.o, rn: r.n }); k++; continue; }
+          const dels = [], adds = [];
+          while (k < RW.length && RW[k].t === 'd') dels.push(k++);
+          while (k < RW.length && RW[k].t === 'a') adds.push(k++);
+          for (let j = 0; j < Math.max(dels.length, adds.length); j++) rows.push(splitRow(dels[j] ?? null, adds[j] ?? null));
+        }
+      }
+      return {
+        sid: 'file-' + fi, dir: f.path.slice(0, f.path.lastIndexOf('/') + 1), name: base(f.path), add: f.add, del: f.del, open, caret: caret(open), rows,
+        bodyStyle: `font-family:var(--mono);font-size:${FS};`,
+        stat: [0, 1, 2, 3, 4].map((i) => ({ s: `width:7px;height:7px;border-radius:1px;background:${i < gs ? 'var(--add)' : 'var(--del)'};opacity:.85` })),
+        hasThreads: fThreads.length > 0, threads: fThreads.length, threadStyle: pillStyle(fUnread),
+        boxIcon: viewed ? 'ph ph-check-square' : 'ph ph-square', boxIconStyle: viewed ? 'color:var(--color-accent-300)' : 'color:var(--color-neutral-500)',
+        toggle: () => this.setState((x) => ({ fileFold: { ...x.fileFold, [fi]: open } })),
+        toggleViewed: () => this.setState((x) => ({ viewed: { ...x.viewed, [fi]: !viewed }, fileFold: { ...x.fileFold, [fi]: !viewed } })),
+      };
+    }).filter((_, fi) => fi === s.fileIdx) : [];
+    const sideFiles = hasDiff ? FILES.map((f, fi) => {
+      const fThreads = THREADS.filter((t) => t.fi === fi && t.row >= 0), fUnread = fThreads.some((t) => this.isUnread(t)), viewed = s.viewed[fi] ?? false;
+      const chats = chatKeys.filter((k) => parseKey(k).fi === fi).length, active = sel && sel.fi === fi;
+      return {
+        path: f.path, dir: f.path.split('/').slice(0, -1).join('/') + '/',
+        rowStyle: 'display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:12.5px;font-family:var(--mono);' + (fi === s.fileIdx && s.view === 'diff' ? 'background:color-mix(in srgb,var(--color-accent) 12%,transparent);box-shadow:inset 2px 0 0 var(--color-accent);' : ''),
+        name: base(f.path), nameStyle: `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${active ? 'var(--color-accent-200)' : viewed ? 'var(--color-neutral-500)' : 'var(--color-neutral-200)'}`,
+        hasThreads: fThreads.length > 0, threads: fThreads.length, threadStyle: pillStyle(fUnread), hasChats: chats > 0, chats,
+        boxIcon: viewed ? 'ph ph-check-square' : 'ph ph-square',
+        boxStyle: `flex:none;background:transparent;border:0;padding:0;cursor:pointer;display:flex;font-size:15px;color:${viewed ? 'var(--color-accent-300)' : 'var(--color-neutral-600)'}`,
+        toggleViewed: (e) => { e.stopPropagation(); this.setState((x) => ({ viewed: { ...x.viewed, [fi]: !viewed }, fileFold: { ...x.fileFold, [fi]: !viewed } })); },
+        open: () => { this._pending = 'file-' + fi; this.setState((x) => ({ view: 'diff', fileIdx: fi, fileFold: { ...x.fileFold, [fi]: false } })); },
+      };
+    }) : [];
+    const viewedCount = FILES.filter((f, fi) => s.viewed[fi]).length;
+    const nextConversation = () => {
+      const list = THREADS.filter((t) => t.pr === s.prId && t.row >= 0).sort((a, b) => (this.isUnread(b) - this.isUnread(a)) || a.fi - b.fi);
+      if (!list.length) return;
+      const cur = list.findIndex((t) => t.id === s.target), t = list[(cur + 1) % list.length];
+      this.openThread(t);
+    };
+    this._next = nextConversation;
+
+    // Dock
+    const genKey = 'g' + s.prId;
+    const tabKeys = hasDiff ? [...chatKeys] : [];
+    if (sel && !tabKeys.includes(s.dockCtx)) tabKeys.push(s.dockCtx);
+    const tabStyle = (on) => 'display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:var(--r-chip);font-size:12px;cursor:pointer;max-width:100%;' + (on ? 'background:color-mix(in srgb,var(--color-accent) 16%,transparent);border:1px solid var(--color-accent);color:var(--color-accent-200)' : 'background:var(--chip-bg);border:1px solid var(--seam);color:var(--color-neutral-300)');
+    const dockTabs = [{ key: 'g', label: 'General', icon: 'ph ph-chats-circle', title: 'Chat about the whole PR' }, ...tabKeys.map((k) => ({ key: k, label: ctxLabel(parseKey(k)), icon: 'ph ph-crosshair', title: FILES[parseKey(k).fi].path }))].map((t) => ({
+      ...t, style: tabStyle(s.dockCtx === t.key) + (t.key !== 'g' ? ';font-family:var(--mono);font-size:11.5px' : ''),
+      onClick: () => this.setCtx(t.key, t.key !== 'g'), enter: () => {}, leave: () => {},
+    }));
+    const msgKey = s.dockCtx === 'g' ? genKey : s.dockCtx;
+    const msgs = (s.chats[msgKey] || []).map((m) => ({ isUser: m.r === 'user', isAgent: m.r === 'agent', segs: segs(m.t) }));
+    const ctx = sel ? {
+      label: `${base(FILES[sel.fi].path)} · ${sel.a === sel.b ? 'line ' + rowNo(ROWS[sel.fi][sel.a]) : 'lines ' + rowNo(ROWS[sel.fi][sel.a]) + '–' + rowNo(ROWS[sel.fi][sel.b])}`,
+      lines: ROWS[sel.fi].slice(sel.a, sel.b + 1).map((r) => ({
+        n: rowNo(r), sign: r.t === 'a' ? '+' : r.t === 'd' ? '−' : '', toks: tok(r.x),
+        style: 'display:flex;line-height:19px;padding:0 8px 0 0;background:' + (r.t === 'a' ? 'var(--add-bg)' : r.t === 'd' ? 'var(--del-bg)' : 'transparent'),
+      })),
+    } : null;
+
+    let connector = null;
+    const c = s.conn;
+    if (c && s.view === 'diff') {
+      const h = React.createElement;
+      connector = h('svg', { style: { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 40 } },
+        h('line', { x1: c.bar.x - 1, x2: c.bar.x - 1, y1: c.bar.top, y2: Math.max(c.bar.top, c.bar.bottom), stroke: 'var(--color-accent)', strokeWidth: 2 }),
+        h('path', { d: c.d, fill: 'none', stroke: 'var(--color-accent)', strokeWidth: 1.5, strokeDasharray: c.off ? '4 4' : undefined, opacity: 0.9 }),
+        h('circle', { cx: c.x1, cy: c.y1, r: 3.5, fill: 'var(--color-accent)' }),
+        h('circle', { cx: c.x2, cy: c.y2, r: 3.5, fill: 'var(--color-accent)' }));
+    }
+
+    const thm = THEMES[s.diffTheme] || THEMES.nocturne;
+    const prThreadsInDiff = THREADS.filter((t) => t.pr === s.prId && t.row >= 0 && t.fi === s.fileIdx), anyOpen = prThreadsInDiff.some((t) => this.thIsOpen(t));
+    const navBtn = (on) => 'width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);border:1px solid var(--seam);background:var(--chip-bg);cursor:pointer;padding:0;font-size:12px;' + (on ? 'color:var(--color-neutral-300)' : 'color:var(--color-neutral-700);pointer-events:none');
+    const segBtn = (on) => 'padding:3px 10px;border-radius:calc(var(--radius-md) - 2px);border:0;cursor:pointer;font-size:12.5px;font-family:var(--font-body);white-space:nowrap;' + (on ? 'background:var(--color-accent-900);color:var(--color-accent-200)' : 'background:transparent;color:var(--color-neutral-400)');
+    return {
+      sidebarStyle: (window.innerWidth < 1100 ? 'display:none;' : 'display:flex;') + 'width:clamp(210px,20vw,300px);flex:none;border-right:1px solid var(--seam);flex-direction:column;min-height:0;background:var(--side-bg);',
+      themeVars: (SURFACES[props.surface] || '') + `--add-bg:${thm.add};--del-bg:${thm.del};--add-gut:${alpha(thm.add, (a) => a * 1.7)};--del-gut:${alpha(thm.del, (a) => a * 1.7)};--add-fg:${thm.addFg};--del-fg:${thm.delFg};--add-sign:${alpha(thm.add, () => 0.85)};--del-sign:${alpha(thm.del, () => 0.85)};`,
+      chromeHide: focus ? 'display:none;' : '',
+      setMerged: () => this.setState({ split: false }), setSplit: () => this.setState({ split: true }),
+      mergedStyle: segBtn(!split), splitStyle: segBtn(split), splitLabel: window.innerWidth < 1300 ? 'Split' : 'Side by side',
+      themeMenuOpen: s.themeMenu, toggleThemeMenu: () => this.setState({ themeMenu: !s.themeMenu }), themeLabel: thm.label,
+      themeItems: Object.keys(THEMES).map((k) => ({
+        label: THEMES[k].label, mark: s.diffTheme === k ? '●' : '',
+        addSw: `width:9px;height:9px;border-radius:2px;background:${alpha(THEMES[k].add, () => 0.85)}`, delSw: `width:9px;height:9px;border-radius:2px;background:${alpha(THEMES[k].del, () => 0.85)}`,
+        style: 'display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;font-size:12.5px;background:transparent;border:0;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-body);color:' + (s.diffTheme === k ? 'var(--color-text)' : 'var(--color-neutral-400)'),
+        onSelect: () => this.setState({ diffTheme: k, themeMenu: false }),
+      })),
+      toggleThreadsAll: () => this.toggleThreadsAll(),
+      prevFile: () => this.goFile(-1), nextFile: () => this.goFile(1), filePos: `${s.fileIdx + 1} / ${FILES.length}`,
+      prevStyle: navBtn(s.fileIdx > 0), nextStyle: navBtn(s.fileIdx < FILES.length - 1),
+      threadsAllLabel: anyOpen ? 'Collapse conversations' : 'Expand conversations', threadsAllIcon: anyOpen ? 'ph ph-arrows-in-line-vertical' : 'ph ph-arrows-out-line-vertical',
+      toggleFocus: () => this.setState({ focus: !s.focus }), focusLabel: focus ? 'Exit focus' : 'Focus', focusKey: focus ? 'ESC' : 'F', focusIcon: focus ? 'ph ph-corners-in' : 'ph ph-corners-out',
+      isInbox: !isPr, isPr, isOverview: s.view === 'overview', isDiff: s.view === 'diff', hasDiff, noDiff: !hasDiff,
+      goInbox: () => this.setState({ view: 'inbox', target: null }),
+      goOverview: () => { this._pending = null; this.setState({ view: 'overview' }); },
+      goDiff: () => { this._pending = null; this.setState({ view: 'diff' }); },
+      prList, filters, sections, collapseAll, expandAll,
+      pr, fileCount: hasDiff ? FILES.length : '', prNeedsCount: needsCount || '',
+      sideOverviewStyle: 'display:flex;align-items:center;gap:8px;margin:0 8px;padding:7px 10px;border-radius:6px;border:0;cursor:pointer;font-size:13px;font-family:var(--font-body);text-align:left;' + (s.view === 'overview' ? 'background:var(--color-accent-900);color:var(--color-accent-200)' : 'background:transparent;color:var(--color-neutral-300)'),
+      viewedLabel: hasDiff ? `${viewedCount}/${FILES.length} viewed` : '',
+      sideFiles, files, nextConversation,
+      tabOverviewStyle: this.tab(s.view === 'overview'), tabDiffStyle: this.tab(s.view === 'diff'),
+      hasDesc: hasDiff, desc, descVisible: true, descClamped: !descOpen,
+      descBodyStyle: 'padding:6px 18px 14px;font-size:14px;' + (descOpen ? '' : 'max-height:240px;overflow:hidden;'),
+      descCaret: caret(descOpen), descToggleLabel: descOpen ? 'Collapse' : 'Expand',
+      toggleDesc: () => this.setState({ descOpen: !descOpen }),
+      ovFilters, ovThreads, ovEmpty: !ovThreads.length,
+      dockScope: isPr ? `#${s.prId}` : 'inbox', dockTabs, dockIsLine: !!sel, ctx: ctx || { label: '', lines: [] },
+      jumpToCtx: () => this.setCtx(s.dockCtx, true), closeCtx: () => this.setState({ dockCtx: 'g' }),
+      msgs, msgsEmpty: !msgs.length && s.typing !== msgKey, typing: s.typing === msgKey,
+      emptyHint: sel ? 'No messages about this selection yet. Ask the agent anything about it.' : 'Ask about the whole pull request. Click a line number or the chat icon in the diff to start a chat about specific lines.',
+      draft: s.draft, onDraft: (e) => this.setState({ draft: e.target.value }),
+      onKey: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } },
+      send: () => this.send(),
+      placeholder: sel ? `Ask about ${ctxLabel(sel)}…` : 'Ask about this pull request…',
+      composerCtx: sel ? `↳ ${ctxLabel(sel)}` : `↳ #${s.prId}`,
+      connector,
+    };
+  }
+  tab(on) { return 'display:flex;align-items:center;gap:6px;padding:0 12px;background:transparent;border:0;cursor:pointer;font-size:13px;font-family:var(--font-body);margin-bottom:-1px;' + (on ? 'color:var(--color-text);border-bottom:2px solid var(--color-accent)' : 'color:var(--color-neutral-400);border-bottom:2px solid transparent'); }
+}
+</script>
+</body>
+</html>

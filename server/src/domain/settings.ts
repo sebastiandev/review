@@ -12,5 +12,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   styleMode: 'framed',
   diffTheme: 'nocturne',
   codeFont: 'jetbrains-mono',
+  previewLines: 2,
+  threadsDefault: 'unread',
   defaultDiffMode: 'unified',
 }

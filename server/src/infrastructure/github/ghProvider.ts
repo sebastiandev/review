@@ -96,6 +96,13 @@ export function ghProvider(run: Runner): PullRequestProvider {
       )
     },
 
+    async listMentioned(repo, since) {
+      const q = `repo:${slug(repo)} is:pr is:open mentions:@me updated:>=${since.toISOString().slice(0, 10)}`
+      const out = await run('gh', ['api', 'graphql', '--paginate', '--slurp', '-F', `q=${q}`, '-f', `query=${LIST_REVIEW_REQUESTED}`])
+      const pages = JSON.parse(out) as SearchPage[]
+      return pages.flatMap((page) => page.data.search.nodes.map((n) => mapPullRequest(n, page.data.viewer.login)))
+    },
+
     async listOpen(repo) {
       const out = await run('gh', ['api', 'graphql', '-F', `owner=${repo.owner}`, '-F', `name=${repo.name}`, '-f', `query=${LIST_OPEN}`])
       const page = JSON.parse(out) as ListPage
@@ -124,7 +131,13 @@ export function ghProvider(run: Runner): PullRequestProvider {
     async comments(repo, number) {
       const out = await run('gh', ['api', '--paginate', '--slurp', `repos/${slug(repo)}/pulls/${number}/comments?per_page=100`])
       const pages = JSON.parse(out) as RestReviewComment[][]
-      return pages.flat().map(mapComment)
+      const discussion = await run('gh', ['api', '--paginate', '--slurp', `repos/${slug(repo)}/issues/${number}/comments?per_page=100`])
+      const general = JSON.parse(discussion) as { id: number; user: { login: string } | null; body: string; created_at: string }[][]
+      return [...pages.flat().map(mapComment), ...general.flat().map((c) => ({
+        remoteId: `issue:${c.id}`, author: c.user?.login ?? 'ghost', body: c.body, createdAt: c.created_at,
+        kind: 'discussion' as const, path: '', line: null, startLine: null, side: null,
+        inReplyTo: null, originalLine: null, originalCommitSha: null,
+      }))]
     },
 
     async myReviews(repo, number) {

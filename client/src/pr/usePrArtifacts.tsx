@@ -106,6 +106,7 @@ export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk
               threads={threads}
               pendingReplies={replies}
               now={now}
+              onAsk={(thread) => onDiscuss({ path, line: thread.root.line ?? thread.root.originalLine ?? 1, side: thread.root.side === 'LEFT' ? 'old' : 'new', text: '' }, 'Summarize this conversation and tell me whether my concern is addressed.')}
               onReply={(root, body) =>
                 pr.actions.add({
                   path,

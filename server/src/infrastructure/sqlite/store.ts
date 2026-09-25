@@ -126,12 +126,27 @@ export function sqliteStore(db: DatabaseSync): Store {
       replace(prId, rows, fetchedAt) {
         q('DELETE FROM remote_comment WHERE pr_id = ?').run(prId)
         const insert = q(
-          `INSERT INTO remote_comment (pr_id, remote_id, author, path, line, start_line, side, body, in_reply_to, remote_created_at, fetched_at, original_line, original_commit_sha)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           `INSERT INTO remote_comment (pr_id, remote_id, author, path, line, start_line, side, body, in_reply_to, remote_created_at, fetched_at, original_line, original_commit_sha, kind)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         for (const c of rows) {
-          insert.run(prId, c.remoteId, c.author, c.path, c.line, c.startLine, c.side, c.body, c.inReplyTo, c.createdAt, fetchedAt, c.originalLine, c.originalCommitSha)
+          insert.run(prId, c.remoteId, c.author, c.path, c.line, c.startLine, c.side, c.body, c.inReplyTo, c.createdAt, fetchedAt, c.originalLine, c.originalCommitSha, c.kind ?? null)
         }
+      },
+    },
+
+    attention: {
+      descriptions: (repoId, viewer) => q(`SELECT cr.pr_id, cr.body FROM comment_read cr JOIN pull_request pr ON pr.id = cr.pr_id
+        WHERE pr.repo_id = ? AND cr.viewer = ? AND cr.remote_id = 'description'`).all(repoId, viewer)
+        .map((r) => ({ prId: Number(r.pr_id), body: str(r.body) })),
+      comments: (repoId, viewer) => q(`SELECT c.*, cr.body AS read_body FROM remote_comment c
+        JOIN pull_request pr ON pr.id = c.pr_id
+        LEFT JOIN comment_read cr ON cr.pr_id = c.pr_id AND cr.remote_id = c.remote_id AND cr.viewer = ?
+        WHERE pr.repo_id = ? ORDER BY c.remote_created_at, c.id`).all(viewer, repoId)
+        .map((r) => ({ prId: Number(r.pr_id), comment: toRemoteComment(r), seen: r.read_body === r.body })),
+      markRead(prId, viewer, remoteId, body) {
+        q(`INSERT INTO comment_read (pr_id, viewer, remote_id, body) VALUES (?, ?, ?, ?)
+          ON CONFLICT(pr_id, remote_id, viewer) DO UPDATE SET body = excluded.body`).run(prId, viewer, remoteId, body)
       },
     },
 
@@ -484,6 +499,7 @@ function toRemoteComment(r: Row): RemoteComment {
     createdAt: str(r.remote_created_at),
     originalLine: (r.original_line as number | null) ?? null,
     originalCommitSha: (r.original_commit_sha as string | null) ?? null,
+    ...(r.kind === 'discussion' ? { kind: 'discussion' as const } : {}),
   }
 }
 

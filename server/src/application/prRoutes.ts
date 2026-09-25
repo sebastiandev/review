@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { markCommentsRead, readAttention } from '../domain/commands/readAttention.ts'
 import type { ModelRef, Verdict } from '@review/shared'
 import { addPullRequests, listOpenPreviews, resolvePullRequest } from '../domain/commands/addPullRequests.ts'
 import { dismissFinding, keepAllFindings, keepFinding } from '../domain/commands/agentFindings.ts'
@@ -40,6 +41,12 @@ export function prRoutes(deps: PrRoutesDeps) {
   const id = (value: string) => Number(value)
 
   app.get('/api/repos', (c) => c.json(store.views.repoCounts()))
+  app.get('/api/repos/:id/attention', async (c) => c.json(await readAttention(deps, { repoId: id(c.req.param('id')) })))
+  app.post('/api/prs/:id/comments/read', async (c) => {
+    const body = await c.req.json<{ comments: { remoteId: string; body: string }[] }>()
+    await markCommentsRead(deps, { prId: id(c.req.param('id')), comments: body.comments })
+    return c.json({ ok: true })
+  })
 
   /** Diff mode inside a PR-mode server: open a folder (working tree, optionally vs `base`) or a patch file as the `local` scope. */
   app.post('/api/scopes/local', async (c) => {

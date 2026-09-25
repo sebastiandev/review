@@ -184,6 +184,20 @@
 
 :root,
 [data-style="framed"] {
+  --sep: 1px solid var(--seam);
+  --code-bg: var(--color-bg);
+  --chip-bg: transparent;
+  --side-bg: transparent;
+  --chrome: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg));
+  --pop: var(--color-surface);
+  --r-chip: 14px;
+  --card-shadow: var(--shadow-sm);
+  --bubble-bg: var(--color-neutral-900);
+  --dock-bg: var(--chrome);
+  --attention-seam: color-mix(in srgb, var(--color-text) 9%, transparent);
+  --attention-ctl-bg: var(--color-bg);
+  --dock-ctl: var(--color-bg);
+  --code-chip: var(--color-neutral-900);
   --seam: var(--color-divider);
   --hairline: var(--color-divider);
   --chrome-bg: var(--color-bg);
@@ -195,6 +209,20 @@
 }
 
 [data-style="tonal"] {
+  --sep: 2px solid var(--color-bg);
+  --code-bg: color-mix(in srgb, var(--color-surface) 45%, var(--color-bg));
+  --chip-bg: var(--color-neutral-900);
+  --side-bg: var(--color-neutral-900);
+  --chrome: var(--color-surface);
+  --pop: var(--color-neutral-900);
+  --r-chip: 3px;
+  --card-shadow: none;
+  --bubble-bg: var(--color-surface);
+  --dock-bg: var(--color-neutral-900);
+  --attention-seam: transparent;
+  --attention-ctl-bg: var(--color-neutral-900);
+  --dock-ctl: var(--color-surface);
+  --code-chip: var(--color-neutral-800);
   --seam: transparent;
   --color-divider: transparent;
   --hairline: var(--color-neutral-800);
@@ -220,6 +248,17 @@
   --diff-del-alpha: 0.13;
   --diff-add-fg: #cfe4d5;
   --diff-del-fg: #e8cdcd;
+}
+
+/* Primer's dark diff line fills (success-muted / danger-muted) and default text.
+   githubDiff.css adds its canvas, gutter and syntax tokens inside code surfaces only. */
+[data-diff-theme="github"] {
+  --diff-add-rgb: 46, 160, 67;
+  --diff-del-rgb: 248, 81, 73;
+  --diff-add-alpha: 0.14902;
+  --diff-del-alpha: 0.1;
+  --diff-add-fg: #f0f6fc;
+  --diff-del-fg: #f0f6fc;
 }
 
 [data-diff-theme="muted"] {

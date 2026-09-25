@@ -77,6 +77,16 @@ const threadPath = (scope: string, thread: string) => `${scopePath(scope)}/chat/
 
 export type OpenLocalScopeRequest = { target: string; base?: string | null }
 
+/** Conversations requiring the viewer's attention in a tracked repository. */
+export function fetchAttention(repoId: number): Promise<import('@review/shared').AttentionThread[]> {
+  return requestJson(`/api/repos/${repoId}/attention`)
+}
+
+/** Acknowledge the exact comment versions displayed to the viewer. */
+export function markCommentsRead(prId: number, comments: { remoteId: string; body: string }[]): Promise<void> {
+  return requestJson(`/api/prs/${prId}/comments/read`, jsonInit('POST', { comments }))
+}
+
 /** PR-mode server: make `local` show a folder's working tree (optionally vs `base`) or a patch file. */
 export function openLocalScope(req: OpenLocalScopeRequest): Promise<{ source: DiffSourceRef }> {
   return requestJson<{ source: DiffSourceRef }>('/api/scopes/local', jsonInit('POST', req))

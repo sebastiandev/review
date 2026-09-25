@@ -8,10 +8,11 @@ type FileHeaderProps = {
   compact: boolean
   /** Toolbar contents, pushed right. */
   children?: ReactNode
+  diffstat?: boolean
 }
 
 /** Center-pane file header: directory, basename, +/− counts and the toolbar slot. */
-export function FileHeader({ file, compact, children }: FileHeaderProps) {
+export function FileHeader({ file, compact, children, diffstat }: FileHeaderProps) {
   return (
     <div className={`file-header${compact ? ' file-header-compact' : ''}`}>
       <span className="file-title">
@@ -20,6 +21,7 @@ export function FileHeader({ file, compact, children }: FileHeaderProps) {
       </span>
       <span className="count-add">+{file.additions}</span>
       <span className="count-del">−{file.deletions}</span>
+      {diffstat && <span className="diffstat" aria-hidden>{Array.from({ length: 5 }, (_, i) => <i key={i} className={i < Math.round(5 * file.additions / Math.max(1, file.additions + file.deletions)) ? 'add' : 'del'} />)}</span>}
       <div className="file-toolbar">{children}</div>
     </div>
   )

@@ -2,6 +2,12 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import type { InboxRow, RepoSummary, UserSettings, Verdict } from '@review/shared'
 import { fetchAccount, fetchAccountRepos, fetchConfig, fetchInbox, fetchPastReviews, fetchPrDetail, fetchRepos, fetchSettings, fetchWorktrees, patchSettings } from '../api'
 import { useServerEvent } from '../events/useServerEvents'
+import { fetchAttention } from '../api'
+
+/** Conversations and unread receipts for a repository; polling also sees read receipts from other windows. */
+export function useAttention(repoId: number | null) {
+  return useQuery({ queryKey: ['attention', repoId], queryFn: () => fetchAttention(repoId!), enabled: repoId !== null, refetchInterval: 30_000 })
+}
 
 /** Query keys of PR-mode server state, in one place so events and mutations invalidate the same keys. */
 export const keys = {
@@ -94,6 +100,7 @@ export function usePrDetail(prId: number | null) {
 export function useSyncInvalidation(): void {
   const client = useQueryClient()
   useServerEvent((event) => {
+    if (event.type === 'sync.finished' || event.type === 'pr.refreshed' || event.type === 'review.submitted' || event.type === 'comments.read') void client.invalidateQueries({ queryKey: ['attention'] })
     switch (event.type) {
       case 'sync.finished':
         void client.invalidateQueries({ queryKey: keys.inbox(event.repoId) })

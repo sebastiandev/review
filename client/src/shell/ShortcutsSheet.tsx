@@ -2,6 +2,8 @@ const SHORTCUTS: [key: string, label: string][] = [
   ['⌘K', 'open a pull request (palette)'],
   ['f', 'focus mode'],
   ['j / k', 'next / previous file'],
+  ['n', 'next conversation (unread first)'],
+  ['x', 'collapse / expand file conversations'],
   ['⏎', 'open selected PR'],
   ['esc', 'back / close'],
   ['u', 'merged diff'],

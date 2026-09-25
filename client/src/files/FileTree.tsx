@@ -1,7 +1,8 @@
-import { Check } from '@phosphor-icons/react'
+import { CheckSquare, Square, ChatTeardropDots } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import type { DiffFile } from '@review/shared'
-import { basename } from './scope'
+import { basename, dirname } from './scope'
+import { ConversationPill } from '../pr/ConversationPill'
 
 type FileTreeProps = {
   files: DiffFile[]
@@ -9,6 +10,8 @@ type FileTreeProps = {
   viewed: ReadonlySet<string>
   /** Comment-count badge per path; absent or 0 renders nothing. */
   badges?: Record<string, number>
+  chatCounts?: Record<string, number>
+  chatPath?: string
   width: number
   /** Scope selector (diff mode) or the PR header block. */
   header: ReactNode
@@ -19,19 +22,14 @@ type FileTreeProps = {
   onStartResize: (e: React.PointerEvent<HTMLElement>) => void
 }
 
-const STATUS_CLASS: Record<DiffFile['status'], string> = {
-  added: 'dot-added',
-  renamed: 'dot-renamed',
-  deleted: 'dot-deleted',
-  modified: 'dot-modified',
-}
-
 /** Workspace sidebar: a header slot, the FILES overline with the viewed count, one row per changed file, a footer slot. */
 export function FileTree({
   files,
   selectedPath,
   viewed,
   badges,
+  chatCounts,
+  chatPath,
   width,
   header,
   footer,
@@ -60,36 +58,35 @@ export function FileTree({
               key={file.path}
               role="button"
               tabIndex={0}
-              className={`file-row${selected ? ' file-row-on' : ''}`}
+              className={`file-row${selected ? ' file-row-on' : ''}${isViewed ? ' file-viewed' : ''}${chatPath === file.path ? ' file-chat-selected' : ''}`}
               aria-current={selected || undefined}
               onClick={() => onSelect(file.path)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault()
                   onSelect(file.path)
                 }
               }}
             >
-              <span className={`dot ${STATUS_CLASS[file.status]}`} title={file.status} />
-              <span className="file-row-name" title={file.path}>
-                {basename(file.path)}
+              <span className="file-row-label" title={file.path}>
+                <span className="file-row-directory">{dirname(file.path) || '.'}</span>
+                <span className="file-row-name">{basename(file.path)}</span>
               </span>
-              {badge > 0 && (
-                <span className="file-badge" title={`${badge} comments`}>
-                  {badge}
-                </span>
-              )}
+              <ConversationPill path={file.path} count={badge} onNavigate={() => onSelect(file.path)} />
+              {!!chatCounts?.[file.path] && <span className="file-chat-count"><ChatTeardropDots size={11} />{chatCounts[file.path]}</span>}
               <button
                 type="button"
-                className={`viewed-box${isViewed ? ' viewed-box-on' : ''}`}
-                aria-pressed={isViewed}
-                title="Mark viewed"
+                className="file-viewed-toggle"
+                role="checkbox"
+                aria-checked={isViewed}
+                aria-label={isViewed ? 'Mark unviewed' : 'Mark viewed'}
+                title={isViewed ? 'Mark unviewed' : 'Mark viewed'}
                 onClick={(e) => {
                   e.stopPropagation()
                   onToggleViewed(file.path)
                 }}
               >
-                {isViewed && <Check size={10} weight="bold" />}
+                {isViewed ? <CheckSquare size={15} /> : <Square size={15} />}
               </button>
             </div>
           )

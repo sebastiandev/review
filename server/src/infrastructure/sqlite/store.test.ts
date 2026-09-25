@@ -6,6 +6,30 @@ import type { Store } from '../../domain/store.ts'
 import { DEFAULT_USER_SETTINGS } from '../../domain/settings.ts'
 import { GITHUB_REPO, NOW, openTestStore, remotePr } from '../../domain/testing/fakes.ts'
 import { openDatabase, runMigrations } from './database.ts'
+import { sqliteStore } from './store.ts'
+
+it('persists comment read receipts across database reopen and comment replacement', async () => {
+  const test = await openTestStore()
+  const repo = test.store.repos.insert({ ...GITHUB_REPO, tracked: true, autoReview: false, syncedAt: null, syncError: null })
+  const pr = test.store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
+  const comment = { remoteId: '1', author: 'alice', body: '@me', kind: 'discussion' as const, path: '',
+    line: null, startLine: null, side: null, inReplyTo: null, createdAt: NOW, originalLine: null, originalCommitSha: null }
+  test.store.transaction(() => {
+    test.store.comments.replace(pr.id, [comment], NOW)
+    test.store.attention.markRead(pr.id, 'me', comment.remoteId, comment.body)
+  })
+  const db = openDatabase(test.path)
+  try {
+    const reopened = sqliteStore(db)
+    reopened.transaction(() => reopened.comments.replace(pr.id, [comment], NOW))
+    expect(reopened.attention.comments(repo.id, 'me')[0]?.seen).toBe(true)
+    reopened.transaction(() => reopened.comments.replace(pr.id, [{ ...comment, body: '@me edited' }], NOW))
+    expect(reopened.attention.comments(repo.id, 'me')[0]?.seen).toBe(false)
+  } finally {
+    db.close()
+    await test.close()
+  }
+})
 
 describe('migrations', () => {
   let dir: string
@@ -19,11 +43,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005', '0006', '0007'])
+    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(7)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(8)
     second.close()
   })
 

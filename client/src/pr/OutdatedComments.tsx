@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CaretDown, CaretRight } from '@phosphor-icons/react'
-import { relativeTime } from '../inbox/inboxRows'
+import { useCommentTarget, VisibleComment } from './CommentAttention'
 import type { RemoteThread } from './comments'
 
 type OutdatedCommentsProps = { threads: RemoteThread[]; now: number }
@@ -9,8 +9,13 @@ type OutdatedCommentsProps = { threads: RemoteThread[]; now: number }
  * Comments left on an earlier commit of this file. GitHub cannot place them on the current diff
  * (`line` is null), so they are listed here with the line they had at the time, folded by default.
  */
-export function OutdatedComments({ threads, now }: OutdatedCommentsProps) {
+export function OutdatedComments({ threads }: OutdatedCommentsProps) {
   const [open, setOpen] = useState(false)
+  const target = useCommentTarget()
+  const containsTarget = threads.some((t) => [t.root, ...t.replies].some((c) => c.remoteId === target))
+  useEffect(() => {
+    if (containsTarget) setOpen(true)
+  }, [target, containsTarget])
   if (threads.length === 0) return null
   const count = threads.reduce((n, t) => n + 1 + t.replies.length, 0)
   const sha = threads[0]!.root.originalCommitSha
@@ -30,12 +35,7 @@ export function OutdatedComments({ threads, now }: OutdatedCommentsProps) {
                 {t.root.side === 'LEFT' ? ' (old side)' : ''}
               </div>
               {[t.root, ...t.replies].map((c) => (
-                <div key={c.remoteId} className="thread-comment">
-                  <div className="artifact-ref">
-                    {c.author} · {relativeTime(c.createdAt, now)}
-                  </div>
-                  <div className="artifact-body">{c.body}</div>
-                </div>
+                <VisibleComment key={c.remoteId} comment={c} />
               ))}
             </div>
           ))}

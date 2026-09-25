@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { AgentReviewDetail, InboxRow, PastReviewRow, PrDetail, RepoSummary, ServerEvent, UserSettings } from '@review/shared'
+import type { AttentionThread, RemoteCommentRow, AgentReviewDetail, InboxRow, PastReviewRow, PrDetail, RepoSummary, ServerEvent, UserSettings } from '@review/shared'
 import type { DraftComment, Submission } from '../domain/review.ts'
 import type { Repo } from '../domain/pullRequests.ts'
 import type { Store } from '../domain/store.ts'
@@ -110,6 +110,85 @@ describe('PR mode app', () => {
     expect(res.status).toBe(202)
     await finished
   }
+
+  /** A remote inline comment in the fixture's diff. */
+  const conversationComment = (remoteId: string, author: string, body: string, inReplyTo: string | null = null): RemoteCommentRow => ({
+    remoteId, author, body, inReplyTo, path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT',
+    createdAt: `2026-09-07T09:00:0${remoteId}Z`, originalLine: null, originalCommitSha: null,
+  })
+
+  it('keeps a reply unread until the displayed comment is acknowledged, including after resync', async () => {
+    provider.remoteComments.set(415, [conversationComment('1', 'me', 'Please explain'), conversationComment('2', 'alice', 'Explained', '1')])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const before: AttentionThread[] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(before[0]).toMatchObject({ awaitingReply: false, unreadReplies: ['2'], mine: true })
+    const prId = before[0]!.prId
+    await app.request(`/api/prs/${prId}`)
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadReplies).toEqual(['2'])
+    const read = await app.request(`/api/prs/${prId}/comments/read`, json('POST', { comments: [{ remoteId: '2', body: 'Explained' }] }))
+    expect(read.status).toBe(200)
+    await syncRepo(repo.id)
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadReplies).toEqual([])
+    provider.remoteComments.get(415)!.push(conversationComment('3', 'alice', 'Another reply', '1'))
+    await syncRepo(repo.id)
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadReplies).toEqual(['3'])
+  })
+
+  it.each([
+    ['own follow-up', [conversationComment('1', 'me', 'Question'), conversationComment('2', 'alice', 'Answer', '1'), conversationComment('3', 'me', 'Follow-up', '1')], true],
+    ['someone answered', [conversationComment('1', 'me', 'Question'), conversationComment('2', 'alice', 'Answer', '1')], false],
+  ] as const)('classifies awaiting replies by the latest own comment: %s', async (_name, comments, awaitingReply) => {
+    provider.remoteComments.set(415, [...comments])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const rows = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(rows[0].awaitingReply).toBe(awaitingReply)
+  })
+
+  it('includes direct mentions in general discussion without requiring my participation', async () => {
+    provider.remoteComments.set(415, [{ ...conversationComment('1', 'alice', '@me please check'), kind: 'discussion', path: '', line: null, side: null }])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const rows = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(rows).toMatchObject([{ rootId: 'discussion', mine: false, unreadMentions: ['1'], unreadReplies: [] }])
+  })
+
+  it('discovers unread description mentions and acknowledges their displayed version', async () => {
+    provider.remote.get(415)!.body = '@me could you review this?'
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const [thread] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(thread).toMatchObject({ rootId: 'description', unreadMentions: ['description'] })
+    await app.request(`/api/prs/${thread.prId}/comments/read`, json('POST', { comments: [{ remoteId: 'description', body: provider.remote.get(415)!.body }] }))
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadMentions).toEqual([])
+  })
+
+  it('does not let stale acknowledgements mark edited comments read', async () => {
+    provider.remoteComments.set(415, [conversationComment('1', 'alice', '@me new text')])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const [thread] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    await app.request(`/api/prs/${thread.prId}/comments/read`, json('POST', { comments: [{ remoteId: '1', body: '@me old text' }] }))
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadMentions).toEqual(['1'])
+  })
+
+  it('isolates attention and read receipts by repository and authenticated viewer', async () => {
+    provider.remoteComments.set(415, [conversationComment('1', 'alice', '@me and @bob')])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const other = await (await app.request('/api/repos', json('POST', { provider: 'github', owner: 'other', name: 'repo', autoReview: false }))).json()
+    expect(await (await app.request(`/api/repos/${other.id}/attention`)).json()).toEqual([])
+    const [thread] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    await app.request(`/api/prs/${thread.prId}/comments/read`, json('POST', { comments: [{ remoteId: '1', body: '@me and @bob' }] }))
+    provider.viewer = 'bob'
+    expect((await (await app.request(`/api/repos/${repo.id}/attention`)).json())[0].unreadMentions).toEqual(['1'])
+  })
+
+  it('returns not found for attention requests on unknown repos and PRs', async () => {
+    expect((await app.request('/api/repos/999/attention')).status).toBe(404)
+    expect((await app.request('/api/prs/999/comments/read', json('POST', { comments: [] }))).status).toBe(404)
+  })
 
   it('walks a review from tracking the repo to the submitted review', async () => {
     expect(await (await app.request('/api/repos')).json()).toEqual([])

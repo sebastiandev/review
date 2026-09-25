@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowClockwise } from '@phosphor-icons/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { AgentFinding, DraftCommentRow, InboxRow, PrDetail, Verdict } from '@review/shared'
 import {
@@ -25,7 +26,10 @@ import { isActive, labelFor, submitHints } from './agentReview'
 import { AgentReviewPanel } from './AgentReviewPanel'
 import { countByPath, groupThreads } from './comments'
 import { useDismissedFindings } from './dismissedFindings'
-import { PrDescription } from './PrDescription'
+import { PrOverview } from './PrOverview'
+import { CommentAttention } from './CommentAttention'
+import { attentionPreview, canOpenConversation } from './attentionUi'
+import type { AttentionThread } from '@review/shared'
 import { PrTreeFooter, PrTreeHeader } from './PrTreeChrome'
 import { keys, usePrDetail } from './queries'
 import { RunReviewModal } from './RunReviewModal'
@@ -82,9 +86,14 @@ function withInvalid(drafts: DraftCommentRow[], invalidIds: ReadonlySet<number>)
 }
 
 /** PR mode workspace: opens the worktree, renders the cached diff with comments, and owns the submit dialog. */
-export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOpenPr, onDone, onStatus, onFlash }: PrWorkspaceProps) {
+export function PrWorkspace({ prId, initialThread, inbox, layout, defaultDiffMode, onBack, onOpenPr, onDone, onStatus, onFlash }: PrWorkspaceProps & { initialThread?: AttentionThread | null }) {
+  const [selectedThread, setSelectedThread] = useState<AttentionThread | null>(initialThread ?? null)
+  const targetThread = selectedThread?.prId === prId ? selectedThread : null
+  const targetId = targetThread ? attentionPreview(targetThread).remoteId : null
   const client = useQueryClient()
   const detail = usePrDetail(prId)
+  const canJump = targetThread && detail.data?.diff ? canOpenConversation(targetThread, detail.data.diff.files, detail.data.diff.patch) : false
+  const commentJump = useMemo(() => targetThread && targetId ? { path: canJump ? targetThread.comments[0]!.path : '', remoteId: targetId } : null, [targetThread, targetId, canJump])
   const worktree = useWorktree(prId, detail.data?.pr.worktreePath)
   const viewed = useServerViewed(prId, detail.data)
   const now = useNow(30_000)
@@ -185,6 +194,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
       void refetchDetail()
       if (pr) void client.invalidateQueries({ queryKey: keys.inbox(pr.repoId) })
       onFlash(`review submitted · ${verdictLabel(submission.verdict)}`)
+      if (submission.verdict === 'APPROVE') onBack()
     },
     onError: (e) => {
       if (e instanceof ApiError && e.code === 'invalid_anchors') setInvalidIds(new Set(e.ids))
@@ -227,7 +237,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
   }, [submitOpen, panelOpen, runOpen, button.disabled, onReviewButton, pr?.state])
 
   const drafts = useMemo(() => withInvalid(detail.data?.draft?.comments ?? [], invalidIds), [detail.data?.draft?.comments, invalidIds])
-  const threads = useMemo(() => groupThreads(detail.data?.comments ?? []), [detail.data?.comments])
+  const threads = useMemo(() => groupThreads((detail.data?.comments ?? []).filter((c) => c.kind !== 'discussion')), [detail.data?.comments])
   const badges = useMemo(() => countByPath([...(detail.data?.comments ?? []), ...drafts]), [detail.data?.comments, drafts])
   const prData = useMemo<PrWorkspaceData>(
     () => ({
@@ -259,7 +269,10 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         <button type="button" className="btn btn-ghost btn-xs pr-back notice" onClick={onBack}>
           ← All PRs
         </button>
-        <p className="notice">No diff cached for #{pr.number} yet; refresh the repository.</p>
+        <CommentAttention prId={prId} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
+          <PrOverview detail={detail.data} onOpen={(thread) => setSelectedThread({ ...thread })} />
+        </CommentAttention>
+        <p className="notice">No diff cached yet; refresh the repository to navigate to files.</p>
       </main>
     )
   }
@@ -273,6 +286,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
 
   return (
     <>
+      <CommentAttention prId={prId} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
       <Workspace
         key={prId}
         scope={prScope(prId)}
@@ -281,7 +295,9 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
         viewed={viewed}
         defaultDiffMode={defaultDiffMode}
         chatEnabled={worktree.status === 'ready'}
-        dockAbove={<PrDescription author={pr.author} body={pr.body} headRef={pr.headRef} createdAt={pr.createdAt} now={now} />}
+        overview={<PrOverview detail={detail.data} onOpen={(thread) => setSelectedThread({ ...thread })} />}
+        commentJump={commentJump}
+        onConversation={(thread) => setSelectedThread({ ...thread })}
         chatNotice={
           worktree.status === 'failed' ? `worktree failed: ${worktree.message}` : `worktree not ready · ${worktreeLabel(worktree)}…`
         }
@@ -305,15 +321,16 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
               type="button"
               className="btn btn-secondary toolbar-btn"
               title="Fetch the latest commits and comments for this PR"
+              aria-label="Refresh pull request"
               disabled={refresh.isPending}
               onClick={() => refresh.mutate()}
             >
               {refresh.isPending && <span className="spinner" aria-hidden />}
-              {refresh.isPending ? 'Refreshing…' : 'Refresh'}
+              {!refresh.isPending && <ArrowClockwise size={14} />}
             </button>
             <button
               type="button"
-              className="btn btn-secondary toolbar-btn"
+              className={`btn ${button.action === 'run' ? 'btn-primary' : 'btn-secondary'} toolbar-btn`}
               disabled={button.disabled || run.isPending}
               onClick={onReviewButton}
             >
@@ -346,6 +363,7 @@ export function PrWorkspace({ prId, inbox, layout, defaultDiffMode, onBack, onOp
           )
         }
       />
+      </CommentAttention>
       {runOpen && (
         <RunReviewModal
           prNumber={pr.number}

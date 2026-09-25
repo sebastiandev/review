@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 export const UI_THEMES = ['nocturne', 'ember', 'slate', 'atelier', 'darkula', 'neon', 'daylight'] as const
 export const STYLE_MODES = ['framed', 'tonal'] as const
-export const DIFF_THEMES = ['nocturne', 'muted', 'vivid', 'paper', 'darkula', 'neon', 'solar', 'acid'] as const
+export const DIFF_THEMES = ['github', 'nocturne', 'muted', 'vivid', 'paper', 'darkula', 'neon', 'solar', 'acid'] as const
 export const CODE_FONTS = ['jetbrains-mono', 'ibm-plex-mono', 'fira-code', 'source-code-pro'] as const
 
 export type UiTheme = (typeof UI_THEMES)[number]

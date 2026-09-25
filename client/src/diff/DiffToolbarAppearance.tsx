@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAppearance } from '../theme/AppearanceContext'
 import { DIFF_THEME_INFO, swatch } from '../theme/catalog'
 import { DIFF_THEMES } from '../theme/useTheme'
@@ -7,7 +7,7 @@ import { DIFF_THEMES } from '../theme/useTheme'
  * Diff-toolbar appearance controls: the diff-theme picker (swatch pair + label + ▾, 180px menu with ● on the
  * active set) and the Focus / Exit focus button. Renders nothing outside `AppearanceProvider`.
  */
-export function DiffToolbarAppearance() {
+export function DiffToolbarAppearance({ conversationsControl }: { conversationsControl?: ReactNode }) {
   const appearance = useAppearance()
   const [menuOpen, setMenuOpen] = useState(false)
   const anchor = useRef<HTMLDivElement>(null)
@@ -70,6 +70,7 @@ export function DiffToolbarAppearance() {
           </div>
         )}
       </div>
+      {conversationsControl}
       <button
         type="button"
         className="btn btn-secondary toolbar-btn"
@@ -77,7 +78,7 @@ export function DiffToolbarAppearance() {
         title="Hide everything but the files, the diff and chat"
         onClick={appearance.onToggleFocus}
       >
-        {appearance.focus ? 'Exit focus' : 'Focus'}
+        {appearance.focus ? 'Exit focus' : 'Focus'} <kbd>{appearance.focus ? 'ESC' : 'F'}</kbd>
       </button>
     </>
   )

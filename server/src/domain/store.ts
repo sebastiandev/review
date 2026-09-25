@@ -45,6 +45,11 @@ export type Store = {
     list(prId: number): RemoteComment[]
     replace(prId: number, rows: RemoteComment[], fetchedAt: string): void
   }
+  attention: {
+    comments(repoId: number, viewer: string): { prId: number; comment: RemoteComment; seen: boolean }[]
+    descriptions(repoId: number, viewer: string): { prId: number; body: string }[]
+    markRead(prId: number, viewer: string, remoteId: string, body: string): void
+  }
   drafts: {
     open(prId: number, headSha: string): ReviewDraft | null
     /** The open draft for the PR regardless of head, if any. */

@@ -1,62 +1,45 @@
-# Delta — since the 2026-09-07 handoff
+# Delta — since the 2026-09-09 handoff
 
-Five changes. Nothing already built is invalidated; three of the five are additive settings, one is a new overlay, one replaces a placeholder affordance with a real one. Sections referenced below are in `README.md`.
-
----
-
-## 1. ⌘K palette replaces the top-bar search placeholder
-
-**Was:** a non-interactive search affordance in the top bar (`Search PRs, files, comments` + `⌘K`).
-
-**Now:** that affordance is a button, and `⌘K` / `Ctrl+K` from anywhere opens **Open a pull request** — a top-anchored overlay palette (spec: §11). Grouped by repository, one highlighted row, arrow keys + `↵` to open, `esc` to close.
-
-**Why it is specified in this much detail:** the implementation's own palette (the screenshot that prompted this round) let long titles run under the author column, clipped them mid-word, and produced both a horizontal scrollbar and a doubled header ("Open a pull request · 32 pending" above a separate `Filter…` field). The redesign fixes those specifically:
-
-| Implementation | Redesign |
-|---|---|
-| Header line + separate boxed filter field | The input row **is** the header — transparent, borderless, autofocused; the count lives at its right edge |
-| Titles clipped, colliding with authors, horizontal scrollbar | Fixed columns: number 54px, title `flex: 1; min-width: 0` with ellipsis, author 104px right-aligned; `overflow-x: hidden` |
-| Flat list of 32 rows | Grouped by repository with per-group counts |
-| Selection = grey band only | Accent tint + 2px inset accent bar + `↵` affordance on the row |
-| No keyboard guidance | Footer: `↑↓ move · ↵ open · ⌘↵ browser · esc close` |
-
-**Implementation work:** new overlay component; three pieces of state (`paletteOpen`, `pq`, `pi`); a global key handler that runs *before* the input guard, since `⌘K` must work while typing.
-
-## 2. Focus mode
-
-New (spec: §12). Hides the top bar and the icon rail, keeps files + diff + chat, and raises the diff body from 12.5/1.65 to 13.5/1.95. Toggle: the **Focus** button in the diff toolbar, or `f`; exit with `esc` or the button. Scoped to the workspace so the exit is always visible.
-
-**Implementation work:** one boolean on the app root plus two conditional `display: none`s and a font-size/line-height override on the diff body. No second layout, no per-component changes.
-
-## 3. Code font is now its own axis
-
-**Was:** JetBrains Mono did two jobs — interface metadata and the diff body.
-
-**Now:** those are separate roles (spec: *Fonts*, §Appearance axis 4). Interface mono stays JetBrains Mono permanently. The **diff body** takes a user-chosen face: JetBrains Mono (default), IBM Plex Mono, Fira Code, Source Code Pro. New setting in Appearance, new `codeFont` state to persist.
-
-**Implementation work:** load the three additional families; apply the face to the merged and side-by-side diff bodies only — not to interface mono, not to the raw-markdown view, not to inline code in prose.
-
-## 4. Four more diff themes, and a light-mode derivation rule
-
-Added **Darkula, Neon, Solar, Acid** to Nocturne / Muted / Vivid / Paper — eight sets, values in the §3 table.
-
-Two structural notes:
-
-- The picker now exists **twice**: in the diff toolbar (swatch pair + label + `▾`, menu with a `●` on the active set) and in Settings → Appearance. One piece of state behind both.
-- Because all eight sets are mixed for a dark ground, a light palette **derives** rather than duplicates: raise the fills to `0.30` / `0.26` alpha and swap the pale line text for dark ink (`#173a26` / `#4b1c1c`). Adding a ninth diff theme must never mean authoring a light twin.
-
-## 5. Three more app palettes, one of them light
-
-Added **Darkula** (warm grey, olive-gold), **Neon** (near-black, cyan) and **Daylight** (light ground, indigo) to Nocturne / Ember / Slate / Atelier.
-
-**The one thing to watch:** Daylight is the first light palette, and it works by **inverting both ramps** — under it `--color-neutral-100` is ink and `--color-neutral-900` is paper. Every existing ramp reference keeps its meaning only because the ramp itself flipped. So: never hard-code a dark value where a ramp step belongs, and never assume 100 is light. If a component was built with "neutral-900 = dark panel" in mind rather than "neutral-900 = the quietest surface step", it will invert incorrectly — that is the one place to check when wiring this palette up.
+Six changes, all in PR mode. They are specified in `README.md` §13–§16 and are live in `prototype/Review Attention.dc.html`. `prototype/Review.dc.html` stays the reference for everything else (settings, add-PR, submit, past reviews, markdown, ⌘K palette, diff mode).
 
 ---
 
-## Unchanged
+## 1. Inbox center becomes "Needs your attention" (§13)
 
-The app shell and its sizes, the responsive rules, all diff and markdown interactions, the add-a-PR flow, agent review, submit, past reviews, the chat dock, and every Settings section other than Appearance. The Nocturne base tokens and the Framed/Tonal surface axis are untouched.
+**Was:** one card per assigned PR ("Pending review"). In the implementation it had already turned into a flat list of full-width comment dumps with uppercase PR titles, every comment fully expanded.
 
-## Prototype
+**Now:** three foldable sections (**Direct mentions**, **Unread replies**, **Awaiting their reply**), filter chips with counts, conversations grouped by PR. **PR groups are collapsed by default**; a collapsed header shows the conversation count and who is waiting on you. Rows are compact (author, kind tag, shortened `…/dir/file.py:line`, date), clamp the body to `previewLines` lines, and carry the *"You: …"* quote of the comment being answered. Click → the exact file, line and thread.
 
-`prototype/Review.dc.html` in this bundle is the current build — it carries all five changes. The palette, focus mode, both new pickers and all new themes are live in it.
+**Implementation work:** `AttentionDashboard.tsx` rewrite; fold state per section and per `section+prId` group (default folded); body clamp + "Show more"; inline markdown renderer for `code`, **bold**, `@mentions` (you highlighted) and shortened GitHub URLs.
+
+## 2. PR Overview (§14)
+
+Description in a collapsible card, clamped to 240px behind a fade with *Show full description*. **Your conversations** with filter chips (All / Needs you / Awaiting reply / Answered), each thread foldable with a two-line preview, `Open in diff` or a reason it cannot (outdated / file no longer in diff). Expanding a thread marks it read.
+
+**Implementation work:** `PrOverview.tsx` — replace the always-expanded thread list; reuse `VisibleComment` read receipts.
+
+## 3. Diff: one file at a time, GitHub formatting (§15)
+
+The diff shows **only the selected file**; `j` / `k` (and ↑↓ buttons with `2 / 3` in the file header) move between files. GitHub-style body: hunk header rows, two number gutters, a sign column, tinted +/− lines with stronger gutters, sticky file header with diffstat squares and a **Viewed** toggle, basic syntax colouring. Merged and side-by-side both supported. The sidebar file list shows the **directory path above the basename** (muted, 10.5px).
+
+## 4. Lines with review comments are marked (§15)
+
+3px accent bar in the leftmost column, accent-tinted number gutters, and a count pill (`chats` icon + n). Unread conversations glow (accent-700 pill, accent-400 border, soft accent shadow). The thread renders **under the line**, foldable, with an `Ask agent` action. `x` collapses / expands all conversations in the current file; `n` jumps to the next conversation (unread first) across files.
+
+## 5. Agent chat moves to the right dock only (§16)
+
+**Was:** selecting a line opened an in-place chat card over the diff (README §2, *In-place agent chat*). **Removed.**
+
+**Now:** a line number click (shift-click extends a range) or the line's chat icon selects the line(s) and **switches the dock to that line's chat** (existing history, or a new empty chat). The dock header carries a chip row — **General** plus one chip per line chat — to switch context; a quoted-code card shows what the chat is about. A drawn **connector** (accent, 1.5px, elbow along the dock seam, dots at both ends, dashed when the line is scrolled off-screen) joins the selected rows to that card. Always on.
+
+**Implementation work:** chat threads keyed by `scope + path + line range`; `InlineChat.tsx` retires; `ChatDock.tsx` gains the context chip row and quote card; an overlay SVG that re-measures on scroll/resize.
+
+## 6. Toolbar and surface styles
+
+The diff toolbar keeps **Merged / Side by side**, the **diff-theme picker** (8 sets) and **Focus**, and adds **Collapse / Expand conversations**. Every new surface reads the Framed/Tonal tokens (`--sep`, `--code-bg`, `--chip-bg`, `--ctl-bg`, `--card-shadow`, `--r-chip`, §15 table) — nothing is styled per-style.
+
+---
+
+## Earlier (2026-09-09)
+
+⌘K palette, focus mode, code font as its own axis, four more diff themes with the light-mode derivation rule, three more app palettes (Daylight is light, ramps inverted). All still apply.

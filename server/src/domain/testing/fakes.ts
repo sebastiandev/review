@@ -77,6 +77,8 @@ export type FakeProvider = PullRequestProvider & {
   viewer: string
   /** What `listAccountRepos` answers. */
   accountRepos: AccountRepo[]
+  /** PR numbers returned by mention discovery (including mentions in remote comments). */
+  mentioned: Set<number>
 }
 
 /** In-memory `PullRequestProvider`. `listOpen` returns the open PRs in `remote`. */
@@ -97,6 +99,7 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     submitted,
     viewer: 'me',
     accountRepos: [],
+    mentioned: new Set(),
     cloneUrl: (repo) => `https://github.com/${repo.owner}/${repo.name}.git`,
     async viewerLogin() {
       calls.push('viewerLogin')
@@ -109,6 +112,10 @@ export function fakeProvider(prs: RemotePullRequest[] = []): FakeProvider {
     async listReviewRequested(_repo, since) {
       calls.push('listReviewRequested')
       return [...remote.values()].filter((p) => p.state === 'open' && p.reviewRequested && new Date(p.updatedAt) >= since)
+    },
+    async listMentioned(_repo, since) {
+      calls.push('listMentioned')
+      return [...remote.values()].filter((p) => fake.mentioned.has(p.number) && p.state === 'open' && new Date(p.updatedAt) >= since)
     },
     async listOpen() {
       calls.push('listOpen')

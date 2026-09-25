@@ -1,10 +1,14 @@
-import { ArrowsOutLineVertical, Check } from '@phosphor-icons/react'
-import { Fragment, type ReactNode, type RefObject } from 'react'
+import { ArrowsOutLineVertical, CheckSquare, Square, ArrowUp, ArrowDown, ChatTeardropDots } from '@phosphor-icons/react'
+import { Fragment, useState, useEffect, type ReactNode, type RefObject } from 'react'
+import { ConversationPill } from '../pr/ConversationPill'
+import { useConversations } from '../pr/CommentAttention'
+import { FoldCaret } from '../pr/AttentionParts'
 import type { DiffFile } from '@review/shared'
 import { Segmented } from '../shell/Segmented'
 import { DiffToolbarAppearance } from './DiffToolbarAppearance'
 import { FileHeader } from './FileHeader'
-import { ChatMarker, LineActionButton, type LineRef } from './LineActionButton'
+import type { LineRef } from './LineActionButton'
+import { LineMenu } from './LineMenu'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
 import { highlightLine, languageOf } from './highlight'
 import type { ContextGap } from './contextGaps'
@@ -56,17 +60,22 @@ type DiffViewProps = {
   codeFace?: boolean
   /** Full new-side content of a file, for expanding unchanged context; null when the source has none (patch files). */
   loadFile: (path: string) => Promise<string | null>
+  onSelectLine?: (ref: LineRef, extend: boolean) => void
+  fileNav?: { index: number; count: number; onStep: (direction: 1 | -1) => void }
+  conversationsControl?: ReactNode
+  revealKey?: number
+  onBodyReady?: () => void
 }
 
 const MARKER: Record<DiffLine['kind'], string> = { add: '+ ', del: '- ', normal: '  ' }
 const NO_ARTIFACTS: Record<string, ReactNode> = {}
 const NO_HUNKS: DiffHunk[] = []
 
-/** The artifact under a side-by-side row: the right (new) line's, else the left (old) line's. */
+/** Both sides' conversations remain reachable when they share a displayed row. */
 function splitArtifact(artifacts: Record<string, ReactNode>, left: DiffLine | null, right: DiffLine | null): ReactNode {
   const fromRight = right?.newLine != null ? artifacts[lineKey('new', right.newLine)] : undefined
   const fromLeft = left?.oldLine != null ? artifacts[lineKey('old', left.oldLine)] : undefined
-  return fromRight ?? fromLeft
+  return fromRight && fromLeft ? <>{fromLeft}{fromRight}</> : fromRight ?? fromLeft
 }
 
 function lineNumber(line: DiffLine, side: 'old' | 'new'): number {
@@ -74,6 +83,7 @@ function lineNumber(line: DiffLine, side: 'old' | 'new'): number {
 }
 
 type LineProps = {
+  oldLine?: number | null
   path: string
   line: DiffLine
   side: 'old' | 'new'
@@ -87,22 +97,15 @@ type LineProps = {
   onToggleThread: DiffViewProps['onToggleThread']
 }
 
-function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }: LineProps) {
+function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onComment, onAsk, onCopyRef, oldLine }: LineProps) {
   const key = lineKey(side, lineNumber(line, side))
   const thread = threads[key]
   return (
-    <>
-      <LineActionButton
-        lineRef={{ path, line: lineNumber(line, side), side, text: line.text }}
-        menuOpen={openMenu === key}
-        onToggleMenu={() => onToggleMenu(openMenu === key ? null : key)}
-        onCloseMenu={() => onToggleMenu(null)}
-        onComment={onComment}
-        onAsk={onAsk}
-        onCopyRef={onCopyRef}
-      />
-      {thread && <ChatMarker open={thread === 'open'} onClick={() => onToggleThread(key)} />}
-    </>
+    <div className="diff-actions">
+      <ConversationPill path={path} line={lineNumber(line, side)} side={side} oldLine={oldLine} />
+      <button className={`line-chat-button${thread ? ' has-chat' : ''}${thread === 'open' ? ' selected' : ''}`} aria-label={`Ask agent about line ${lineNumber(line, side)}`} title="Ask the agent · right-click for review actions" onClick={() => onAsk({ path, line: lineNumber(line, side), side, text: line.text })} onContextMenu={(e) => { e.preventDefault(); onToggleMenu(key) }} onKeyDown={(e) => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); onToggleMenu(key) } }}><ChatTeardropDots size={12} /></button>
+      {openMenu === key && <LineMenu lineRef={{ path, line: lineNumber(line, side), side, text: line.text }} onComment={onComment} onAsk={onAsk} onCopyRef={onCopyRef} />}
+    </div>
   )
 }
 
@@ -121,10 +124,11 @@ type HunkProps = Omit<LineProps, 'line' | 'side'> & { hunk: DiffHunk }
 
 function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
   const language = languageOf(path)
+  const conversations = useConversations()
   return (
     <>
       <div className="drow drow-hunk">
-        <span className="gutter">···</span>
+        <span className="gutter"><ArrowsOutLineVertical size={13} /></span>
         <span className="gutter" />
         <span className="line-action-spacer" />
         <span className="diff-code">{hunk.header}</span>
@@ -133,19 +137,22 @@ function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
         const side = line.kind === 'del' ? 'old' : 'new'
         const key = lineKey(side, lineNumber(line, side))
         const anchored = slot.threads[key] === 'open'
-        const artifact = slot.artifacts[key]
+        const artifact = splitArtifact(slot.artifacts, line, line)
+        const marked = conversations?.threads.filter((t) => { const c = t.comments[0]!; return c.path === path && c.line !== null && c.line === (c.side === 'LEFT' ? line.oldLine : line.newLine) }) ?? []
         return (
           <Fragment key={i}>
             <div
-              className={`drow drow-${line.kind}${anchored ? ' drow-anchored' : ''}`}
+              className={`drow drow-${line.kind}${anchored ? ' drow-anchored' : ''}${marked.length ? ' conversation-marked' : ''}${marked.some((t) => t.unreadMentions.length || t.unreadReplies.length) ? ' conversation-unread' : ''}`}
               data-path={path}
               data-side={side}
               data-line={side === 'old' ? line.oldLine : line.newLine}
+              data-range-start={anchored && slot.threads[lineKey(side, lineNumber(line, side) - 1)] !== 'open'}
+              data-range-end={anchored && slot.threads[lineKey(side, lineNumber(line, side) + 1)] !== 'open'}
             >
-              <span className="gutter">{line.oldLine}</span>
-              <span className="gutter">{line.newLine}</span>
-              <ActionSlot path={path} line={line} side={side} {...slot} />
-              <Code line={line} marker={MARKER[line.kind]} language={language} />
+              <button className="gutter" data-number={line.oldLine} data-gutter-side="old" disabled={line.oldLine == null}>{line.oldLine}</button>
+              <button className="gutter" data-number={line.newLine} data-gutter-side="new" disabled={line.newLine == null}>{line.newLine}</button>
+              <ActionSlot path={path} line={line} side={side} oldLine={line.kind === 'normal' ? line.oldLine : null} {...slot} />
+              <span className="diff-sign">{MARKER[line.kind].trim()}</span><Code line={line} marker="" language={language} />
             </div>
             {artifact && <div className="artifacts">{artifact}</div>}
           </Fragment>
@@ -157,6 +164,7 @@ function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
 
 function SplitHunk({ path, hunk, ...slot }: HunkProps) {
   const language = languageOf(path)
+  const conversations = useConversations()
   return (
     <>
       <div className="srow">
@@ -170,27 +178,32 @@ function SplitHunk({ path, hunk, ...slot }: HunkProps) {
       </div>
       {splitRows(hunk.lines).map(({ left, right }, i) => {
         const artifact = splitArtifact(slot.artifacts, left, right)
+        const marked = conversations?.threads.filter((t) => { const c = t.comments[0]!; return c.path === path && c.line !== null && c.line === (c.side === 'LEFT' ? left?.oldLine : right?.newLine) }) ?? []
         return (
           <Fragment key={i}>
-            <div className="srow">
+            <div className={`srow${marked.length ? ' conversation-marked' : ''}${marked.some((t) => t.unreadMentions.length || t.unreadReplies.length) ? ' conversation-unread' : ''}`}>
               <div
-                className={`side side-left${left ? ` side-${left.kind}` : ''}`}
+                className={`side side-left${left ? ` side-${left.kind}` : ' side-empty'}${left && slot.threads[lineKey('old', left.oldLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
                 data-path={left ? path : undefined}
                 data-side={left ? 'old' : undefined}
                 data-line={left?.oldLine ?? undefined}
+                data-range-start={left && slot.threads[lineKey('old', left.oldLine ?? 0)] === 'open' && slot.threads[lineKey('old', (left.oldLine ?? 0) - 1)] !== 'open'}
+                data-range-end={left && slot.threads[lineKey('old', left.oldLine ?? 0)] === 'open' && slot.threads[lineKey('old', (left.oldLine ?? 0) + 1)] !== 'open'}
               >
-                <span className="gutter">{left?.oldLine}</span>
-                {left && <Code line={left} marker="  " language={language} />}
+                <button className="gutter" data-number={left?.oldLine} data-gutter-side="old" disabled={left?.oldLine == null}>{left?.oldLine}</button>
+                {left && <Code line={left} marker={MARKER[left.kind]} language={language} />}
               </div>
               <div
-                className={`side${right ? ` side-${right.kind}` : ''}${right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
+                className={`side${right ? ` side-${right.kind}` : ' side-empty'}${right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
                 data-path={right ? path : undefined}
                 data-side={right ? 'new' : undefined}
                 data-line={right?.newLine ?? undefined}
+                data-range-start={right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' && slot.threads[lineKey('new', (right.newLine ?? 0) - 1)] !== 'open'}
+                data-range-end={right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' && slot.threads[lineKey('new', (right.newLine ?? 0) + 1)] !== 'open'}
               >
-                <span className="gutter">{right?.newLine}</span>
-                {right ? <ActionSlot path={path} line={right} side="new" {...slot} /> : <span className="line-action-spacer" />}
-                {right && <Code line={right} marker="  " language={language} />}
+                <button className="gutter" data-number={right?.newLine} data-gutter-side="new" disabled={right?.newLine == null}>{right?.newLine}</button>
+                {right ? <ActionSlot path={path} line={right} side="new" oldLine={left?.oldLine} {...slot} /> : left ? <ActionSlot path={path} line={left} side="old" {...slot} /> : <span className="line-action-spacer" />}
+                {right && <Code line={right} marker={MARKER[right.kind]} language={language} />}
               </div>
             </div>
             {artifact && <div className="artifacts">{artifact}</div>}
@@ -298,7 +311,21 @@ export function DiffView({
   children,
   codeFace = true,
   loadFile,
+  onSelectLine,
+  fileNav,
+  conversationsControl,
+  revealKey,
+  onBodyReady,
 }: DiffViewProps) {
+  const [folded, setFolded] = useState(false)
+  useEffect(() => setFolded(false), [file.path, revealKey])
+  useEffect(() => { if (!folded) onBodyReady?.() }, [folded, file.path, revealKey, onBodyReady])
+  useEffect(() => {
+    if (!openMenu) return
+    const close = (e: PointerEvent) => { if (!(e.target instanceof Element) || !e.target.closest('.line-menu')) onToggleMenu(null) }
+    window.addEventListener('pointerdown', close)
+    return () => window.removeEventListener('pointerdown', close)
+  }, [openMenu, onToggleMenu])
   const context = useExpandedContext(file.path, parsed?.hunks ?? NO_HUNKS, loadFile)
   const slot = { path: file.path, openMenu, threads, artifacts, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }
   const touch = (target: EventTarget | null) => {
@@ -307,7 +334,7 @@ export function DiffView({
   }
   return (
     <>
-      <FileHeader file={file} compact={compact}>
+      <div className="diff-toolbar">
         {toolbar}
         <Segmented<DiffMode>
           label="Diff view"
@@ -318,20 +345,28 @@ export function DiffView({
           ]}
           onChange={onMode}
         />
-        <DiffToolbarAppearance />
+        <DiffToolbarAppearance conversationsControl={conversationsControl} />
         {headerActions}
-        <button type="button" className="btn btn-secondary toolbar-btn" aria-pressed={viewed} onClick={onToggleViewed}>
-          {viewed ? (
-            <>
-              Viewed <Check size={12} weight="bold" />
-            </>
-          ) : (
-            'Mark viewed'
-          )}
-        </button>
-      </FileHeader>
-      <div ref={bodyRef} className={codeFace ? 'diff-body diff-body-code' : 'diff-body'} onMouseOver={(e) => touch(e.target)} onFocus={(e) => touch(e.target)}>
-        {!parsed || parsed.hunks.length === 0 ? (
+        <span className="diff-toolbar-hint">Click a line number or chat icon to ask the agent · shift-click for a range · J / K files</span>
+      </div>
+      <div ref={bodyRef} className={codeFace ? 'diff-body diff-body-code' : 'diff-body'} onMouseOver={(e) => touch(e.target)} onFocus={(e) => touch(e.target)} onContextMenu={(e) => {
+        const ref = lineRefFrom(e.target)
+        if (ref) { e.preventDefault(); onToggleMenu(lineKey(ref.side, ref.line)) }
+      }} onClick={(e) => {
+        const gutter = (e.target as HTMLElement).closest<HTMLElement>('[data-number]')
+        if (!gutter) return
+        const row = gutter.closest('.drow, .side')
+        const ref: LineRef = { path: file.path, line: Number(gutter.dataset.number), side: gutter.dataset.gutterSide === 'old' ? 'old' : 'new', text: row?.querySelector('.diff-text')?.textContent ?? '' }
+        if (onSelectLine) onSelectLine(ref, e.shiftKey); else onAsk(ref)
+      }}>
+        <div className="diff-file-card">
+        <FileHeader file={file} compact={false} diffstat>
+          <button className="file-fold" aria-label={folded ? 'Expand file' : 'Collapse file'} aria-expanded={!folded} onClick={() => setFolded((v) => !v)}><FoldCaret open={!folded} /></button>
+          <ConversationPill path={file.path} />
+          {fileNav && <span className="file-navigation"><button aria-label="Previous file" disabled={fileNav.index === 0} onClick={() => fileNav.onStep(-1)}><ArrowUp size={12} /></button><span>{fileNav.index + 1} / {fileNav.count}</span><button aria-label="Next file" disabled={fileNav.index >= fileNav.count - 1} onClick={() => fileNav.onStep(1)}><ArrowDown size={12} /></button></span>}
+          <button type="button" className="btn btn-secondary viewed-toggle" aria-pressed={viewed} onClick={() => { onToggleViewed(); setFolded(!viewed) }}>{viewed ? <CheckSquare size={14} /> : <Square size={14} />}Viewed</button>
+        </FileHeader>
+        {!folded && (!parsed || parsed.hunks.length === 0 ? (
           <p className="notice">Binary file or no textual changes.</p>
         ) : (
           <div className={mode === 'unified' ? 'diff-unified' : 'diff-split'}>
@@ -346,8 +381,9 @@ export function DiffView({
               </Fragment>
             ))}
           </div>
-        )}
-        {children}
+        ))}
+        {!folded && children}
+        </div>
       </div>
     </>
   )

@@ -1,0 +1,23 @@
+/* GitHub Primer dark tokens: https://unpkg.com/@primer/primitives/dist/css/functional/themes/dark.css
+   Scoped to code, so app palettes and Framed/Tonal chrome remain independent. Daylight uses the
+   shared light derivation in themes.css, like every other line-tint set. */
+:root:not([data-theme="daylight"])[data-diff-theme="github"] :is(.diff-file-card, .dock-selection-quote) {
+  --code-bg: #0d1117;
+  --diff-add-bg: #2ea04326;
+  --diff-del-bg: #f851491a;
+  /* Composite Primer's #3fb9504d / #f851494d over the canvas, not over the
+     already-tinted row (GitHub paints number and code cells independently). */
+  --diff-add-gutter-bg: color-mix(in srgb, #3fb950 30.196078%, #0d1117);
+  --diff-del-gutter-bg: color-mix(in srgb, #f85149 30.196078%, #0d1117);
+  --diff-context-fg: #f0f6fc;
+  --diff-number-fg: #9198a1;
+  --diff-hunk-bg: #388bfd1a;
+  --diff-hunk-gutter-bg: #0c2d6b;
+  --diff-hunk-fg: #9198a1;
+  --syntax-keyword: #ff7b72;
+  --syntax-type: #d2a8ff;
+  --syntax-call: #d2a8ff;
+  --syntax-string: #a5d6ff;
+  --syntax-comment: #9198a1;
+  --syntax-constant: #79c0ff;
+}

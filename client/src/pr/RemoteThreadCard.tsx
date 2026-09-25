@@ -1,85 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { ChatTeardropDots } from '@phosphor-icons/react'
 import type { DraftCommentRow } from '@review/shared'
-import { relativeTime } from '../inbox/inboxRows'
-import { CommentComposer } from './CommentComposer'
+import { useConversations, VisibleComment } from './CommentAttention'
+import { AttentionTag, FoldCaret } from './AttentionParts'
+import { attentionKind } from './attentionUi'
 import type { RemoteThread } from './comments'
 
-type RemoteThreadCardProps = {
-  threads: RemoteThread[]
-  /** Pending replies by the remote id they answer. */
-  pendingReplies: Record<string, DraftCommentRow[]>
-  now: number
-  onReply: (rootRemoteId: string, body: string) => Promise<void>
-}
+type Props = { threads: RemoteThread[]; pendingReplies: Record<string, DraftCommentRow[]>; now: number; onReply: (id: string, body: string) => Promise<void>; onAsk?: (thread: RemoteThread) => void }
 
-function countComments(threads: RemoteThread[]): number {
-  return threads.reduce((sum, t) => sum + 1 + t.replies.length, 0)
-}
-
-/**
- * Others' comments on one line: folded to a `{n} comments from others · {author}` pill, expanded to a
- * bordered card of threads with their replies and a reply composer per thread.
- */
-export function RemoteThreadCard({ threads, pendingReplies, now, onReply }: RemoteThreadCardProps) {
-  const [open, setOpen] = useState(false)
-  const [replyTo, setReplyTo] = useState<string | null>(null)
+/** One foldable review conversation, controlled by the same state as its gutter pill. */
+function ThreadCard({ thread, pendingReplies, onReply, onAsk }: Omit<Props, 'threads' | 'now'> & { thread: RemoteThread }) {
+  const context = useConversations()
+  const [localOpen, setLocalOpen] = useState(false)
+  const [body, setBody] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const first = threads[0]
-  if (!first) return null
-  const count = countComments(threads)
-  const noun = count === 1 ? 'comment' : 'comments'
+  const id = thread.root.remoteId
+  const data = context?.threads.find((t) => t.rootId === id)
+  const unread = Boolean(data?.unreadMentions.length || data?.unreadReplies.length)
+  const open = context?.open[id] ?? localOpen
+  const comments = [thread.root, ...thread.replies]
+  const targeted = comments.some((c) => c.remoteId === context?.target)
+  const kind = data ? attentionKind(data) : 'answered'
+  useEffect(() => {
+    if (open && context) void Promise.all(comments.map(context.seen)).catch(() => setError('Could not save read status.'))
+  }, [open])
+  return <section className={`review-thread-card${unread ? ' unread' : ''}${targeted ? ' targeted' : ''}`}>
+    <header><button className="review-thread-fold" aria-expanded={open} onClick={() => context ? context.setOpen([id], !open) : setLocalOpen(!open)}><FoldCaret open={open} /><AttentionTag accent={unread}>{kind === 'mentions' ? 'Mentions you' : kind === 'replies' ? 'New reply' : kind === 'awaiting' ? 'Awaiting reply' : 'Read'}</AttentionTag><span>{comments.length} comments</span>{!open && <span className="review-thread-preview">{comments.at(-1)!.author}: {comments.at(-1)!.body}</span>}</button>
+      <button className="btn btn-ghost btn-xs" onClick={() => onAsk?.(thread)}><ChatTeardropDots size={13} />Ask agent</button></header>
+    {open && <>{comments.map((c) => <VisibleComment key={c.remoteId} comment={c} />)}{(pendingReplies[id] ?? []).map((r) => <div className="thread-comment" key={r.id}>You · pending reply: {r.body}</div>)}
+      <form className="thread-reply-form" onSubmit={(e) => { e.preventDefault(); if (!body.trim()) return; setBusy(true); void onReply(id, body).then(() => setBody(''), (e: Error) => setError(e.message)).finally(() => setBusy(false)) }}>
+        <input aria-label="Reply in thread" placeholder="Reply…" value={body} onChange={(e) => setBody(e.target.value)} /><button className="btn btn-primary btn-xs" disabled={busy || !body.trim()}>Reply</button>
+      </form></>}{error && <p role="alert">{error}</p>}
+  </section>
+}
 
-  const reply = async (rootRemoteId: string, body: string) => {
-    setBusy(true)
-    try {
-      await onReply(rootRemoteId, body)
-      setReplyTo(null)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="others">
-      <button type="button" className="others-pill" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {open ? `Hide ${count} ${noun} from others` : `${count} ${noun} from others · ${first.root.author}`}
-      </button>
-      {open && (
-        <div className="others-card">
-          {threads.map((thread) => (
-            <div key={thread.root.remoteId} className="thread">
-              {[thread.root, ...thread.replies].map((c) => (
-                <div key={c.remoteId} className="thread-comment">
-                  <div className="artifact-ref">
-                    {c.author} · {relativeTime(c.createdAt, now)}
-                  </div>
-                  <div className="artifact-body">{c.body}</div>
-                </div>
-              ))}
-              {(pendingReplies[thread.root.remoteId] ?? []).map((d) => (
-                <div key={d.id} className="thread-comment thread-pending">
-                  <div className="artifact-ref">You · pending reply</div>
-                  <div className="artifact-body">{d.body}</div>
-                </div>
-              ))}
-              {replyTo === thread.root.remoteId ? (
-                <CommentComposer
-                  reference={`reply to ${thread.root.author}`}
-                  placeholder="Reply in thread…"
-                  submitLabel="Reply"
-                  busy={busy}
-                  onSubmit={(body) => void reply(thread.root.remoteId, body)}
-                  onCancel={() => setReplyTo(null)}
-                />
-              ) : (
-                <button type="button" className="btn btn-secondary btn-xs thread-reply" onClick={() => setReplyTo(thread.root.remoteId)}>
-                  Reply
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+/** Review conversations remain under the diff; only agent chats move into the dock. */
+export function RemoteThreadCard({ threads, ...props }: Props) {
+  return <>{threads.map((thread) => <ThreadCard key={thread.root.remoteId} thread={thread} {...props} />)}</>
 }

@@ -32,7 +32,7 @@ export type ChatInput = TurnSettings & {
 
 /** Stable thread id for a line anchor. */
 export function lineThreadId(anchor: DiffSelection): string {
-  return `line:${anchor.path}:${anchor.startLine}`
+  return `line:${anchor.path}:${anchor.side}:${anchor.startLine}-${anchor.endLine}`
 }
 
 /**

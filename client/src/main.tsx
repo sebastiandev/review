@@ -8,6 +8,8 @@ import './theme/nocturne.css'
 import './theme/themes.css'
 import './app.css'
 import './markdown/markdown.css'
+import './attention.css'
+import './theme/githubDiff.css'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } })
 

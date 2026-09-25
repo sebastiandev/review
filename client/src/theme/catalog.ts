@@ -27,6 +27,7 @@ export const CODE_FONT_INFO: Record<CodeFont, { label: string; note: string; sta
 
 /** Added / removed tint bases (rgb), mirrored from themes.css so swatches can render the pair at 0.85 alpha. */
 export const DIFF_THEME_INFO: Record<DiffTheme, { label: string; add: string; del: string }> = {
+  github: { label: 'GitHub', add: '46, 160, 67', del: '248, 81, 73' },
   nocturne: { label: 'Nocturne', add: '111, 170, 126', del: '196, 123, 123' },
   muted: { label: 'Muted', add: '140, 150, 170', del: '170, 140, 150' },
   vivid: { label: 'Vivid', add: '86, 190, 120', del: '226, 96, 96' },

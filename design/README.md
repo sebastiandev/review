@@ -11,9 +11,14 @@ Two modes:
 
 ## About the design files
 
+Two prototypes, both **design references written in HTML**:
+
+- `prototype/Review Attention.dc.html` — **the current PR-mode flow**: the *Needs your attention* inbox, the PR Overview, the one-file GitHub-style diff with comment markers, and the dock-only agent chat with its line connector (§13–§16). Where it and the older file disagree, it wins.
+- `prototype/Review.dc.html` — everything else: settings, add-PR, submit, past reviews, markdown review, ⌘K palette, diff mode, appearance axes.
+
 `prototype/Review.dc.html` is a **design reference written in HTML** — a working prototype of the intended look and behavior, not production code to lift. Implement it in the target codebase's own environment (React + Vite is the natural fit for a local web app; use what the repo already has) with its established patterns. The prototype's internal structure — one streaming component with a render-values function — is an artifact of the design tool and should **not** be reproduced.
 
-To open it from this bundle: `prototype/Review.dc.html` next to `prototype/support.js`, with the stylesheet already vendored at `prototype/_ds/nocturne-…/styles.css`. It needs a network connection for the two Google Fonts.
+To open them from this bundle: either file next to `prototype/support.js`, with the stylesheet already vendored at `prototype/_ds/nocturne-…/styles.css`. They need a network connection for the Google Fonts and (for the attention prototype) Phosphor's web font from unpkg.
 
 ## Fidelity
 
@@ -192,6 +197,8 @@ Segmented control, used throughout: container with 2px padding and a 1px seam bo
 
 ### 1. PR inbox (opening screen, PR mode)
 
+> **Center pane superseded by §13.** The sidebar below still applies (plus the attention badges described in §13); the "Pending review" card list is replaced by *Needs your attention*.
+
 **Sidebar.** Top: the **repo selector** — full-width button (padding `6px 9px`, 1px seam, radius 8, font 12.5) with a 6px accent dot, the repo name (ellipsis) and `▾`. Its menu (`--pop-bg`, `--r-pop`, `--shadow-md`, 4px padding) lists tracked repositories with assigned counts, the current one in `--color-accent-200`, plus a separated **"Manage repositories…"** row in `--color-accent-300` jumping to Settings → Tracked repositories. Switching repo **replaces** the list — repositories are never mixed — and clears the selection.
 
 Below: "Assigned to you" (heading font 15) + count + two ghost buttons pushed right, **`Add PR`** and `Refresh`; a mono 11px fetch line (`fetched 40s ago · gh · 4 assigned`); then rows, padding `9px 14px`, 2px transparent left border, selected = accent left border + `color-mix(in srgb, var(--color-accent) 9%, transparent)`, hover = 5% text tint.
@@ -234,7 +241,9 @@ PR-mode footer: worktree path in mono 11px `--color-neutral-500`, then a full-wi
 - **Your pending comment** — 1px `--color-accent-700`, radius 8, padding `10px 12px`, mono 11px `You · pending in this review`.
 - **Comment composer** — `--color-surface` fill; the reference in mono 11px, a `.input` textarea (min-height 64, font 13), then `Add to review`, `Cancel`, and `Ask agent instead` (ghost, pushed right).
 
-**In-place agent chat.** Opening it must **not** move the diff. The card renders at **pane level**, outside the horizontally scrolled diff body: `position: absolute; right: 16px; bottom: 16px; width: min(400px, calc(100% − 32px))`, `--pop-bg`, `--r-pop`, `--shadow-lg`. Header: 6px accent dot, "Inline chat", the reference in mono 11px (ellipsis), `–` (minimize), `×` (close). Body: max-height 240, scrollable, 9px gaps; the user's turn a right-aligned 12px bubble (`--color-accent-900` on `--color-accent-100`, radius 4, max-width 88%), the agent's turn plain 12.5px/1.55 with inline mono identifiers; suggestion chips (`Show me the diff`, `Turn into comment`). Footer: input + `Send`.
+> **Superseded by §15–§16:** the diff shows one file at a time in GitHub formatting, and the in-place chat card below is **removed** — agent chat lives only in the dock. The line menu, findings, composer and pending-comment artifacts still apply.
+
+**In-place agent chat (retired).** Opening it must **not** move the diff. The card renders at **pane level**, outside the horizontally scrolled diff body: `position: absolute; right: 16px; bottom: 16px; width: min(400px, calc(100% − 32px))`, `--pop-bg`, `--r-pop`, `--shadow-lg`. Header: 6px accent dot, "Inline chat", the reference in mono 11px (ellipsis), `–` (minimize), `×` (close). Body: max-height 240, scrollable, 9px gaps; the user's turn a right-aligned 12px bubble (`--color-accent-900` on `--color-accent-100`, radius 4, max-width 88%), the agent's turn plain 12.5px/1.55 with inline mono identifiers; suggestion chips (`Show me the diff`, `Turn into comment`). Footer: input + `Send`.
 
 The **anchor line stays tinted** `color-mix(in srgb, var(--color-accent) 20%, transparent)` while open, and the line keeps a **gutter chat marker** beside the action button: 18px square, radius 4, `--color-accent-900` fill, 1px border (`--color-accent-700`, full accent while open), Phosphor `chat-centered` 11px. That marker is the way back to a minimized chat — minimizing hides the card and leaves the marker; clicking toggles. There is no floating pill stack.
 
@@ -337,7 +346,9 @@ Collapsed: a 44px rail with `‹` and the vertical word "Chat" (`writing-mode: v
 |---|---|
 | `⌘K` | open a pull request (palette) |
 | `f` | focus mode |
-| `j` / `k` | next / previous file |
+| `j` / `k` | next / previous file (the diff shows one file) |
+| `n` | next review conversation (unread first) |
+| `x` | collapse / expand every conversation in the current file |
 | `⏎` | open selected PR |
 | `esc` | back / close |
 | `u` | merged diff |
@@ -352,7 +363,7 @@ Collapsed: a 44px rail with `‹` and the vertical word "Chat" (`writing-mode: v
 | `r` | run the automatic review |
 | `?` | this sheet |
 
-Wired in the prototype: `⌘K`, `f`, `?`, `esc`, `d`, `u`, `s`, `m`, `r`, `j`, `k`. The rest are specified and should be implemented. Guard every handler against firing while focus is in an `input` or `textarea`.
+Wired in the prototypes: `⌘K`, `f`, `?`, `esc`, `d`, `u`, `s`, `m`, `r`, `j`, `k` (Review.dc.html) and `j`, `k`, `n`, `x`, `f`, `u`, `s`, `esc` (Review Attention.dc.html). The rest are specified and should be implemented. Guard every handler against firing while focus is in an `input` or `textarea`.
 
 ### 11. Open a pull request (⌘K palette)
 
@@ -376,6 +387,179 @@ For long reads. Toggled by **Focus** in the diff toolbar, by `f`, and off again 
 Hidden: the top bar and the icon rail. Kept: the file list, the diff, and the chat dock — the three things a review actually needs. Readability: the diff body goes **12.5px/1.65 → 13.5px/1.95** (the same code font, just larger and airier); nothing else resizes, so no layout reflows beyond the reclaimed 46px and 48px.
 
 It is scoped to the workspace (`view === 'files' || mode === 'diff'`), so the toolbar carrying the exit is always on screen; leaving the workspace suspends it rather than trapping the user in a chromeless inbox. Implement it as a single flag on the app root, not as a separate layout.
+
+---
+
+## PR mode, attention-first (current flow)
+
+Prototype: `prototype/Review Attention.dc.html`. Sample data is the user's ShipHero Shiphero-API review traffic; PR **#46675** is the fully wired one (description, three-file diff, threads). Other PRs open to their Overview.
+
+### Shared pieces
+
+**Comment body renderer** (inbox rows, overview threads, diff threads, dock messages): 13.5px/1.55, `--color-neutral-200`, `word-break: break-word` (dock: `overflow-wrap: anywhere`). Inline spans:
+
+- `code` → mono 0.86em, padding `1px 5px`, radius 4, `--color-neutral-900` bg, 1px seam, `--color-neutral-100`.
+- `**bold**` → 600, `--color-text`.
+- `@you` → `--color-accent-200` on `color-mix(accent 20%)`, radius 4, padding `0 3px`, 500. Other `@mentions` → `--color-accent-300`, 500.
+- GitHub URLs → strip `https://github.com/{owner}/{repo}/`, shorten commit shas in `changes/` to 7 chars, cap at 64 chars with a leading `…`; `--color-accent-300`, underlined, offset 3.
+
+**Avatars** — circle, 24px (26px in inbox rows), initials 9.5–10px/500. Others: `--color-neutral-800` fill, 1px `--color-neutral-700`, `--color-neutral-300`. You: `--color-accent-800`, 1px `--color-accent-700`, `--color-accent-200`.
+
+**Tags** (11px, padding `0 7px`, line-height 17px, radius `--r-chip`): accent = `--color-accent-900` fill, 1px `--color-accent-800`, `--color-accent-300`; neutral = transparent, 1px `--color-neutral-700`, `--color-neutral-400`.
+
+**Filter chips** — height 28, padding `0 11px`, radius `--r-chip`, 12.5px, label + mono 11px count (gap 6). Off: `--chip-bg`, 1px seam, `--color-neutral-300`, count `--color-neutral-500`. On: `color-mix(accent 14%)`, 1px `--color-accent`, `--color-accent-200`, count `--color-accent-300`.
+
+**Fold caret** — Phosphor `caret-down` 12px `--color-neutral-500`, `rotate(-90deg)` when closed, 150ms transform transition. Every fold is a whole clickable header row (hover 4% text tint), never just the caret.
+
+**Surface-style tokens added for these screens** (set on the root with the §Appearance tokens):
+
+| Token | Framed | Tonal |
+|---|---|---|
+| `--sep` (row separators inside cards/lists) | `1px solid var(--seam)` | `2px solid var(--color-bg)` — a gap in the ground colour |
+| `--code-bg` (diff body, dock quote card) | `var(--color-bg)` | `color-mix(in srgb, var(--color-surface) 45%, var(--color-bg))` |
+| `--chip-bg` (inactive chips, empty states, nav buttons) | `transparent` | `var(--color-neutral-900)` |
+| `--ctl-bg` (search, composer, reply field) | `var(--color-bg)` | `var(--color-neutral-900)` |
+| `--side-bg` (sidebar) | `transparent` | `var(--color-neutral-900)` |
+| `--chrome` (top bar, rail, status bar) | `color-mix(surface 45%, bg)` | `var(--color-surface)` |
+| `--pop` (theme menu) | `var(--color-surface)` | `var(--color-neutral-900)` |
+| `--r-chip` | `14px` | `3px` |
+| `--card-shadow` | `var(--shadow-sm)` | `none` |
+| `--bubble-bg` (user chat turns) | `var(--color-neutral-900)` | `var(--color-surface)` — the dock itself is neutral-900 in Tonal |
+| `--dock-ctl` (dock composer) | `var(--ctl-bg)` | `var(--color-surface)` |
+| `--code-chip` (inline code fill) | `var(--color-neutral-900)` | `var(--color-neutral-800)` — must read on both surface cards and the neutral-900 dock |
+| `--radius-sm / md / lg` | `4 / 8 / 14` | `2 / 3 / 6` |
+| `--shadow-sm` | Nocturne value | `none` |
+
+Cards are `--color-surface` on the ground in both styles; in Tonal they lose the hairline and rely on the surface step. The dock's selected-line card keeps its accent outline in both — it is the connection, not decoration.
+
+**Element by element** — what each new piece looks like in each style. Anything not listed is identical in both (accent marks, tags, pills, line tints, the connector, selection, focus rings).
+
+| Element | Framed | Tonal |
+|---|---|---|
+| App ground / center pane | `--color-bg` | `--color-bg` |
+| Top bar, icon rail, status bar | `color-mix(surface 45%, bg)`, 1px seam below/right/above | `--color-surface`, no lines |
+| Sidebar | transparent on the ground, 1px seam right | `--color-neutral-900`, no line |
+| Chat dock | `color-mix(surface 45%, bg)`, 1px seam left | `--color-neutral-900`, no line |
+| Sidebar PR rows / file rows | 1px seam between rows | 2px `--color-bg` gap between rows |
+| Search affordance, reply field | `--color-bg` + 1px seam, radius 8 | `--color-neutral-900`, no border, radius 3 |
+| Filter chips & dock context chips (inactive) | transparent + 1px seam, radius 14 | `--color-neutral-900`, no border, radius 3 |
+| Filter chips (active) | accent 14% + 1px accent, radius 14 | same fill + 1px accent, radius 3 |
+| PR group cards, description card, overview thread cards | `--color-surface`, `--shadow-sm` hairline, radius 8 | `--color-surface`, no shadow, radius 3 |
+| Rows inside those cards (conversations, comments) | 1px seam top | 2px `--color-bg` gap |
+| Empty states | 1px dashed seam, transparent | `--color-neutral-900` fill, no border |
+| Tab bar under the PR header | 1px seam bottom | no line (active tab keeps its 2px accent underline) |
+| Diff toolbar segmented control | `--color-bg` + 1px seam | `--color-neutral-900`, no border |
+| Secondary buttons (theme picker, Collapse, Focus, Refresh) | DS `.btn-secondary` (outlined) | DS `.btn-secondary` with radius 3 |
+| File card | 1px seam, radius 8, body `--color-bg` | no border, radius 3, body `color-mix(surface 45%, bg)` — one step above the ground |
+| Sticky file header | `--color-surface` + 1px seam bottom | `--color-surface`, no line |
+| Split-diff centre seam | 1px `--color-neutral-800` | 1px `--color-neutral-800` (the one line that survives) |
+| Inline thread card (read) | `--color-surface` + 1px seam outline | `--color-surface`, no outline |
+| Inline thread card (unread / target) | 1px `--color-accent-700` / accent + glow | same (accent survives Tonal) |
+| Dock quote card | 1px `--color-accent-500` + 3px accent halo, body `--color-bg` | same outline + halo, body `color-mix(surface 45%, bg)` |
+| User chat bubble | `--color-neutral-900` + 1px seam | `--color-surface`, no border |
+| Dock composer | `--color-bg` + 1px seam | `--color-surface`, no border |
+| Inline code | `--color-neutral-900` + 1px seam | `--color-neutral-800`, no border |
+| Theme menu | `--color-surface`, `--shadow-md` | `--color-neutral-900`, `--shadow-md` (floating layers keep their shadow) |
+
+Compare `screenshots/framed-NN-*.png` with `screenshots/tonal-NN-*.png` — same state, same number.
+
+### 13. Needs your attention (inbox center)
+
+**Purpose:** glance at what is waiting on you across the repository, then jump straight to the comment.
+
+Container: max-width 1040, padding `26px 32px 80px`, scrolls. Header row (`flex-wrap: wrap`): `h3` 22px **"Needs your attention"** over 13px `--color-neutral-500` *"Mentions and replies clear once you open them. Every PR stays in the sidebar."*; right, ghost `Collapse all` / `Expand all` (12px, Phosphor `arrows-in/out-line-vertical`, `nowrap`). Then filter chips **All · Direct mentions · Unread replies · Awaiting** (margin `18px 0 8px`) — a chip other than All shows only that section.
+
+**Sections** (18px apart), each a full-width header button: caret, Phosphor icon in `--color-accent-300` 15px (`at`, `arrow-bend-down-right`, `hourglass-medium`), title 16px/500, count 12px `--color-neutral-500`, and a right-aligned 12px hint (*Someone @-mentioned you* / *New replies to your comments* / *Your comments with no answer yet*). Open by default. Empty → dashed box *"You're caught up."*
+
+Membership (each conversation in one section only): **mentions** = unread thread whose latest unread comment mentions you; **replies** = unread reply on a thread you commented in; **awaiting** = your comment is the last one. Mentions and replies leave the dashboard once read; awaiting stays until someone answers.
+
+**PR group card** (`--color-surface`, radius `--radius-md`, `--card-shadow`, 8px gap between cards). **Collapsed by default.** Header (padding `9px 14px`, `flex-wrap: wrap`, gap `6px 10px`): caret, mono 12px `#46675`, title 13.5px/500 (`flex: 1 1 200px`, ellipsis, sentence case — never uppercase), then 12px `--color-neutral-500` **"{n} conversations · {up to two authors}"** (the author list only while collapsed), `Mark read` ghost (mentions/replies only, Phosphor `checks`) and `Open PR` ghost; both `nowrap` and `stopPropagation`.
+
+**Conversation row** (expanded group), top `--sep`, padding `11px 14px 10px`, grid `8px 26px 1fr` gap `0 10px`, hover `color-mix(accent 6%)`, whole row clickable:
+
+- Unread dot 7px, `margin-top: 9px`: accent + `0 0 6px` accent glow; awaiting = hollow 1px `--color-neutral-600`.
+- Avatar 26px.
+- Meta line 12px: author 500 (`You` for yourself) · tag (`mentioned you` / `replied` accent, `no reply` neutral) · mono 11.5px `--color-neutral-500` location shortened to `…/{dir}/{file}:{line}` (full path in `title`) · date right-aligned (`waiting {n days}` for awaiting).
+- **Replies only:** a quote line — Phosphor `arrow-bend-down-right`, *"You:"*, your comment on one line with ellipsis, 12px `--color-neutral-500`, margin-top 5.
+- Body (renderer above), margin-top 5, clamped to `previewLines × 1.55em` (default **2**, 1–4 setting) when longer than ~120 chars per line.
+- Footer 12px: `Show more` / `Show less` (`--color-neutral-400`, stops propagation) and, right, `Open in diff →` or `Open in overview →` in `--color-accent-300` (`nowrap`).
+
+**Click:** marks read, selects the PR, and — if the comment's line exists in the current diff — opens **Files changed** on that file, expands the thread, highlights its card, and scrolls it to 120px from the top. Otherwise it opens the Overview with that thread expanded and highlighted.
+
+**Sidebar additions:** PR rows get attention tags after the stats: `@ {n}` and `{n} replies` (accent), `{n} awaiting` (neutral). Rows are separated by `--sep`.
+
+### 14. PR Overview
+
+Tab bar above the center (height 42, padding `0 12px 0 20px`): **Overview** and **Files changed {n}** tabs (13px, Phosphor `article` / `file-code`, 2px accent underline when active, `--color-neutral-400` otherwise), right: icon-only `Next conversation` (`arrow-down`, `n`) in the diff, icon-only `Refresh`, `Run agent review` (primary). The sidebar gets an **Overview** row above FILES with an accent count of conversations that need you.
+
+Body: max-width 920, padding `24px 32px 80px`. Overline 11px `OVERVIEW · #46675`; `h3` 22px title; mono 12px meta (author, `branch → master`, state pill, `+214` / `−38`).
+
+**Description card** (margin-top 22): header row (padding `10px 16px`, bottom seam) — caret, *Description* 13.5px/500, mono 11.5px `author · date`, right *Expand* / *Collapse*. Body padding `6px 18px 14px`, 14px: headings 16px/500 (margin `14px 0 6px`), paragraphs and bullets 1.6 `--color-neutral-200` (bullets a 16px `•` column in `--color-neutral-600`), code blocks mono 12.5px on `--color-bg` with a seam, and raw `<img>` tags rendered as an attachment chip (Phosphor `image` + `image · 1272 × 789` + *Open*) — never as literal HTML. **Collapsed by default to 240px** with a 90px fade to `--color-surface` and a centred secondary `Show full description` button.
+
+**Your conversations** (margin-top 30): 16px/500 title + chips **All · Needs you · Awaiting reply · Answered** with counts. Cards sorted needs → awaiting → answered, 8px apart. Header (padding `10px 14px`): caret, status tag (`Unread mention` / `Unread reply` accent; `Awaiting reply` / `Answered` neutral), mono 12px `{dir}/{file}:{line}` in `--color-neutral-300`, optional `outdated` tag, right 12px `{n} comments · {date | waiting …}`. Collapsed: a two-line preview (13px, max-height 3.3em) *"{author}: {body}"*. Expanded: every comment (avatar, author, date, a `new` tag and a 7% accent row tint on comments that were unread), then a footer with **Open in diff** (primary, Phosphor `file-code`) — or the reason it can't: *Line changed since this comment · outdated* / *File no longer in this diff* — and a right-aligned *Reply on GitHub ↗*. Expanding marks the thread read. A highlighted (target) card has `0 0 0 1px accent, 0 0 18px color-mix(accent 25%)`.
+
+### 15. Files changed — one file, GitHub formatting
+
+**Sidebar file list:** each row (padding `6px 14px`, gap 8, mono) is a column with the **directory path on top** (10.5px/1.3 `--color-neutral-600`, ellipsis, full path in `title`) and the **basename** below (12.5px; `--color-neutral-200`, `--color-neutral-500` once viewed, `--color-accent-200` when it owns the chat selection). Then a conversation pill (below), an agent-chat count (Phosphor `chat-teardrop-dots` + n, 10.5px `--color-accent-300`) and the viewed checkbox (Phosphor `square` / `check-square` 15px). The file on screen: `color-mix(accent 12%)` + `inset 2px 0 0 accent`.
+
+**One file at a time.** `j` / `k`, the sidebar, and the ↑/↓ buttons in the file header (22px squares, `--chip-bg`, disabled at the ends, around a mono 11px `2 / 3`) change it. Opening a thread, a line chat or *Next conversation* switches file first.
+
+**Toolbar** (above the file, gap 8, wraps): **Merged / Side by side** segmented (`Split` below 1300px; `u` / `s`); the **diff-theme picker** (secondary button, two 9px swatches + name + caret; 190px menu on `--pop` with `●` on the active set; `esc` closes); **Collapse / Expand conversations** (`x`, acts on the current file); **Focus** / **Exit focus** with a mono 10px key hint (`F` / `ESC`). Right: 12px hint *"Click a line number or [chat icon] to ask the agent · shift-click for a range · J / K files"*.
+
+**File card:** 1px seam, radius `--radius-md`, `overflow: clip` (not hidden — the header is sticky), `--code-bg`. Sticky header (`top: -14px` to sit flush under the scroller's padding, `--color-surface`, padding `8px 12px`): fold caret, mono path (directory `--color-neutral-500` + basename `--color-text`), `+n` / `−n` mono 11.5px, five 7px diffstat squares (green share of `add / (add+del)`, rest red, 1px gap, radius 1), conversation pill, file nav, **Viewed** button (height 24, Phosphor checkbox icon; checking it folds the file, as on GitHub).
+
+**Merged rows** — grid `3px 52px 52px 44px 18px 1fr`, line-height 20 (26 in focus; font 12.5 → 13.5):
+
+| Column | Content |
+|---|---|
+| 3px bar | accent when the line has a conversation or is selected; unread adds `0 0 8px` accent glow |
+| old / new numbers | right-aligned, padding-right 10, 11.5px, `--color-neutral-600`, click = select line; gutter bg per line type |
+| 44px action | conversation pill and/or chat icon |
+| 18px sign | `+` / `−` in the theme's sign colour |
+| code | `pre-wrap`, `break-all`, text in the theme's add/del foreground or `--color-neutral-200` |
+
+Line tints come from the chosen diff theme: line bg = the theme's rgba, **gutter bg = same colour at 1.7× alpha**, sign colour = same colour at 0.85 alpha, text = the theme's fg. Hunk rows: 28px, `color-mix(accent 7%)` with a 107px `color-mix(accent 12%)` gutter holding Phosphor `arrows-out-line-vertical`, text `--color-neutral-400` indented 62px, `@@ -362,14 +362,22 @@ def pick_line_into_lpn(`. Syntax colours (low chroma): keywords `--color-accent-400`, types `--color-accent-300`, calls `oklch(0.82 0.07 235)`, strings `oklch(0.82 0.08 75)`, comments `--color-neutral-600`.
+
+**Side by side** — grid `3px 46px 1fr 46px 44px 1fr`: old number · old code · new number · action · new code, a 1px `--color-neutral-800` seam before the new code. Deletions and additions in a run pair up row by row; an empty side gets a 135° hairline hatch (`color-mix(text 4%)`, 5px/6px). Code cells prefix `+ ` / `− `. Selection, markers and threads work on either side (the pill sits on the new side).
+
+**Lines with a review conversation** — the visibility fix the brief asked for, from theme tokens only: accent bar, both number gutters and the action cell on `color-mix(accent 24%)` with `--color-accent-200` numbers, and a **count pill** (height 16, padding `0 5px`, mono 10.5px, Phosphor `chats` + n). Read: `--color-accent-900` fill, 1px `--color-accent-700`, `--color-accent-300`. **Unread:** `--color-accent-700` fill, 1px `--color-accent-400`, `--color-accent-100`, `0 0 8px color-mix(accent 55%)` glow. The same pill appears in the file header and the sidebar.
+
+**Thread card** under its line — margin `6px 16px 10px 107px` (51px in split), max-width 860, `--color-surface`, radius `--radius-md`, outline `0 0 0 1px` seam (read) / `--color-accent-700` (unread) / accent + glow (target). Header (padding `7px 12px`, clickable): caret, tag (`Mentions you` / `New reply` accent; `Awaiting reply` / `Read` neutral), `{n} comments`, a single-line *"{author}: {body}"* preview while collapsed, and a right `Ask agent` ghost (opens the dock on this line with a prefilled *"Summarize this conversation and tell me whether my concern is addressed."*). Open: comments separated by `--sep`, then a 30px *Reply…* field on `--ctl-bg`. **Default fold** is a setting — *Unread only* (default) / *All open* / *All collapsed*; opening marks read. The pill in the gutter toggles the same fold.
+
+**Selected line(s)** — row overlay `color-mix(accent 20%)` over the line tint, `inset 0 ±1px 0 --color-accent-500` on the first / last row of the range, accent bar, `--color-accent-200` numbers, the chat icon shown filled (`--color-accent-600` / `--color-accent-100`).
+
+**Chat icon** — 18px, radius 4, Phosphor `chat-teardrop-dots` 12px, shown on hover, on lines that already have an agent chat (`--color-accent-900` / `--color-accent-300`) and on the selection. Hover state: `--color-neutral-800` / `--color-neutral-300`.
+
+### 16. Agent chat — right dock only
+
+The dock (`clamp(260px, 26vw, 380px)`) is the only place the agent chats. Header: *Chat* 15px/500 + mono 11px scope (`#46675` / `inbox`).
+
+**Context chips** under the header (wrap, gap 5, padding `0 14px 10px`): **General** (Phosphor `chats-circle`) then one chip per line chat on this PR with messages, plus the current selection if it is new — mono 11.5px `{basename}:{line}` or `{basename}:{a}–{b}`, Phosphor `crosshair`, full path in `title`. Height 26, radius `--r-chip`; active = `color-mix(accent 16%)` + 1px accent + `--color-accent-200`. Clicking a line chip opens that file, scrolls to the line and selects it; General clears the selection.
+
+**How a line chat starts:** clicking a line number (shift-click extends within the file) or the line's chat icon. If that line already belongs to a chat range, that chat opens with its history; otherwise a new empty chat keyed `{path}:{from}-{to}` opens.
+
+**Quote card** (line chats only, padding `12px 14px 4px`): 1px `--color-accent-500`, radius `--radius-md`, `0 0 0 3px color-mix(accent 14%)` halo, `--code-bg`. Header on `color-mix(accent 12%)`: Phosphor `crosshair`, mono `{basename} · line 376`, `Jump` ghost, `×` (back to General; history is kept). Body: the selected rows (mono 11.5px/19, max-height 120, scrolls) with number, sign and line tint.
+
+**Connector** — always on. A fixed, pointer-events-none SVG over the app: a 2px accent line along the right edge of the selected rows, then a 1.5px accent path from their vertical midpoint to the dock seam, down/up the seam with 8px rounded elbows, into the quote card 15px below its top; 3.5px accent dots at both ends. Clamped to the diff scroller's bounds and **dashed (4 4) when the selection is scrolled out of view**. Re-measured on scroll (capture phase), resize and every render; hidden outside the diff.
+
+**Messages:** user turns as a `--color-neutral-900` bubble (1px seam, radius 8, 13px/1.5, 36px left inset); agent turns as plain 13px/1.55 prose under a `sparkle agent` label in `--color-accent-300`; *agent is thinking…* pulses while waiting. Empty: *"No messages about this selection yet…"* / *"Ask about the whole pull request. Click a line number or the chat icon in the diff to start a chat about specific lines."* **Composer** on `--ctl-bg`: 2-row textarea (placeholder `Ask about {basename}:{line}…`), `↵` sends / `⇧↵` newline, a mono 11px `↳ {context}` label (ellipsis) and a `Send` primary.
+
+**State for §13–§16**
+
+| State | Type | Notes |
+|---|---|---|
+| `read{threadId}` | map | server-side read receipts; drives every unread style |
+| `filter`, `ovFilter` | enum | inbox / overview chips |
+| `foldSec{}`, `foldGrp{section+prId}` | map | groups default **folded** |
+| `expBody{threadId}` | map | inbox "Show more" |
+| `ovOpen{}`, `descOpen` | map, bool | overview folds; description default clamped |
+| `fileIdx` | index | the one file on screen |
+| `thOpen{threadId}` | map | diff thread folds; default from the *threads default* setting |
+| `dockCtx` | `'general' \| {fileIdx, from, to}` | what the dock is about; the selection **is** this value |
+| `chats{contextKey: turns[]}` | map | general chat per PR + one per line range |
+| `split`, `diffTheme`, `focus` | as before | |
+
+Responsive: sidebar `clamp(210px, 20vw, 300px)` and hidden below 1100px; the dock `clamp(260px, 26vw, 380px)`; every flex child holding code or paths has `min-width: 0` so long identifiers can never widen a pane.
 
 ---
 
@@ -427,10 +611,24 @@ Backend data required: assigned PRs per tracked repo (id, title, branch, state, 
 
 ## Assets
 
-No images. Two inline Phosphor icons (`chat-centered`, `dots-three`); other glyphs are text characters (`◧ ◷ ⚙ ◨ ◫ ▾ ‹ › ← × – ✓ ⌕`) — replace them with proper Phosphor icons. The app mark is the text `</>` in JetBrains Mono at `--color-accent`, no container. Fonts from Google Fonts (Inter, JetBrains Mono).
+No images. The attention prototype loads Phosphor's web font (`@phosphor-icons/web@2.1.1`, regular) — use `@phosphor-icons/react` in the app, which the client already depends on. Two inline Phosphor icons (`chat-centered`, `dots-three`); other glyphs are text characters (`◧ ◷ ⚙ ◨ ◫ ▾ ‹ › ← × – ✓ ⌕`) — replace them with proper Phosphor icons. The app mark is the text `</>` in JetBrains Mono at `--color-accent`, no container. Fonts from Google Fonts (Inter, JetBrains Mono).
 
 ## Files
 
+- `prototype/Review Attention.dc.html` — the current PR-mode flow (§13–§16): attention inbox, overview, one-file GitHub-style diff, dock-only chat with the line connector. Open it with `support.js` and `_ds/` beside it.
+- `screenshots/` — full-app reference captures of `Review Attention.dc.html` at **1600 × 1000**, sidebar 300 and dock 380, in both surface styles. The same numbered state exists as `framed-NN` and `tonal-NN`:
+  - `01-inbox-collapsed` — landing state; every PR group folded, header shows count + authors.
+  - `02-inbox-expanded` — *Expand all*; unread dots, kind tags, shortened paths, two-line clamp, *Show more*, CTA.
+  - `03-inbox-replies` — *Unread replies* filter; the *"You: …"* quote line.
+  - `04-overview` — PR Overview; description clamped behind the fade, conversation chips, collapsed previews.
+  - `05-overview-conversation` — *Answered* filter with a thread open: avatars, `new` tag and tinted unread comment, *Open in diff*.
+  - `06-diff-merged` — Files changed, file 1 of 3; hunk row, gutters, line tints, read-thread marker at 376 (collapsed card), agent-chat marker at 370, sidebar with paths above names.
+  - `07-diff-line-chat` — line 370 selected: row overlay + accent edges, dock switched to that line's chat with the quote card, **connector drawn**; thread at 376 expanded.
+  - `08-diff-split` — side by side; paired rows, hatch on empty sides, centre seam, markers on the new side.
+  - `09-diff-file2-unread-thread` — `j` to `lpn.py` (2 / 3); **unread** conversation marker and its open card with the `new` comment.
+  - `10-diff-theme-menu` — the diff-theme menu open (8 sets, `●` on the active one).
+  - `11-focus-vivid` — Vivid diff theme + focus mode: top bar, rail and status bar hidden, diff at 13.5 / 26px rows.
+  Use them to check an implementation; where a capture and the text disagree, the text is the spec. (The unread-pill glow is a `box-shadow` the capture renderer drops — see §15 for it.)
 - `delta.md` — what changed since the previous handoff, and what implementation work each change implies. Read it first if you already built against the earlier bundle.
 - `prototype/Review.dc.html` — the full interactive prototype (all screens, both modes, all three appearance axes), with `support.js` and the vendored stylesheet beside it.
 - `design-system/styles.css` — Nocturne tokens + component classes; usable as-is if the target app can take a stylesheet.

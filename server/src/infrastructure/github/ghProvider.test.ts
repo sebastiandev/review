@@ -51,6 +51,23 @@ describe('ghProvider', () => {
     expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open review-requested:@me updated:>=2026-08-10')
   })
 
+  it('paginates mention discovery within the repo and lookback without inventing review requests', async () => {
+    const page = JSON.parse(fixture('graphql_list_open.json'))[0]
+    const pages = page.data.repository.pullRequests.nodes.map((node: unknown) => ({
+      data: { viewer: page.data.viewer, search: { nodes: [node] } },
+    }))
+    const { run, calls } = fakeRunner(() => JSON.stringify(pages))
+    const prs = await ghProvider(run).listMentioned(repo, new Date('2026-08-10T12:00:00Z'))
+    expect(prs.map((p) => [p.number, p.reviewRequested])).toEqual([[415, true], [416, false]])
+    expect(calls[0].args).toContain('--paginate')
+    expect(calls[0].args).toContain('q=repo:acme/widgets is:pr is:open mentions:@me updated:>=2026-08-10')
+  })
+
+  it('propagates mention search failures instead of treating them as an empty result', async () => {
+    const { run } = fakeRunner(() => new Error('GitHub unavailable'))
+    await expect(ghProvider(run).listMentioned(repo, new Date())).rejects.toThrow('GitHub unavailable')
+  })
+
   it('viewerLogin asks graphql for the viewer', async () => {
     const { run } = fakeRunner(() => JSON.stringify({ data: { viewer: { login: 'seba' } } }))
     expect(await ghProvider(run).viewerLogin()).toBe('seba')
@@ -91,9 +108,14 @@ describe('ghProvider', () => {
   })
 
   it('comments flattens paginated REST pages', async () => {
-    const { run, calls } = fakeRunner(() => fixture('rest_comments.json'))
+    const { run, calls } = fakeRunner((call) => call.args.some((arg) => arg.includes('/issues/')) ? JSON.stringify([
+      [{ id: 2001, user: { login: 'alice' }, body: '@me please check', created_at: '2026-09-01T00:00:00Z' }],
+      [{ id: 2002, user: null, body: 'Deleted user comment', created_at: '2026-09-02T00:00:00Z' }],
+    ]) : fixture('rest_comments.json'))
     const comments = await ghProvider(run).comments(repo, 415)
-    expect(comments.map((c) => c.remoteId)).toEqual(['2001', '2002', '2003'])
+    expect(comments.map((c) => c.remoteId)).toEqual(['2001', '2002', '2003', 'issue:2001', 'issue:2002'])
+    expect(comments[3]).toMatchObject({ kind: 'discussion', path: '', author: 'alice', line: null })
+    expect(comments[4]?.author).toBe('ghost')
     expect(calls[0].args).toEqual(['api', '--paginate', '--slurp', 'repos/acme/widgets/pulls/415/comments?per_page=100'])
   })
 

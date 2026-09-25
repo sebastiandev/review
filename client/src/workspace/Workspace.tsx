@@ -3,7 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ChatSendRequest, ChatThreadRef, DiffDocument, DiffSelection } from '@review/shared'
 import { ApiError, fetchFile } from '../api'
 import { ChatDock } from '../chat/ChatDock'
-import { InlineChat } from '../chat/InlineChat'
+import { DockContext } from '../chat/DockContext'
+import { containsSelection, selectionLabel, selectedDiffLines } from '../chat/chatContext'
+import { ChatConnector } from '../chat/ChatConnector'
+import { useConversations } from '../pr/CommentAttention'
+import { Article, FileCode, ArrowDown } from '@phosphor-icons/react'
 import { DOCK_THREAD, useChatThreads } from '../chat/useChatThreads'
 import { useTurnSettings } from '../chat/useTurnSettings'
 import { AskPill } from '../diff/AskPill'
@@ -24,6 +28,7 @@ import { outdatedThreads } from '../pr/comments'
 import { Segmented } from '../shell/Segmented'
 import type { LayoutState } from '../shell/useLayout'
 import { SelectionComposer } from './SelectionComposer'
+import { useAppearance } from '../theme/AppearanceContext'
 
 const FLASH_MS = 200
 
@@ -36,7 +41,7 @@ export function isEditing(target: EventTarget | null): boolean {
 function flashLines(body: HTMLElement, path: string, start: number, end: number) {
   const escaped = CSS.escape(path)
   const first = body.querySelector<HTMLElement>(`[data-path="${escaped}"][data-line="${start}"]`)
-  if (!first) return
+  if (!first) return false
   first.scrollIntoView({ block: 'center' })
   const rows = [...body.querySelectorAll<HTMLElement>(`[data-path="${escaped}"][data-line]`)].filter((row) => {
     const line = Number(row.dataset.line)
@@ -44,6 +49,7 @@ function flashLines(body: HTMLElement, path: string, start: number, end: number)
   })
   for (const row of rows) row.classList.add('flash')
   window.setTimeout(() => rows.forEach((row) => row.classList.remove('flash')), FLASH_MS)
+  return true
 }
 
 /** Rendered markdown, or the file's own diff. */
@@ -74,8 +80,10 @@ type WorkspaceProps = {
   /** False while the scope cannot chat yet (PR without worktree); `chatNotice` is shown in the dock instead. */
   chatEnabled: boolean
   chatNotice?: string
-  /** Stacked above the chat in the dock (the PR description). */
-  dockAbove?: ReactNode
+  /** PR landing page; selecting any file leaves it. */
+  overview?: ReactNode
+  commentJump?: { path: string; remoteId: string } | null
+  onConversation?: (thread: import('@review/shared').AttentionThread) => void
   /** Sidebar header: the scope selector (diff mode) or the PR header block. */
   sidebarHeader: ReactNode
   sidebarFooter?: ReactNode
@@ -98,7 +106,9 @@ export function Workspace({
   defaultDiffMode,
   chatEnabled,
   chatNotice,
-  dockAbove,
+  overview,
+  commentJump,
+  onConversation,
   sidebarHeader,
   sidebarFooter,
   topBarLead,
@@ -106,15 +116,20 @@ export function Workspace({
   headerActions,
   centerOverlay,
 }: WorkspaceProps) {
+  const [showOverview, setShowOverview] = useState(Boolean(overview))
+  const appearance = useAppearance()
+  const conversations = useConversations()
   const [mode, setMode] = useState<DiffMode>(defaultDiffMode)
   const [mdMode, setMdMode] = useState<MdMode>('rich')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [reveal, setReveal] = useState(0)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   /** Id of the line thread whose card is showing; every other thread is minimized. */
   const [chatLine, setChatLine] = useState<string | null>(null)
+  const chatRequest = useRef(0)
+  const [chatOpenError, setChatOpenError] = useState<string | null>(null)
   /** Text placed in the inline chat input when a finding is discussed. */
   const [chatSeed, setChatSeed] = useState<string | undefined>(undefined)
-  const [chatFolded, setChatFolded] = useState(false)
   /** Line whose comment composer is open (PR mode). */
   const [composer, setComposer] = useState<LineRef | null>(null)
   /** Markdown selection being commented on (PR mode). */
@@ -126,22 +141,24 @@ export function Workspace({
   const config = useConfig()
   const chat = useChatThreads(scope, chatEnabled)
   const turn = useTurnSettings()
-  const dock = chat.thread(DOCK_THREAD)
+  const dock = chat.thread(chatLine ?? DOCK_THREAD)
   const { selections, rect: selectionRect, clear: clearSelection } = useDiffSelection(body)
 
   const parsedByPath = useMemo(() => new Map(parsePatch(document.patch).map((f) => [f.path, f])), [document.patch])
   const files = document.files
   const filePaths = useMemo(() => files.map((f) => f.path), [files])
   const selectedIndex = files.findIndex((f) => f.path === selectedPath)
-  const selectedFile = selectedIndex >= 0 ? files[selectedIndex] : files[0]
+  const selectedFile = showOverview ? undefined : selectedIndex >= 0 ? files[selectedIndex] : files[0]
   const openThread = chat.refs.find((ref) => ref.id === chatLine) ?? null
   const fileThreads = useMemo(
-    () => chat.refs.filter((ref): ref is ChatThreadRef & { anchor: DiffSelection } => ref.anchor?.path === selectedFile?.path),
+    () => chat.refs.filter((ref): ref is ChatThreadRef & { anchor: DiffSelection } => ref.anchor !== null && ref.anchor.path === selectedFile?.path),
     [chat.refs, selectedFile?.path],
   )
   const threadsByLine = useMemo(() => {
     const byLine: Record<string, LineThreadState> = {}
-    for (const ref of fileThreads) byLine[anchorKey(ref.anchor)] = ref.id === chatLine ? 'open' : 'minimized'
+    for (const ref of fileThreads) {
+      for (let line = ref.anchor.startLine; line <= ref.anchor.endLine; line++) byLine[lineKey(ref.anchor.side === 'LEFT' ? 'old' : 'new', line)] = ref.id === chatLine ? 'open' : 'minimized'
+    }
     return byLine
   }, [fileThreads, chatLine])
   const markdownThreads = useMemo<MarkdownThread[]>(
@@ -172,10 +189,21 @@ export function Workspace({
   const showRich = markdownPath !== null && mdMode === 'rich' && !richUnavailable
 
   const selectFile = useCallback((path: string) => {
+    setReveal((n) => n + 1)
+    setShowOverview(false)
     setSelectedPath(path)
     setOpenMenu(null)
     setComposer(null)
   }, [])
+
+  const commentPathAvailable = files.some((f) => f.path === commentJump?.path)
+  useEffect(() => {
+    if (!commentJump) return
+    if (commentPathAvailable) {
+      selectFile(commentJump.path)
+      setMdMode('raw')
+    } else setShowOverview(true)
+  }, [commentJump, commentPathAvailable, selectFile])
 
   const queryClient = useQueryClient()
   const loadFile = useCallback(
@@ -211,26 +239,43 @@ export function Workspace({
     (anchor: DiffSelection) => {
       setOpenMenu(null)
       clearSelection()
-      setChatFolded(false)
-      void chat.openLineThread(anchor).then((ref) => setChatLine(ref.id))
+      layout.openDock()
+      const request = ++chatRequest.current
+      setChatOpenError(null)
+      const existing = chat.refs.find((r) => r.anchor && containsSelection(r.anchor, anchor))
+      if (existing) setChatLine(existing.id)
+      else void chat.openLineThread(anchor).then((ref) => { if (request === chatRequest.current) setChatLine(ref.id) }, (e: Error) => setChatOpenError(e.message))
     },
-    [chat.openLineThread, clearSelection],
+    [chat.openLineThread, chat.refs, clearSelection, layout.openDock],
   )
+
+  const selectChatLine = useCallback((ref: LineRef, extend: boolean) => {
+    const previous = openThread?.anchor
+    const base = extend && previous?.path === ref.path && previous.side === (ref.side === 'old' ? 'LEFT' : 'RIGHT') ? previous.startLine : ref.line
+    const startLine = Math.min(base, ref.line), endLine = Math.max(base, ref.line)
+    const lines = parsedByPath.get(ref.path)?.hunks.flatMap((h) => h.lines).filter((l) => {
+      const n = ref.side === 'old' ? l.oldLine : l.newLine
+      return n != null && n >= startLine && n <= endLine
+    }) ?? []
+    setChatSeed(undefined)
+    openLineChat({ ...anchorOf(ref), startLine, endLine, text: lines.map((l) => l.text).join('\n') || ref.text })
+  }, [openThread, parsedByPath, openLineChat])
 
   const askLine = useCallback(
     (ref: LineRef) => {
       setChatSeed(undefined)
-      openLineChat(anchorOf(ref))
+      selectChatLine(ref, false)
     },
-    [openLineChat],
+    [selectChatLine],
   )
 
   const discussLine = useCallback(
     (ref: LineRef, seed: string) => {
       setChatSeed(seed)
-      openLineChat(anchorOf(ref))
+      const line = parsedByPath.get(ref.path)?.hunks.flatMap((h) => h.lines).find((l) => (ref.side === 'old' ? l.oldLine : l.newLine) === ref.line)
+      openLineChat({ ...anchorOf(ref), text: line?.text ?? ref.text })
     },
-    [openLineChat],
+    [openLineChat, parsedByPath],
   )
 
   const askSelection = useCallback(
@@ -260,17 +305,9 @@ export function Workspace({
 
   const toggleMdMode = useCallback(() => setMdMode((current) => (current === 'rich' ? 'raw' : 'rich')), [])
 
-  const closeThread = useCallback(
-    (id: string) => {
-      chat.forget(id)
-      setChatLine((current) => (current === id ? null : current))
-    },
-    [chat.forget],
-  )
-
   const onSend = useCallback(
-    (request: ChatSendRequest) => chat.send(DOCK_THREAD, { ...request, ...turn.settings }),
-    [chat.send, turn.settings],
+    (request: ChatSendRequest) => chat.send(chatLine ?? DOCK_THREAD, { ...request, ...turn.settings }),
+    [chat.send, chatLine, turn.settings],
   )
 
   const copyRef = useCallback((ref: LineRef) => {
@@ -296,53 +333,22 @@ export function Workspace({
     onDiscuss: discussLine,
   })
 
-  // The open line thread renders as the dock's chat, inlined under the last line of its anchor.
-  const openThreadState = openThread ? chat.thread(openThread.id) : null
-  const inlineChat = useMemo(() => {
-    if (!openThread?.anchor || openThread.anchor.path !== selectedFile?.path || !openThreadState) return null
-    return (
-      <InlineChat
-        key={openThread.id}
-        thread={openThread}
-        folded={chatFolded}
-        parts={openThreadState.parts}
-        idle={openThreadState.idle}
-        permissions={openThreadState.permissions}
-        error={openThreadState.error}
-        config={config.data}
-        filePaths={filePaths}
-        turn={turn}
-        lastTurn={openThreadState.lastTurn}
-        seed={chatSeed}
-        onSend={(request) => chat.send(openThread.id, { ...request, ...turn.settings })}
-        onAbort={() => void chat.abort(openThread.id)}
-        onPermission={(permissionID, reply) => chat.respondPermission(openThread.id, permissionID, reply)}
-        onJumpTo={onJumpTo}
-        onToggleFold={() => setChatFolded((v) => !v)}
-        onClose={() => closeThread(openThread.id)}
-      />
-    )
-  }, [openThread, openThreadState, selectedFile?.path, chatFolded, config.data, filePaths, turn, chatSeed, chat, onJumpTo, closeThread])
-  const artifactsWithChat = useMemo(() => {
-    if (!inlineChat || !openThread?.anchor) return artifacts
-    const key = lineKey(openThread.anchor.side === 'LEFT' ? 'old' : 'new', openThread.anchor.endLine)
-    return {
-      ...artifacts,
-      [key]: (
-        <>
-          {artifacts[key]}
-          {inlineChat}
-        </>
-      ),
-    }
-  }, [artifacts, inlineChat, openThread])
+  const nextConversation = useCallback(() => {
+    const all = [...(conversations?.threads ?? [])].filter((t) => t.comments[0]?.path)
+      .sort((a, b) => Number(Boolean(b.unreadMentions.length || b.unreadReplies.length)) - Number(Boolean(a.unreadMentions.length || a.unreadReplies.length)))
+    const index = all.findIndex((t) => t.comments.some((c) => c.remoteId === conversations?.target))
+    const next = all[(index + 1) % all.length]
+    if (next) onConversation?.(next)
+  }, [conversations, onConversation])
+
+  const fileConversations = conversations?.threads.filter((t) => t.comments[0]?.path === selectedFile?.path) ?? []
+  const collapseConversations = () => conversations?.setOpen(fileConversations.map((t) => t.rootId), !fileConversations.some((t) => conversations.open[t.rootId]))
 
   // The jump target may belong to a file that was not rendered yet; flash once the body shows it.
   useEffect(() => {
     const jump = pendingJump.current
     if (!jump || !body.current || selectedFile?.path !== jump.path) return
-    pendingJump.current = null
-    flashLines(body.current, jump.path, jump.start, jump.end)
+    if (flashLines(body.current, jump.path, jump.start, jump.end)) pendingJump.current = null
   })
 
   useEffect(() => {
@@ -361,6 +367,12 @@ export function Workspace({
       }
       if (isEditing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
       switch (e.key) {
+        case 'x':
+          collapseConversations()
+          break
+        case 'n':
+          nextConversation()
+          break
         case 'a':
           if (touchedLine.current) askLine(touchedLine.current)
           break
@@ -406,6 +418,8 @@ export function Workspace({
     commentLine,
     pr,
     markdownPath,
+    nextConversation,
+    collapseConversations,
     toggleMdMode,
   ])
 
@@ -446,8 +460,10 @@ export function Workspace({
           selectedPath={selectedFile?.path ?? null}
           viewed={viewed.viewed}
           badges={pr?.badges}
+          chatCounts={Object.fromEntries(files.map((f) => [f.path, chat.refs.filter((r) => r.anchor?.path === f.path && (r.id === chatLine || chat.thread(r.id).parts.length)).length]))}
+          chatPath={openThread?.anchor?.path}
           width={layout.sidebarW}
-          header={sidebarHeader}
+          header={<>{sidebarHeader}{overview && <button className="overview-nav" aria-pressed={showOverview} onClick={() => setShowOverview(true)}><Article size={13} />Overview <span>{conversations?.threads.filter((t) => t.unreadMentions.length || t.unreadReplies.length).length || ''}</span></button>}</>}
           footer={sidebarFooter}
           onSelect={selectFile}
           onToggleViewed={viewed.toggle}
@@ -455,6 +471,13 @@ export function Workspace({
         />
       )}
       <main className="center" style={{ '--center-w': `${layout.centerW}px` } as React.CSSProperties}>
+        {overview && <div className="overview-toolbar">
+          <button className="workspace-tab" aria-pressed={showOverview} onClick={() => setShowOverview(true)}><Article size={13} />Overview</button>
+          <button className="workspace-tab" aria-pressed={!showOverview} onClick={() => { setShowOverview(false); if (!selectedPath && files[0]) selectFile(files[0].path) }}><FileCode size={13} />Files changed <span className="mono">{files.length}</span></button>
+          <div className="workspace-tab-actions">{!showOverview && <button className="btn btn-ghost btn-xs" title="Next conversation (n)" onClick={nextConversation}><ArrowDown size={15} /></button>}{headerActions}</div>
+          {showOverview && appearance?.focus && <button className="btn btn-secondary btn-xs" onClick={appearance.onToggleFocus}>Exit focus</button>}
+        </div>}
+        {showOverview && overview}
         {layout.tight && <TopPrBar files={files} selectedPath={selectedFile?.path ?? null} lead={topBarLead} onSelect={selectFile} />}
         {files.length === 0 && (
           <p className="notice">
@@ -482,22 +505,26 @@ export function Workspace({
             onToggleThread={toggleThreadById}
           />
         )}
-        {selectedFile && showRich && inlineChat && <div className="ichat-floating">{inlineChat}</div>}
         {selectedFile && showRich && fileContent.isPending && <p className="notice">Loading {basename(selectedFile.path)}…</p>}
         {selectedFile && !showRich && (
           <DiffView
             file={selectedFile}
+            revealKey={reveal}
+            onBodyReady={() => { const jump = pendingJump.current; if (jump && body.current && jump.path === selectedFile.path && flashLines(body.current, jump.path, jump.start, jump.end)) pendingJump.current = null }}
             parsed={parsedByPath.get(selectedFile.path)}
             mode={mode}
             compact={layout.compact}
             viewed={viewed.viewed.has(selectedFile.path)}
             openMenu={openMenu}
             threads={threadsByLine}
-            artifacts={artifactsWithChat}
+            artifacts={artifacts}
             bodyRef={body}
             codeFace={markdownPath === null}
             toolbar={mdControl}
-            headerActions={headerActions}
+            headerActions={overview ? undefined : headerActions}
+            fileNav={{ index: selectedIndex < 0 ? 0 : selectedIndex, count: files.length, onStep: stepFile }}
+            onSelectLine={selectChatLine}
+            conversationsControl={pr ? <button className="btn btn-secondary toolbar-btn" onClick={collapseConversations}>{fileConversations.some((t) => conversations?.open[t.rootId]) ? 'Collapse' : 'Expand'} conversations <kbd>X</kbd></button> : undefined}
             loadFile={loadFile}
             onMode={setMode}
             onToggleViewed={() => viewed.toggle(selectedFile.path)}
@@ -540,29 +567,37 @@ export function Workspace({
         {centerOverlay?.(onJumpTo)}
       </main>
       <ChatDock
+        contextKey={chatLine ?? DOCK_THREAD}
+        contextLabel={openThread?.anchor ? selectionLabel(openThread.anchor) : undefined}
+        seed={chatSeed}
+        context={<DockContext refs={chat.refs.filter((ref) => ref.id === chatLine || chat.thread(ref.id).parts.length > 0)} active={openThread} lines={openThread?.anchor ? selectedDiffLines(openThread.anchor, parsedByPath.get(openThread.anchor.path)) : []} onSelect={(id) => {
+          chatRequest.current++; setChatLine(id); setChatSeed(undefined); clearSelection(); layout.openDock()
+          const anchor = chat.refs.find((ref) => ref.id === id)?.anchor
+          if (anchor) { setMdMode('raw'); onJumpTo(anchor.path, anchor.startLine, anchor.endLine) }
+        }} onJump={() => { const a = openThread?.anchor; if (a) { setMdMode('raw'); onJumpTo(a.path, a.startLine, a.endLine) } }} />}
         open={layout.dockOpen}
-        scope={scopeKind(document.source)}
+        scope={document.source.kind === 'pr' ? `#${document.source.number}` : scopeKind(document.source)}
         currentFile={selectedFile ? basename(selectedFile.path) : null}
         fileCount={files.length}
         filePaths={filePaths}
         parts={dock.parts}
         idle={dock.idle}
         permissions={dock.permissions}
-        error={dock.error}
+        error={chatOpenError ?? dock.error}
         config={config.data}
         notice={chatEnabled ? undefined : chatNotice}
-        above={dockAbove}
         provenance={dockProvenance}
         turn={turn}
         lastTurn={dock.lastTurn}
         onSend={onSend}
-        onAbort={() => void chat.abort(DOCK_THREAD)}
-        onPermission={(id, reply) => chat.respondPermission(DOCK_THREAD, id, reply)}
+        onAbort={() => void chat.abort(chatLine ?? DOCK_THREAD)}
+        onPermission={(id, reply) => chat.respondPermission(chatLine ?? DOCK_THREAD, id, reply)}
         onJumpTo={onJumpTo}
         onToggle={layout.toggleDock}
         width={layout.dockOpenW}
         onStartResize={layout.startDockResize}
       />
+      <ChatConnector bodyRef={body} active={Boolean(!showOverview && !showRich && layout.dockOpen && openThread?.anchor?.path === selectedFile?.path)} />
     </>
   )
 }

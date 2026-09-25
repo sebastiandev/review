@@ -26,11 +26,11 @@ export type LayoutState = Layout & {
  * Viewport-driven shell layout. The stored sidebar width is the single source of truth:
  * clamped on drag and on window resize, never at render.
  */
-export function useLayout(): LayoutState {
+export function useLayout(attention = false): LayoutState {
   const [viewportW, setViewportW] = useState(() => window.innerWidth)
   const [dockPreference, setDockPreference] = useState(true)
-  const [sidebarW, setSidebarW] = useState(() => storedWidth(SIDEBAR_KEY, SIDEBAR_MIN, SIDEBAR_DEFAULT))
-  const [dockOpenW, setDockOpenW] = useState(() => storedWidth(DOCK_KEY, DOCK_MIN, DOCK_OPEN_WIDTH))
+  const [sidebarW, setSidebarW] = useState(() => storedWidth(SIDEBAR_KEY, SIDEBAR_MIN, attention ? Math.min(300, Math.max(210, window.innerWidth * .2)) : SIDEBAR_DEFAULT))
+  const [dockOpenW, setDockOpenW] = useState(() => storedWidth(DOCK_KEY, DOCK_MIN, attention ? Math.min(380, Math.max(260, window.innerWidth * .26)) : DOCK_OPEN_WIDTH))
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(sidebarW))
@@ -49,7 +49,12 @@ export function useLayout(): LayoutState {
     return () => window.removeEventListener('resize', onResize)
   }, [dockPreference, dockOpenW])
 
-  const layout = computeLayout(viewportW, dockPreference, sidebarW, dockOpenW)
+  const base = computeLayout(viewportW, dockPreference, sidebarW, dockOpenW)
+  const tight = attention ? viewportW < 1100 : base.tight
+  const dockOpen = attention ? dockPreference : base.dockOpen
+  const dockW = dockOpen ? dockOpenW : 44
+  const centerW = viewportW - 48 - (tight ? 0 : sidebarW) - dockW
+  const layout = { ...base, tight, dockOpen, dockW, centerW, compact: centerW < 720 }
 
   const startSidebarResize = useCallback(
     (e: PointerEvent<HTMLElement>) => {

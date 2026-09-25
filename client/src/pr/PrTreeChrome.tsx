@@ -1,6 +1,5 @@
-import { ArrowSquareOut } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowSquareOut } from '@phosphor-icons/react'
 import type { PrDetail, Verdict } from '@review/shared'
-import { ReviewedPill } from '../inbox/ReviewedPill'
 import { worktreeLabel, type WorktreeState } from './useWorktree'
 
 type PrTreeHeaderProps = {
@@ -14,10 +13,10 @@ type PrTreeHeaderProps = {
 /** PR-mode sidebar header: `← All PRs`, the PR title, its branch, and a `Done` ghost action. */
 export function PrTreeHeader({ pr, submittedVerdict, onBack, onDone }: PrTreeHeaderProps) {
   return (
-    <div className="sidebar-head">
+    <div className="sidebar-head pr-tree-head">
       <div className="pr-head-row">
         <button type="button" className="btn btn-ghost btn-xs pr-back" onClick={onBack}>
-          ← All PRs
+          <ArrowLeft size={14} />All PRs
         </button>
         <button type="button" className="btn btn-ghost btn-xs artifact-push" title="Mark as done" onClick={onDone}>
           Done
@@ -26,9 +25,8 @@ export function PrTreeHeader({ pr, submittedVerdict, onBack, onDone }: PrTreeHea
       <div className="sidebar-title">
         <span className="mono pr-head-number">#{pr.number}</span> {pr.title}
       </div>
-      <div className="sidebar-meta pr-head-meta" title={pr.headRef}>
+      <div className="sidebar-meta pr-head-meta" title={`${pr.headRef}${submittedVerdict ? ` · ${submittedVerdict.toLowerCase().replaceAll('_', ' ')}` : ''}`}>
         <span className="pr-head-branch">{pr.headRef}</span>
-        <ReviewedPill verdict={submittedVerdict} />
         <a href={pr.url} target="_blank" rel="noreferrer" className="pr-head-link" title="Open on GitHub">
           GitHub <ArrowSquareOut size={12} />
         </a>

@@ -23,6 +23,7 @@ type SettingsSidebarProps = {
 export function SettingsSidebar({ section, width, onSection, onStartResize }: SettingsSidebarProps) {
   return (
     <aside className="sidebar" style={{ width }}>
+      <div className="settings-nav-heading">Settings</div>
       <div className="side-nav" role="listbox" aria-label="Settings sections">
         {SECTIONS.map((s) => (
           <button
@@ -244,7 +245,7 @@ export function Settings({
               )}
               <button
                 type="button"
-                className={`btn btn-xs ${account.data?.phase === 'connected' ? 'btn-secondary' : 'btn-primary'}`}
+                className={`btn settings-account-action ${account.data?.phase === 'connected' ? 'btn-secondary' : 'btn-primary'}`}
                 disabled={!account.data}
                 onClick={onConnect}
               >
@@ -257,7 +258,7 @@ export function Settings({
                 <span className="settings-row-title">GitLab</span>
                 <span className="settings-row-meta mono">Not available yet</span>
               </span>
-              <button type="button" className="btn btn-primary btn-xs" disabled>
+              <button type="button" className="btn btn-primary settings-account-action" disabled>
                 Connect
               </button>
             </div>
@@ -296,7 +297,7 @@ export function Settings({
             ))}
           </div>
           <div className="settings-actions">
-            <button type="button" className="btn btn-primary btn-xs" onClick={onTrackRepo}>
+            <button type="button" className="btn btn-primary" onClick={onTrackRepo}>
               Track a repository…
             </button>
           </div>
@@ -404,6 +405,8 @@ export function Settings({
 
         <Section id="appearance" title="Appearance" lede="Any palette runs in either surface style, with any diff theme and any code font.">
           <div className="settings-grid">
+            <div className="field"><span className="field-label">Conversation previews</span><Segmented label="Preview lines" value={String(settings.previewLines ?? 2)} options={[1, 2, 3, 4].map((n) => ({ value: String(n), label: `${n} line${n === 1 ? '' : 's'}` }))} onChange={(v) => save({ previewLines: Number(v) as UserSettings['previewLines'] })} /></div>
+            <div className="field"><span className="field-label">Threads default</span><Segmented<UserSettings['threadsDefault']> label="Threads default" value={settings.threadsDefault ?? 'unread'} options={[{ value: 'unread', label: 'Unread only' }, { value: 'open', label: 'All open' }, { value: 'collapsed', label: 'All collapsed' }]} onChange={(threadsDefault) => save({ threadsDefault })} /></div>
             <div className="field">
               <span className="field-label">Default diff view</span>
               <Segmented<UserSettings['defaultDiffMode']>

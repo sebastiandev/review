@@ -4,6 +4,9 @@ import { AgentStatus } from './AgentStatus'
 import { REVIEW_STATE_LABEL, fetchLine, relativeTime, type InboxFilter, type ReviewState } from './inboxRows'
 import { ReviewedPill } from './ReviewedPill'
 import { StatePill } from './StatePill'
+import { useAttention } from '../pr/queries'
+import { attentionKind } from '../pr/attentionUi'
+import { AttentionTag } from '../pr/AttentionParts'
 
 export const repoLabel = (repo: RepoSummary) => `${repo.owner}/${repo.name}`
 
@@ -56,6 +59,7 @@ export function InboxSidebar({
   onToggleSort,
   onStartResize,
 }: InboxSidebarProps) {
+  const attention = useAttention(repo.id)
   return (
     <aside className="sidebar" style={{ width }}>
       <div className="inbox-head menu-anchor">
@@ -85,7 +89,7 @@ export function InboxSidebar({
         )}
       </div>
       <div className="inbox-title-row">
-        <span className="inbox-title">Assigned to you</span>
+        <span className="inbox-title">Pull requests</span>
         <span className="inbox-count">{rows.length}</span>
         <button type="button" className="btn btn-ghost btn-xs inbox-add" title="Review a PR that isn't assigned to you" onClick={onAddPr}>
           Add PR
@@ -153,11 +157,15 @@ export function InboxSidebar({
               <span className="count-add">+{pr.additions}</span>
               <span className="count-del">−{pr.deletions}</span>
               {pr.addedByUser && <span className="added-pill">added by you</span>}
+              {(['mentions', 'replies', 'awaiting'] as const).map((kind) => {
+                const n = (attention.data ?? []).filter((t) => t.prId === pr.id && attentionKind(t) === kind).length
+                return n ? <AttentionTag key={kind} accent={kind !== 'awaiting'}>{kind === 'mentions' ? `@ ${n}` : `${n} ${kind}`}</AttentionTag> : null
+              })}
               <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} coverage={pr.agentCoverage} />
             </div>
           </div>
         ))}
-        {rows.length === 0 && <p className="notice">Nothing assigned in this repository.</p>}
+        {rows.length === 0 && <p className="notice">No pull requests match your filters.</p>}
       </div>
       <div className="sidebar-resize" role="separator" aria-orientation="vertical" title="Drag to resize" onPointerDown={onStartResize} />
     </aside>

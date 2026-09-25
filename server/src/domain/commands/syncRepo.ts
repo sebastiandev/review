@@ -7,7 +7,7 @@ import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import { NotFound } from '../errors.ts'
 import type { Clock, Events } from '../ports.ts'
 import type { ProviderKind, PullRequestProvider, RemoteComment, RemotePullRequest, RemoteReview } from '../pullRequests.ts'
-import { isActive, shouldReleaseWorktree } from '../rules.ts'
+import { shouldReleaseWorktree } from '../rules.ts'
 import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
@@ -24,9 +24,9 @@ export type SyncRepoResult = { added: number; updated: number; released: number 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * Refresh one repo from its provider: review-requested PRs updated within `settings.lookbackDays` and locally known PRs are upserted,
+ * Refresh review-requested and mentioned PRs within `settings.lookbackDays`, plus locally known open PRs,
  * new heads get their diff cached (viewed marks carried for files whose change did not move),
- * active PRs get their comments replaced and the user's own provider-side reviews recorded, worktrees of finished
+ * refreshing conversations even after local completion so late replies reach the attention dashboard. Worktrees of finished
  * PRs are released — unless an agent review is running there, which keeps the worktree until the
  * next sync.
  * Pre-conditions:
@@ -48,8 +48,10 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
 
     const since = new Date(new Date(clock()).getTime() - store.settings.read().lookbackDays * DAY_MS)
     const listed = await provider.listReviewRequested(repo, since)
-    const wanted = listed
-    const listedNumbers = new Set(listed.map((r) => r.number))
+    const mentioned = await provider.listMentioned(repo, since)
+    // Review-requested results win on overlap: GitHub resolves team requests in that search.
+    const wanted = [...new Map([...mentioned, ...listed].map((r) => [r.number, r])).values()]
+    const listedNumbers = new Set(wanted.map((r) => r.number))
     const vanished = local.filter((p) => p.state === 'open' && !listedNumbers.has(p.number))
     const refreshed = (await Promise.all(vanished.map((p) => provider.get(repo, p.number)))).filter(
       (r): r is RemotePullRequest => r !== null,
@@ -62,15 +64,11 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
       const existing = localByNumber.get(r.number)
       return !existing || existing.headSha !== r.headSha || store.diffs.get(existing.id, existing.headSha) === null
     }
-    const needsComments = (r: RemotePullRequest) => {
-      const existing = localByNumber.get(r.number)
-      return !existing || isActive(existing)
-    }
     const content = new Map<number, { patch: string | null; comments: RemoteComment[] | null; reviews: RemoteReview[] | null }>()
     for (const r of remotes) {
       const patch = needsDiff(r) ? await provider.diff(repo, r.number) : null
-      const comments = needsComments(r) ? await provider.comments(repo, r.number) : null
-      const reviews = needsComments(r) ? await provider.myReviews(repo, r.number) : null
+      const comments = await provider.comments(repo, r.number)
+      const reviews = await provider.myReviews(repo, r.number)
       if (patch !== null || comments !== null || reviews !== null) content.set(r.number, { patch, comments, reviews })
     }
 

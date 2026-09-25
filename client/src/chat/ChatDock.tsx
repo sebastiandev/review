@@ -17,12 +17,13 @@ type ChatDockProps = Omit<ChatPanelProps, 'placeholder' | 'autoFocus' | 'message
   fileCount: number
   /** Replaces messages and composer with one line while the scope cannot chat yet (no worktree, inbox). */
   notice?: string
-  /** Panel stacked above the chat (the PR description). */
-  above?: ReactNode
   onToggle: () => void
   /** Open width in px; the dock is resizable from its left edge. */
   width?: number
   onStartResize?: (e: React.PointerEvent<HTMLElement>) => void
+  context?: ReactNode
+  contextKey?: string
+  contextLabel?: string
 }
 
 const EMPTY_CONFIG: Pick<AppConfig, 'agents' | 'models' | 'commands'> = { agents: [], models: [], commands: [] }
@@ -181,7 +182,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !e.defaultPrevented) {
       e.preventDefault()
       submit()
     } else if (e.key === 'Escape') {
@@ -215,7 +216,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
     const line = Number.parseFloat(getComputedStyle(el).lineHeight) || 18
     const padding = el.offsetHeight - el.clientHeight + Number.parseFloat(getComputedStyle(el).paddingTop) + Number.parseFloat(getComputedStyle(el).paddingBottom)
     const max = line * COMPOSER_MAX_LINES + padding
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`
+    el.style.height = `${Math.max(line * 2 + padding, Math.min(el.scrollHeight, max))}px`
     el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden'
   }, [draft])
 
@@ -229,7 +230,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
           className="composer-input"
           value={draft}
           placeholder={idle ? placeholder : 'Agent is working…'}
-          rows={1}
+          rows={2}
           autoFocus={autoFocus}
           onChange={(e) => {
             setDraft(e.target.value)
@@ -240,8 +241,9 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
           onKeyDown={onKeyDown}
         />
         {idle ? (
-          <button type="button" className="composer-send" title="Send · ⌘↵" aria-label="Send" disabled={!draft.trim()} onClick={submit}>
+          <button type="button" className="composer-send btn btn-primary" title="Send · ↵ (Shift+Enter for a newline)" aria-label="Send" disabled={!draft.trim()} onClick={submit}>
             <PaperPlaneRight size={14} weight="fill" />
+            Send
           </button>
         ) : (
           <button type="button" className="composer-send composer-stop" title="Stop the agent · esc" aria-label="Stop" onClick={onAbort}>
@@ -252,7 +254,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
       <div className="composer-hints mono">
         {provenance && <span className="composer-provenance">{provenance}</span>}
         <span className="composer-hint-keys">
-          <span>⌘↵ send</span>
+          <span>↵ send · ⇧↵ newline</span>
           <span>/ commands</span>
           <span>@ files</span>
           {!idle && <span>esc stop</span>}
@@ -410,6 +412,7 @@ export function ChatPanel({
   return (
     <>
       <div ref={list} className={messagesClassName}>
+        {!parts.length && <p className="chat-empty">{placeholder?.startsWith('Ask about ') && placeholder !== 'Ask about this pull request…' ? 'No messages about this selection yet…' : 'Ask about the whole pull request. Click a line number or the chat icon in the diff to start a chat about specific lines.'}</p>}
         {parts.map((part) => (
           <PartView key={part.id} part={part} onJumpTo={onJumpTo} />
         ))}
@@ -417,6 +420,7 @@ export function ChatPanel({
           <PermissionRow key={ask.id} ask={ask} onPermission={onPermission} />
         ))}
         {error && <p className="dock-error">{error}</p>}
+        {!idle && <p className="chat-thinking">agent is thinking…</p>}
       </div>
       <div className="dock-footer">
         <StatusRow config={catalog} idle={idle} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
@@ -450,7 +454,6 @@ export function ChatDock({
   error,
   config,
   notice,
-  above,
   provenance,
   turn,
   lastTurn,
@@ -461,6 +464,10 @@ export function ChatDock({
   onToggle,
   width,
   onStartResize,
+  context,
+  contextKey,
+  contextLabel,
+  seed,
 }: ChatDockProps) {
   const shownAgent = lastTurn ? lastTurn.agent : turn.settings.agent
 
@@ -489,15 +496,17 @@ export function ChatDock({
           <CaretRight size={14} />
         </button>
       </div>
-      <div className="dock-context">
+      {context ?? (!notice && <div className="dock-context">
         {currentFile && <span className="context-chip">{currentFile}</span>}
         <span className="context-chip">{fileCount} files</span>
-      </div>
-      {above}
+      </div>)}
       {notice ? (
         <p className="notice dock-notice">{notice}</p>
       ) : (
         <ChatPanel
+          key={contextKey}
+          seed={seed}
+          placeholder={contextLabel ? `Ask about ${contextLabel}…` : 'Ask about this pull request…'}
           parts={parts}
           idle={idle}
           permissions={permissions}
@@ -510,7 +519,7 @@ export function ChatDock({
           onAbort={onAbort}
           onPermission={onPermission}
           onJumpTo={onJumpTo}
-          provenance={provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}
+          provenance={contextLabel ? `↳ ${contextLabel}` : provenance ?? `opencode · ${shownAgent ?? 'default agent'}${scope ? ` · ${scope}` : ''}`}
         />
       )}
     </aside>

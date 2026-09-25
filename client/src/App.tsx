@@ -5,9 +5,10 @@ import { ChatDock } from './chat/ChatDock'
 import { useServerEvent } from './events/useServerEvents'
 import { useTurnSettings } from './chat/useTurnSettings'
 import { AddPrModal } from './inbox/AddPrModal'
-import { Inbox } from './inbox/Inbox'
+import { AttentionDashboard } from './inbox/AttentionDashboard'
+import type { AttentionThread } from '@review/shared'
 import { InboxSidebar, repoLabel } from './inbox/InboxSidebar'
-import { DEFAULT_INBOX_FILTER, countByReviewState, filterInboxRows, inboxSubtitle, type InboxFilter, type ReviewState } from './inbox/inboxRows'
+import { DEFAULT_INBOX_FILTER, countByReviewState, filterInboxRows, type InboxFilter, type ReviewState } from './inbox/inboxRows'
 import { useNow } from './inbox/useNow'
 import { PastReviews, PastSidebar } from './past/PastReviews'
 import type { PastFilter } from './past/pastRows'
@@ -53,7 +54,6 @@ type View = RailView
 
 /** Application shell: top bar, rail, the mode's sidebar + center + dock, status bar and overlays. */
 export function App() {
-  const layout = useLayout()
   const client = useQueryClient()
   const repos = useRepos()
   const settings = useSettings()
@@ -66,6 +66,7 @@ export function App() {
   /** Focus mode preference; only takes effect inside the workspace (see `focus` below). */
   const [focusPref, setFocusPref] = useState(false)
   const { mode, prAvailable, probed, setMode } = useMode(repos)
+  const layout = useLayout(mode === 'pr' || !probed)
   useSyncInvalidation()
   useCollectReviewProgress()
 
@@ -73,6 +74,7 @@ export function App() {
   const [view, setView] = useState<View>('inbox')
   const [repoId, setRepoId] = useState<number | null>(null)
   const [prId, setPrId] = useState<number | null>(null)
+  const [attentionTarget, setAttentionTarget] = useState<AttentionThread | null>(null)
   /** Inbox row the `j`/`k` cursor is on. */
   const [inboxCursor, setInboxCursor] = useState<number | null>(null)
   const [scopePath, setScopePath] = useState<string | null>(null)
@@ -170,6 +172,7 @@ export function App() {
   )
 
   const openPr = useCallback((id: number) => {
+    setAttentionTarget(null)
     setPrId(id)
     setInboxCursor(id)
     setView('files')
@@ -329,7 +332,7 @@ export function App() {
   const sideView = view === 'past' || view === 'settings'
 
   return (
-    <div className={focus ? 'app app-focus' : 'app'}>
+    <div className={`app${mode === 'pr' && !sideView ? ' app-attention' : ''}${focus ? ' app-focus' : ''}`}>
       <AppearanceProvider value={appearance}>
       <TopBar
         mode={mode}
@@ -390,7 +393,9 @@ export function App() {
         )}
         {mode === 'pr' && view === 'files' && prId !== null && (
           <PrWorkspace
+            key={prId}
             prId={prId}
+            initialThread={attentionTarget}
             inbox={rows}
             layout={layout}
             defaultDiffMode={defaultDiffMode}
@@ -431,19 +436,10 @@ export function App() {
               {inbox.isPending && <p className="notice">Loading pull requests…</p>}
               {inbox.isError && <p className="notice">Could not load pull requests: {String(inbox.error)}</p>}
               {inbox.data && (
-                <Inbox
-                  repo={repoLabel(repo)}
-                  subtitle={inboxSubtitle({
-                    repo: repoLabel(repo),
-                    pending: rows.length,
-                    pollInterval: settings.data?.pollInterval ?? 5,
-                    autoReviewOnFetch: settings.data?.autoReviewOnFetch ?? false,
-                  })}
-                  rows={rows}
-                  selectedPrId={inboxCursor}
-                  now={now}
-                  onOpenPr={openPr}
-                />
+                <AttentionDashboard key={repo.id} repoId={repo.id} onOpenPr={openPr} onOpen={(thread) => {
+                  openPr(thread.prId)
+                  setAttentionTarget(thread)
+                }} />
               )}
             </main>
             <ChatDock

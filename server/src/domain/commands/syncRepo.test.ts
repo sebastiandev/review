@@ -64,6 +64,36 @@ describe('syncRepo', () => {
     expect(store.pullRequests.listByRepo(repoId, {}).map((p) => p.number)).toEqual([1])
   })
 
+  it('discovers a mentioned PR without marking it review-requested or manually added', async () => {
+    provider.remote.set(2, remotePr({ number: 2, reviewRequested: false }))
+    provider.mentioned.add(2)
+    await syncRepo(deps, { repoId })
+    expect(store.pullRequests.listByRepo(repoId, {})).toEqual([
+      expect.objectContaining({ number: 2, reviewRequested: false, addedByUser: false }),
+    ])
+  })
+
+  it('deduplicates a PR discovered through both review requests and mentions', async () => {
+    provider.remote.set(1, remotePr({ number: 1, reviewRequested: true }))
+    provider.mentioned.add(1)
+    const result = await syncRepo(deps, { repoId })
+    expect(result.added).toBe(1)
+    expect(store.pullRequests.listByRepo(repoId, {})).toEqual([
+      expect.objectContaining({ number: 1, reviewRequested: true }),
+    ])
+    expect(provider.calls.filter((call) => call === 'diff:1')).toHaveLength(1)
+  })
+
+  it.each([
+    { state: 'closed' as const },
+    { updatedAt: '2020-01-01T00:00:00Z' },
+  ])('does not discover mentions outside the open/recent window: %j', async (overrides) => {
+    provider.remote.set(2, remotePr({ number: 2, reviewRequested: false, ...overrides }))
+    provider.mentioned.add(2)
+    await syncRepo(deps, { repoId })
+    expect(store.pullRequests.listByRepo(repoId, {})).toEqual([])
+  })
+
   it('keeps the diff but refreshes comments when the head is unchanged', async () => {
     provider.remote.set(1, remotePr({ number: 1 }))
     await syncRepo(deps, { repoId })
@@ -73,7 +103,7 @@ describe('syncRepo', () => {
     const result = await syncRepo(deps, { repoId })
 
     expect(result).toEqual({ added: 0, updated: 1, released: 0 })
-    expect(provider.calls).toEqual(['listReviewRequested', 'comments:1', 'myReviews:1'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'listMentioned', 'comments:1', 'myReviews:1'])
     const [pr] = store.pullRequests.listByRepo(repoId, {})
     expect(store.comments.list(pr!.id).map((c) => c.body)).toEqual(['late remark'])
   })
@@ -95,7 +125,7 @@ describe('syncRepo', () => {
     expect(store.views.pastReviews(null).map((r) => r.verdict)).toEqual(['APPROVE', 'COMMENT'])
   })
 
-  it('does not refetch comments of PRs marked done', async () => {
+  it('keeps checking conversations of locally done PRs for late replies', async () => {
     provider.remote.set(1, remotePr({ number: 1 }))
     await syncRepo(deps, { repoId })
     const [pr] = store.pullRequests.listByRepo(repoId, {})
@@ -104,7 +134,7 @@ describe('syncRepo', () => {
 
     await syncRepo(deps, { repoId })
 
-    expect(provider.calls).toEqual(['listReviewRequested'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'listMentioned', 'comments:1', 'myReviews:1'])
   })
 
   it('caches a new diff when the head moved, keeping the old one', async () => {
@@ -117,7 +147,7 @@ describe('syncRepo', () => {
 
     const pr = store.pullRequests.find(repoId, 1)!
     expect(pr.headSha).toBe('sha-b')
-    expect(provider.calls).toEqual(['listReviewRequested', 'diff:1', 'comments:1', 'myReviews:1'])
+    expect(provider.calls).toEqual(['listReviewRequested', 'listMentioned', 'diff:1', 'comments:1', 'myReviews:1'])
     expect(store.diffs.get(pr.id, 'sha-a')).not.toBeNull()
     expect(store.diffs.get(pr.id, 'sha-b')).not.toBeNull()
   })

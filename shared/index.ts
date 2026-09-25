@@ -82,6 +82,7 @@ export type ChatEvent =
 
 /** Events pushed over /api/events. Chat events carry the scope (`local` | `pr:<id>`) they belong to. */
 export type ServerEvent =
+  | { type: 'comments.read'; prId: number; repoId: number }
   | (ChatEvent & { scope: string })
   /** `review diff <target>` (or the open form) pointed the `local` scope at something new. */
   | { type: 'scope.opened'; scope: 'local' }
@@ -126,6 +127,8 @@ export type UserSettings = {
   diffTheme: string
   /** Face of the diff body only; interface mono stays JetBrains Mono. */
   codeFont: string
+  previewLines: 1 | 2 | 3 | 4
+  threadsDefault: 'unread' | 'open' | 'collapsed'
   defaultDiffMode: 'unified' | 'split'
 }
 
@@ -255,6 +258,24 @@ export type RemoteCommentRow = {
   createdAt: string
   originalLine: number | null
   originalCommitSha: string | null
+  /** General PR discussion comments have no file anchor. Omitted for inline review comments. */
+  kind?: 'discussion'
+}
+
+/** A conversation involving the viewer; unread IDs refer only to comments actually fetched. */
+export type AttentionThread = {
+  prId: number
+  number: number
+  title: string
+  rootId: string
+  comments: RemoteCommentRow[]
+  mine: boolean
+  lastOwnCommentId: string | null
+  hasReply: boolean
+  awaitingReply: boolean
+  unreadReplies: string[]
+  unreadMentions: string[]
+  unreadComments: string[]
 }
 
 export type DraftCommentRow = {
