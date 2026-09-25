@@ -265,6 +265,8 @@ export type RemoteCommentRow = {
 /** A conversation involving the viewer; unread IDs refer only to comments actually fetched. */
 export type AttentionThread = {
   prId: number
+  /** Latest synced lifecycle state; dashboard filters closed PRs without removing their history. */
+  prState: InboxRow['state']
   number: number
   title: string
   rootId: string

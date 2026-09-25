@@ -25,7 +25,7 @@ export function AttentionDashboard({ repoId, onOpen, onOpenPr }: { repoId: numbe
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [expandedBodies, setExpandedBodies] = useState<Record<string, boolean>>({})
   const [error, setError] = useState<string | null>(null)
-  const threads = query.data ?? []
+  const threads = (query.data ?? []).filter((t) => t.prState === 'open')
   const sections = SECTIONS.map((s) => ({ ...s, rows: threads.filter((t) => attentionKind(t) === s.key) }))
   const markRead = async (rows: AttentionThread[]) => {
     try {

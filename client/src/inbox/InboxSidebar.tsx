@@ -158,7 +158,7 @@ export function InboxSidebar({
               <span className="count-del">−{pr.deletions}</span>
               {pr.addedByUser && <span className="added-pill">added by you</span>}
               {(['mentions', 'replies', 'awaiting'] as const).map((kind) => {
-                const n = (attention.data ?? []).filter((t) => t.prId === pr.id && attentionKind(t) === kind).length
+                const n = (attention.data ?? []).filter((t) => t.prId === pr.id && t.prState === 'open' && attentionKind(t) === kind).length
                 return n ? <AttentionTag key={kind} accent={kind !== 'awaiting'}>{kind === 'mentions' ? `@ ${n}` : `${n} ${kind}`}</AttentionTag> : null
               })}
               <AgentStatus status={pr.agentStatus} verdict={pr.agentVerdict} coverage={pr.agentCoverage} />

@@ -32,7 +32,7 @@ export function attentionThreads(pr: PullRequest, rows: { comment: RemoteComment
     const unreadMentions = group.filter((r) => !r.seen && !mine(r.comment) && mentionsUser(r.comment.body, viewer)).map((r) => r.comment.remoteId)
     if (lastMine < 0 && !group.some((r) => !mine(r.comment) && mentionsUser(r.comment.body, viewer))) return []
     return [{
-      prId: pr.id, number: pr.number, title: pr.title, rootId,
+      prId: pr.id, prState: pr.state, number: pr.number, title: pr.title, rootId,
       comments: group.map((r) => r.comment), mine: lastMine >= 0,
       lastOwnCommentId: lastMine >= 0 ? group[lastMine]!.comment.remoteId : null,
       hasReply: lastMine >= 0 && responses.length > 0,

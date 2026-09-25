@@ -17,7 +17,7 @@ it('turns raw images into safe dimensioned attachment links', () => {
 })
 
 it.each([['2', 'replies'], ['3', 'mentions']] as const)('uses the latest unread comment to prioritize mentions (%s)', (mentionId, expected) => {
-  const thread: AttentionThread = { prId: 1, number: 1, title: 'PR', rootId: '1', mine: true,
+  const thread: AttentionThread = { prId: 1, prState: 'open', number: 1, title: 'PR', rootId: '1', mine: true,
     lastOwnCommentId: '1', hasReply: true, awaitingReply: false, unreadComments: ['2', '3'], unreadReplies: ['2', '3'], unreadMentions: [mentionId],
     comments: [comment, { ...comment, remoteId: '2' }, { ...comment, remoteId: '3' }] }
   expect(attentionKind(thread)).toBe(expected)

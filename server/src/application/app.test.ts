@@ -146,6 +146,24 @@ describe('PR mode app', () => {
     expect(rows[0].awaitingReply).toBe(awaitingReply)
   })
 
+  it.each(['merged', 'closed'] as const)('sync reports a PR becoming %s while retaining its unread conversation for the overview', async (state) => {
+    provider.remoteComments.set(415, [conversationComment('1', 'me', 'Question'), conversationComment('2', 'alice', '@me answered', '1')])
+    const repo = await trackRepo()
+    await syncRepo(repo.id)
+    const before: AttentionThread[] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(before[0]?.prState).toBe('open')
+
+    provider.remote.get(415)!.state = state
+    await syncRepo(repo.id)
+
+    const after: AttentionThread[] = await (await app.request(`/api/repos/${repo.id}/attention`)).json()
+    expect(after[0]).toMatchObject({ prState: state, awaitingReply: false, unreadReplies: ['2'], unreadMentions: ['2'] })
+    expect(after[0]?.comments).toEqual(before[0]?.comments)
+    const detail: PrDetail = await (await app.request(`/api/prs/${before[0]!.prId}`)).json()
+    expect(detail.pr.state).toBe(state)
+    expect(detail.comments).toEqual(before[0]?.comments)
+  })
+
   it('includes direct mentions in general discussion without requiring my participation', async () => {
     provider.remoteComments.set(415, [{ ...conversationComment('1', 'alice', '@me please check'), kind: 'discussion', path: '', line: null, side: null }])
     const repo = await trackRepo()

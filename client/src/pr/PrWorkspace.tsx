@@ -269,7 +269,7 @@ export function PrWorkspace({ prId, initialThread, inbox, layout, defaultDiffMod
         <button type="button" className="btn btn-ghost btn-xs pr-back notice" onClick={onBack}>
           ← All PRs
         </button>
-        <CommentAttention prId={prId} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
+        <CommentAttention prId={prId} prState={pr.state} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
           <PrOverview detail={detail.data} onOpen={(thread) => setSelectedThread({ ...thread })} />
         </CommentAttention>
         <p className="notice">No diff cached yet; refresh the repository to navigate to files.</p>
@@ -286,7 +286,7 @@ export function PrWorkspace({ prId, initialThread, inbox, layout, defaultDiffMod
 
   return (
     <>
-      <CommentAttention prId={prId} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
+      <CommentAttention prId={prId} prState={pr.state} repoId={pr.repoId} target={targetId} comments={detail.data.comments}>
       <Workspace
         key={prId}
         scope={prScope(prId)}

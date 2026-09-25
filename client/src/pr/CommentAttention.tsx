@@ -13,7 +13,7 @@ const Context = createContext<{
 } | null>(null)
 
 /** Scope read receipts and a requested comment jump to this PR; receipts survive component unmounts on the server. */
-export function CommentAttention({ prId, repoId, target, comments, children }: { prId: number; repoId: number; target: string | null; comments: RemoteCommentRow[]; children: ReactNode }) {
+export function CommentAttention({ prId, prState, repoId, target, comments, children }: { prId: number; prState: AttentionThread['prState']; repoId: number; target: string | null; comments: RemoteCommentRow[]; children: ReactNode }) {
   const client = useQueryClient()
   const attention = useAttention(repoId)
   const settings = useSettings()
@@ -21,8 +21,8 @@ export function CommentAttention({ prId, repoId, target, comments, children }: {
     const known = (attention.data ?? []).filter((t) => t.prId === prId)
     const ids = new Set(known.map((t) => t.rootId))
     const others = groupThreads(comments.filter((c) => c.kind !== 'discussion')).filter((t) => !ids.has(t.root.remoteId))
-    return [...known, ...others.map((t): AttentionThread => ({ prId, number: 0, title: '', rootId: t.root.remoteId, comments: [t.root, ...t.replies], mine: false, lastOwnCommentId: null, hasReply: false, awaitingReply: false, unreadMentions: [], unreadReplies: [], unreadComments: [] }))]
-  }, [attention.data, prId, comments])
+    return [...known, ...others.map((t): AttentionThread => ({ prId, prState, number: 0, title: '', rootId: t.root.remoteId, comments: [t.root, ...t.replies], mine: false, lastOwnCommentId: null, hasReply: false, awaitingReply: false, unreadMentions: [], unreadReplies: [], unreadComments: [] }))]
+  }, [attention.data, prId, prState, comments])
   const [open, setOpenState] = useState<Record<string, boolean>>({})
   const setOpen = useCallback((ids: string[], value: boolean) => setOpenState((old) => ({ ...old, ...Object.fromEntries(ids.map((id) => [id, value])) })), [])
   useEffect(() => {
