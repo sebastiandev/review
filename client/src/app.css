@@ -2,8 +2,8 @@
    Nocturne variable; the only animation is `pulse`. Hovers are instant. */
 
 :root {
-  --code-size: 12.5px;
-  --code-line: 1.65;
+  --code-size: 12px;
+  --code-line: 20px;
   /* Diff tints: rgb + alpha come from the diff theme (themes.css); Daylight raises the alpha. */
   --diff-add-bg: rgba(var(--diff-add-rgb), var(--diff-add-alpha));
   --diff-del-bg: rgba(var(--diff-del-rgb), var(--diff-del-alpha));
@@ -585,11 +585,6 @@ button {
 .app-focus .topbar,
 .app-focus .rail {
   display: none;
-}
-
-.app-focus .diff-body {
-  --code-size: 13.5px;
-  --code-line: 1.95;
 }
 
 /* Center */
@@ -1600,7 +1595,7 @@ button {
 .tok.comment,
 .tok.prolog,
 .tok.doctype,
-.tok.cdata { color: var(--color-neutral-600); font-style: italic; }
+.tok.cdata { color: var(--color-neutral-600); }
 .tok.number,
 .tok.constant,
 .tok.symbol { color: color-mix(in srgb, var(--color-accent-400) 60%, var(--color-neutral-200)); }
@@ -3019,51 +3014,28 @@ button {
 
 /* ── Expandable context ────────────────────────────────────────────────── */
 
-.drow-expand,
-.srow-expand .side {
-  background: var(--color-neutral-900);
-  user-select: none;
+/* GitHub-style expand buttons stacked in the hunk gutter: ↓ / ↑ or one "expand all". */
+.hunk-gutter {
+  flex-direction: column;
+  padding: 0;
 }
 
-.drow-expand {
+.hunk-expand {
   display: flex;
   align-items: center;
-  min-height: 22px;
-}
-
-.expand-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 12px;
-  padding: 2px 8px;
-  font: inherit;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-accent-300);
-  background: transparent;
+  justify-content: center;
+  width: 100%;
+  height: 20px;
+  padding: 0;
   border: 0;
-  border-radius: 4px;
+  background: transparent;
+  color: var(--diff-hunk-fg, var(--color-neutral-400));
   cursor: pointer;
 }
 
-.expand-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-}
-
-.expand-btn:disabled {
-  color: var(--color-neutral-600);
-  cursor: default;
-}
-
-.drow-context .gutter,
-.srow-context .gutter {
-  color: var(--color-neutral-800);
-}
-
-.drow-context .diff-text,
-.srow-context .diff-text {
-  color: var(--color-neutral-500);
+.hunk-expand:hover {
+  background: var(--color-accent);
+  color: var(--color-neutral-50, #fff);
 }
 
 /* ── Inbox filters ─────────────────────────────────────────────────────── */

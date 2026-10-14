@@ -104,7 +104,7 @@ styles appended to `app.css` under a new `/* ── Section ── */`. Register
 ## Run / verify
 
 ```
-npm run dev            # server :5178 (tsx watch) + Vite :5177; opencode is spawned if absent
+npm run dev            # server :5178 (tsx watch) + Vite :5177; spawns a private opencode (URL in ~/.cache/review/opencode.url)
 npm run typecheck      # both workspaces
 npm test               # server (vitest, real sqlite) + client (vitest)
 review pr <url> --cli  # end-to-end smoke of the review pipeline

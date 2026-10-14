@@ -67,9 +67,9 @@ type GetPage = { data: { viewer: { login: string }; repository: { pullRequest: G
 /**
  * GitHub over the `gh` CLI. GraphQL for PR data (one request per repo gives counts and review
  * requests the REST list lacks), REST for review comments (their ids are what `in_reply_to`
- * takes), `gh pr diff` for the patch.
+ * takes), `gh pr diff` for the patch, with local Git for GitHub's diff-size limits.
  */
-export function ghProvider(run: Runner): PullRequestProvider {
+export function ghProvider(run: Runner, diffFromGit: PullRequestProvider['diff']): PullRequestProvider {
   const slug = (repo: RepoRef) => `${repo.owner}/${repo.name}`
 
   return {
@@ -126,7 +126,14 @@ export function ghProvider(run: Runner): PullRequestProvider {
       return node ? mapPullRequest(node, page.data.viewer.login) : null
     },
 
-    diff: (repo, number) => run('gh', ['pr', 'diff', String(number), '--repo', slug(repo)]),
+    async diff(repo, number, revision) {
+      try {
+        return await run('gh', ['pr', 'diff', String(number), '--repo', slug(repo)])
+      } catch (error) {
+        if (!(error instanceof Error) || !/PullRequest\.diff\s+too_large|diff exceeded the maximum (?:number of files|number of lines|size)/i.test(error.message)) throw error
+        return diffFromGit(repo, number, revision)
+      }
+    },
 
     async comments(repo, number) {
       const out = await run('gh', ['api', '--paginate', '--slurp', `repos/${slug(repo)}/pulls/${number}/comments?per_page=100`])
@@ -151,6 +158,16 @@ export function ghProvider(run: Runner): PullRequestProvider {
 
     async submitReview(repo, number, payload) {
       const { review, replies } = splitReplies(payload)
+      // GitHub rejects a COMMENT review with no body and no inline comments (422). Replies alone
+      // need no review: the comments endpoint wraps each in one, whose id stands for the submission.
+      if (review.event === 'COMMENT' && review.body.trim() === '' && review.comments.length === 0 && replies.length > 0) {
+        let reviewId = ''
+        for (const reply of replies) {
+          const posted = await run('gh', ['api', '-X', 'POST', `repos/${slug(repo)}/pulls/${number}/comments`, '--input', '-'], { input: JSON.stringify(reply) })
+          reviewId ||= String((JSON.parse(posted) as { pull_request_review_id: number }).pull_request_review_id)
+        }
+        return { remoteReviewId: reviewId }
+      }
       const out = await run('gh', ['api', '-X', 'POST', `repos/${slug(repo)}/pulls/${number}/reviews`, '--input', '-'], {
         input: JSON.stringify(review),
       })

@@ -11,10 +11,13 @@ import { eventBus } from '../infrastructure/events.ts'
 import { fileLog, logEvents, teeConsole } from '../infrastructure/fileLog.ts'
 import { fileExists, fsPayloads } from '../infrastructure/fsPayloads.ts'
 import { ghProvider } from '../infrastructure/github/ghProvider.ts'
+import { gitPullRequestDiff } from '../infrastructure/github/gitPullRequestDiff.ts'
 import { ghCliCredentials, githubDeviceFlow, withGithubToken } from '../infrastructure/github/oauthDeviceFlow.ts'
 import { fileCredentialStore, keychainCredentialStore } from '../infrastructure/keychain.ts'
 import { gitWorktrees } from '../infrastructure/gitWorktrees.ts'
 import { openOpencodeChat } from '../infrastructure/opencodeChat.ts'
+import type { OpencodeServer } from '../infrastructure/opencodeServer.ts'
+import type { AgentRunner } from '../domain/agentRunner.ts'
 import { opencodeRunner } from '../infrastructure/opencodeRunner.ts'
 import { execFileRunner } from '../infrastructure/process.ts'
 import { openDatabase } from '../infrastructure/sqlite/database.ts'
@@ -28,14 +31,14 @@ export type DiffModeOptions = {
   target: string
   base: string | null
   port: number
-  opencodeUrl: string
+  opencode: OpencodeServer
   cacheDir: string
   serveBuiltClient: boolean
 }
 
 export type PrModeOptions = {
   port: number
-  opencodeUrl: string
+  opencode: OpencodeServer
   cacheDir: string
   serveBuiltClient: boolean
 }
@@ -48,10 +51,12 @@ export async function startDiffMode(opts: DiffModeOptions) {
   const store = sqliteStore(await openCacheDatabase(opts.cacheDir))
   const events = eventBus()
   await startLogging(opts.cacheDir, events)
+  refreshOpencodeCatalog(opts.opencode, events)
 
   const directory = isDir ? target : process.cwd()
+  await opts.opencode.ready
   const chat = await openOpencodeChat({
-    baseUrl: opts.opencodeUrl,
+    baseUrl: opts.opencode.url,
     directory,
     title: `review: ${target}`,
     systemContext: localContext(source),
@@ -63,7 +68,8 @@ export async function startDiffMode(opts: DiffModeOptions) {
     store,
     events,
     settingsChanged: () => {},
-    opencodeUrl: opts.opencodeUrl,
+    opencodeUrl: opts.opencode.url,
+    opencodeReady: opts.opencode.ready,
     directory,
     routes: [],
     staticDir: opts.serveBuiltClient ? clientDist() : null,
@@ -77,10 +83,11 @@ export async function startPrMode(opts: PrModeOptions) {
   const store = sqliteStore(await openCacheDatabase(opts.cacheDir))
   const events = eventBus()
   await startLogging(opts.cacheDir, events)
+  refreshOpencodeCatalog(opts.opencode, events)
   // The account session is created inside prMode; the runner reads its token lazily.
   let token: () => string | null = () => null
   const run = withGithubToken(execFileRunner, () => token())
-  const github = ghProvider(run)
+  const github = ghProvider(run, gitPullRequestDiff({ run, cacheDir: join(opts.cacheDir, 'diff-repos') }))
   const { app, scheduler, accounts } = prMode({
     store,
     // No GitLab adapter yet; `gh` under the gitlab key keeps the Record total until one exists.
@@ -90,13 +97,19 @@ export async function startPrMode(opts: PrModeOptions) {
     deviceFlow: githubDeviceFlow(process.env.REVIEW_GITHUB_CLIENT_ID ?? null),
     cli: ghCliCredentials(execFileRunner),
     sleep: (seconds) => new Promise((r) => setTimeout(r, seconds * 1000)),
-    runner: opencodeRunner({ baseUrl: opts.opencodeUrl }),
+    runner: afterReady(opts.opencode, opencodeRunner({ baseUrl: opts.opencode.url })),
     payloads: fsPayloads(join(opts.cacheDir, 'payloads')),
     fileExists,
     events,
     clock: () => new Date().toISOString(),
-    opencodeUrl: opts.opencodeUrl,
+    opencodeUrl: opts.opencode.url,
+    opencodeReady: opts.opencode.ready,
     directory: process.cwd(),
+    // The server listens before opencode is up; chats opened meanwhile wait for it.
+    openChat: async (chatOpts) => {
+      await opts.opencode.ready
+      return openOpencodeChat(chatOpts)
+    },
     staticDir: opts.serveBuiltClient ? clientDist() : null,
   })
   token = accounts.token
@@ -119,6 +132,32 @@ async function listen(fetch: Parameters<typeof serve>[0]['fetch'], port: number,
   return server
 }
 
+/** An agent run started while opencode is still coming up (auto-review at launch) waits for it. */
+function afterReady(opencode: OpencodeServer, runner: AgentRunner): AgentRunner {
+  return {
+    async run(...args) {
+      await opencode.ready
+      return runner.run(...args)
+    },
+  }
+}
+
+const CATALOG_MAX_AGE_MS = 60 * 60_000
+const CATALOG_CHECK_MS = 5 * 60_000
+
+/**
+ * opencode loads its model catalog only at start: every five minutes, restart our own opencode
+ * once it is an hour old and idle, then tell clients to refetch `/api/config`.
+ */
+function refreshOpencodeCatalog(opencode: OpencodeServer, events: ReturnType<typeof eventBus>) {
+  setInterval(() => {
+    opencode
+      .restartIfStale(CATALOG_MAX_AGE_MS)
+      .then((restarted) => restarted && events.emit({ type: 'opencode.restarted' }))
+      .catch((e: unknown) => console.error(`opencode: restart failed: ${e instanceof Error ? e.message : String(e)}`))
+  }, CATALOG_CHECK_MS).unref()
+}
+
 /** `<cacheDir>/logs/review-YYYY-MM-DD.log`: console output and every bus event; seven days kept. */
 async function startLogging(cacheDir: string, events: ReturnType<typeof eventBus>) {
   const log = fileLog(join(cacheDir, 'logs'))
@@ -136,4 +175,3 @@ async function openCacheDatabase(cacheDir: string) {
 function clientDist(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '../../../client/dist')
 }
-

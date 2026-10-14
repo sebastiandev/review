@@ -1,11 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import type { RepoRef, ReviewPayload } from '../../domain/pullRequests.ts'
+import type { PullRequestProvider, RepoRef, ReviewPayload } from '../../domain/pullRequests.ts'
 import type { Runner } from '../process.ts'
-import { ghProvider, splitReplies } from './ghProvider.ts'
+import { ghProvider as createGhProvider, splitReplies } from './ghProvider.ts'
 
 const fixture = (name: string) => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8')
 const repo: RepoRef = { provider: 'github', owner: 'acme', name: 'widgets' }
+const revision = { baseSha: 'a'.repeat(40), headSha: 'b'.repeat(40) }
+
+/** External Git fallback is unexpected unless a test explicitly supplies it. */
+function ghProvider(run: Runner, fallback: PullRequestProvider['diff'] = async () => { throw new Error('unexpected git fallback') }) {
+  return createGhProvider(run, fallback)
+}
 
 type Call = { cmd: string; args: string[]; input?: string }
 
@@ -103,8 +109,31 @@ describe('ghProvider', () => {
 
   it('diff shells out to gh pr diff for the repo', async () => {
     const { run, calls } = fakeRunner(() => 'diff --git a/x b/x\n')
-    expect(await ghProvider(run).diff(repo, 415)).toBe('diff --git a/x b/x\n')
+    expect(await ghProvider(run).diff(repo, 415, revision)).toBe('diff --git a/x b/x\n')
     expect(calls[0].args).toEqual(['pr', 'diff', '415', '--repo', 'acme/widgets'])
+  })
+
+  it.each([
+    'HTTP 406: Sorry, the diff exceeded the maximum number of files (300).',
+    'PullRequest.diff too_large',
+    'HTTP 406: Sorry, the diff exceeded the maximum number of lines.',
+  ])('uses the full Git diff for the pinned revision after %s', async (message) => {
+    const { run } = fakeRunner(() => new Error(message))
+    const fetched: Parameters<PullRequestProvider['diff']>[] = []
+    const provider = ghProvider(run, async (...args) => { fetched.push(args); return 'complete git patch' })
+    expect(await provider.diff(repo, 415, revision)).toBe('complete git patch')
+    expect(fetched).toEqual([[repo, 415, revision]])
+  })
+
+  it.each(['read: connection reset by peer', 'HTTP 401: Bad credentials', 'HTTP 406: unsupported media type'])('does not mistake %s for a diff-size limit', async (message) => {
+    const { run } = fakeRunner(() => new Error(message))
+    await expect(ghProvider(run).diff(repo, 415, revision)).rejects.toThrow(message)
+  })
+
+  it('propagates Git fallback failures rather than returning an empty or partial patch', async () => {
+    const { run } = fakeRunner(() => new Error('PullRequest.diff too_large'))
+    const provider = ghProvider(run, async () => { throw new Error('git fetch failed') })
+    await expect(provider.diff(repo, 415, revision)).rejects.toThrow('git fetch failed')
   })
 
   it('comments flattens paginated REST pages', async () => {
@@ -142,6 +171,22 @@ describe('ghProvider', () => {
     })
     expect(calls[1].args).toEqual(['api', '-X', 'POST', 'repos/acme/widgets/pulls/415/comments', '--input', '-'])
     expect(JSON.parse(calls[1].input!)).toEqual({ body: 'agreed', in_reply_to: 2001 })
+  })
+})
+
+describe('submitReview with replies only', () => {
+  it('posts only the replies when the COMMENT review would be empty, keeping the first reply\'s review id', async () => {
+    const { run, calls } = fakeRunner(() => '{"id": 5, "pull_request_review_id": 3200}')
+    const payload: ReviewPayload = {
+      verdict: 'COMMENT',
+      body: '',
+      comments: [{ path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'agreed', inReplyTo: '2001' }],
+    }
+
+    const result = await ghProvider(run).submitReview(repo, 415, payload)
+
+    expect(result).toEqual({ remoteReviewId: '3200' })
+    expect(calls.map((c) => c.args[3])).toEqual(['repos/acme/widgets/pulls/415/comments'])
   })
 })
 

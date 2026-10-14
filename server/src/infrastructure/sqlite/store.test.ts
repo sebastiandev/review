@@ -1,6 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readFileSync, readdirSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
+import { addDraftComment } from '../../domain/commands/draftComments.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Store } from '../../domain/store.ts'
 import { DEFAULT_USER_SETTINGS } from '../../domain/settings.ts'
@@ -43,11 +46,11 @@ describe('migrations', () => {
     const first = openDatabase(path)
     const versions = first.prepare('SELECT version FROM schema_migration ORDER BY version').all().map((r) => r.version)
     first.close()
-    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008'])
+    expect(versions).toEqual(['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009'])
 
     const second = openDatabase(path)
     expect(runMigrations(second)).toEqual([])
-    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(8)
+    expect(second.prepare('SELECT COUNT(*) AS n FROM schema_migration').get()?.n).toBe(9)
     second.close()
   })
 
@@ -63,6 +66,40 @@ describe('migrations', () => {
         .run(),
     ).toThrow(/FOREIGN KEY/)
     db.close()
+  })
+
+  it('preserves submitted drafts, comments and submission links when upgrading draft uniqueness', () => {
+    const db = new DatabaseSync(join(dir, 'upgrade.sqlite'))
+    try {
+      db.exec('PRAGMA foreign_keys=ON; CREATE TABLE schema_migration (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)')
+      const migrations = new URL('./migrations/', import.meta.url)
+      for (const file of readdirSync(migrations).filter((f) => /^000[1-8]_.*\.sql$/.test(f)).sort()) {
+        db.exec(readFileSync(new URL(file, migrations), 'utf8'))
+        db.prepare('INSERT INTO schema_migration VALUES (?, ?)').run(file.slice(0, 4), NOW)
+      }
+      const store = sqliteStore(db)
+      const repo = store.repos.insert({ ...GITHUB_REPO, tracked: true, autoReview: false, syncedAt: null, syncError: null })
+      const pr = store.pullRequests.upsert(repo.id, remotePr(), {}, NOW)
+      const deps = { store, clock: () => NOW }
+      const request = { prId: pr.id, path: 'a.ts', line: 1, startLine: null, side: 'RIGHT' as const, body: 'first concern', inReplyTo: null }
+      const comment = addDraftComment(deps, request)
+      store.transaction(() => store.drafts.markSubmitted(comment.draftId, NOW))
+      db.prepare("INSERT INTO submission (pr_id, head_sha, draft_id, remote_review_id, source, verdict, body, submitted_at, payload_json) VALUES (?, ?, ?, 'review-1', 'app', 'COMMENT', '', ?, '{}')").run(pr.id, pr.headSha, comment.draftId, NOW)
+      const drafts = db.prepare('SELECT * FROM review_draft').all()
+      const comments = db.prepare('SELECT * FROM draft_comment').all()
+      const submissions = db.prepare('SELECT * FROM submission').all()
+
+      expect(runMigrations(db)).toEqual(['0009'])
+      expect(db.prepare('SELECT * FROM review_draft').all()).toEqual(drafts)
+      expect(db.prepare('SELECT * FROM draft_comment').all()).toEqual(comments)
+      expect(db.prepare('SELECT * FROM submission').all()).toEqual(submissions)
+      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+      const next = addDraftComment(deps, request)
+      expect(next.draftId).not.toBe(comment.draftId)
+      expect(() => store.drafts.insert(pr.id, pr.headSha, NOW)).toThrow(/UNIQUE/)
+    } finally {
+      db.close()
+    }
   })
 })
 

@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
+import { submitsComment } from './commentKeyboard'
 
 type CommentComposerProps = {
   /** `{path}:{line}` shown above the textarea. */
@@ -32,8 +33,9 @@ export function CommentComposer({
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (submitsComment({ ...e, isComposing: e.nativeEvent.isComposing })) {
       e.preventDefault()
+      e.stopPropagation()
       submit()
     } else if (e.key === 'Escape') {
       e.preventDefault()

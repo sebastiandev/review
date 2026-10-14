@@ -17,8 +17,12 @@ export const STYLE_MODE_INFO: Record<StyleMode, { label: string; note: string }>
   tonal: { label: 'Tonal', note: 'borderless, surfaces only' },
 }
 
+/** GitHub's code stack (Primer `--fontStack-monospace`). Mirrored in fonts.css. */
+const GITHUB_MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
+
 /** `stack` is the CSS font-family the card renders its own name in; the diff body reads `--font-code` instead. */
 export const CODE_FONT_INFO: Record<CodeFont, { label: string; note: string; stack: string }> = {
+  'system-mono': { label: 'GitHub', note: 'system mono, like github.com', stack: GITHUB_MONO },
   'jetbrains-mono': { label: 'JetBrains Mono', note: 'tall x-height', stack: "'JetBrains Mono', monospace" },
   'ibm-plex-mono': { label: 'IBM Plex Mono', note: 'narrower, bookish', stack: "'IBM Plex Mono', monospace" },
   'fira-code': { label: 'Fira Code', note: 'ligatures', stack: "'Fira Code', monospace" },

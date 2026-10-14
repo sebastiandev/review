@@ -80,7 +80,8 @@ describe('code fonts', () => {
     expect(declaredVariables(fontsCss, `[data-code-font='${font}']`)).toEqual(['--font-code'])
   })
 
-  it.each(CODE_FONTS)('%s is a self-hosted face', (font) => {
+  // `system-mono` is GitHub's stack of fonts the OS already has; nothing to host.
+  it.each(CODE_FONTS.filter((f) => f !== 'system-mono'))('%s is a self-hosted face', (font) => {
     const family = CODE_FONT_INFO[font].label.replace(/ /g, '-').toLowerCase()
     expect(fontsCss).toContain(`@fontsource/${family}/400.css`)
   })

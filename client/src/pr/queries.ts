@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { InboxRow, RepoSummary, UserSettings, Verdict } from '@review/shared'
-import { fetchAccount, fetchAccountRepos, fetchConfig, fetchInbox, fetchPastReviews, fetchPrDetail, fetchRepos, fetchSettings, fetchWorktrees, patchSettings } from '../api'
+import { fetchAccount, fetchAccountRepos, fetchCommands, fetchConfig, fetchInbox, fetchPastReviews, fetchPrDetail, fetchRepos, fetchSettings, fetchWorktrees, patchSettings } from '../api'
 import { useServerEvent } from '../events/useServerEvents'
 import { fetchAttention } from '../api'
 
@@ -14,6 +14,7 @@ export const keys = {
   repos: ['repos'] as const,
   settings: ['settings'] as const,
   config: ['config'] as const,
+  commands: ['commands'] as const,
   account: ['account'] as const,
   accountRepos: ['account', 'repos'] as const,
   worktrees: ['worktrees'] as const,
@@ -32,9 +33,17 @@ export function useSettings() {
   return useQuery({ queryKey: keys.settings, queryFn: fetchSettings, staleTime: Infinity })
 }
 
-/** Agents, models and commands opencode offers. Shared by the dock pickers and Settings → Review agent. */
+/**
+ * Agents and models opencode offers. Shared by the dock pickers and Settings → Review agent.
+ * Refetched on window focus once five minutes old, and on every `opencode.restarted`.
+ */
 export function useConfig() {
-  return useQuery({ queryKey: keys.config, queryFn: fetchConfig, staleTime: Infinity })
+  return useQuery({ queryKey: keys.config, queryFn: fetchConfig, staleTime: 5 * 60_000, refetchOnWindowFocus: true })
+}
+
+/** Slash commands for the composer's `/` menu; same refresh rules as `useConfig`. */
+export function useCommands() {
+  return useQuery({ queryKey: keys.commands, queryFn: fetchCommands, staleTime: 5 * 60_000, refetchOnWindowFocus: true })
 }
 
 /** `PATCH /api/settings`; the settings and config queries pick up the result at once. */
@@ -95,7 +104,7 @@ export function usePrDetail(prId: number | null) {
 /**
  * Refetches inbox and repo counts when a sync ends, the open PR when its review lands, the PR plus
  * every inbox on each agent-run event (the event names the PR, not its repo), and the worktree
- * inventory when one appears or goes.
+ * inventory when one appears or goes, and the opencode catalog when opencode restarts.
  */
 export function useSyncInvalidation(): void {
   const client = useQueryClient()
@@ -132,6 +141,10 @@ export function useSyncInvalidation(): void {
       case 'account.disconnected':
         void client.invalidateQueries({ queryKey: keys.account })
         void client.invalidateQueries({ queryKey: keys.accountRepos })
+        break
+      case 'opencode.restarted':
+        void client.invalidateQueries({ queryKey: keys.config })
+        void client.invalidateQueries({ queryKey: keys.commands })
         break
       case 'review.queued':
       case 'review.running':

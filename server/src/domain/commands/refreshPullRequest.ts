@@ -1,5 +1,6 @@
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
 import { carryViewedMarks } from '../actions/carryViewedMarks.ts'
+import { carryDraftComments } from '../actions/carryDraftComments.ts'
 import { recordRemoteReviews } from '../actions/recordRemoteReviews.ts'
 import { replaceComments } from '../actions/replaceComments.ts'
 import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
@@ -10,7 +11,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type RefreshPullRequestDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed' | 'submissions' | 'settings'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'drafts' | 'agentReviews' | 'viewed' | 'submissions' | 'settings'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'exists' | 'headSha' | 'checkout'>
   events: Events
@@ -30,6 +31,7 @@ export type RefreshResult = { pr: PullRequest; headMoved: boolean; worktreeDefer
  *   worktree is on disk, is checked out there (`worktree.progress`/`worktree.ready` emitted) —
  *   unless an agent review is running in it, which keeps the old checkout (`worktreeDeferred`)
  * - emits `pr.refreshed`
+ * - pending comments move to the current draft; changed code locations are flagged invalid
  */
 export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { prId: number }): Promise<RefreshResult> {
   const { store, events } = deps
@@ -44,7 +46,7 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
   const headMoved = remote.headSha !== before.headSha
   const needsDiff = headMoved || store.diffs.get(before.id, before.headSha) === null
   const [patch, comments, reviews] = await Promise.all([
-    needsDiff ? provider.diff(repo, before.number) : null,
+    needsDiff ? provider.diff(repo, before.number, remote) : null,
     provider.comments(repo, before.number),
     provider.myReviews(repo, before.number),
   ])
@@ -59,6 +61,7 @@ export async function refreshPullRequest(deps: RefreshPullRequestDeps, req: { pr
       if (previousDiff) carryViewedMarks(store.viewed, row.id, previousDiff, next)
     }
     replaceComments(store.comments, row.id, comments, now)
+    carryDraftComments(store, row, now)
     recordRemoteReviews(store, row, reviews)
     return row
   })

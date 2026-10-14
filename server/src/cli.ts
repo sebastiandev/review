@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { DEFAULT_CACHE_DIR, startDiffMode, startPrMode } from './application/main.ts'
 import { formatReview, parsePrTarget, ReviewClient } from './application/cliReview.ts'
 import { updateApp } from './application/update.ts'
 import { openUi, type OpenMode } from './infrastructure/appWindow.ts'
-import { ensureOpencode } from './infrastructure/opencodeServer.ts'
+import { attachOpencode, spawnOpencode, type OpencodeServer } from './infrastructure/opencodeServer.ts'
 import { stopRunningServer } from './infrastructure/serverPid.ts'
 
 const USAGE = `usage:
@@ -18,7 +19,8 @@ const USAGE = `usage:
 
 options:
   --port <n>          server port (default 5178)
-  --opencode <url>    opencode serve url (default http://localhost:4096); started if not running
+  --opencode <url>    use this opencode server (started if local and not running);
+                      default: a private opencode serve, restarted hourly when idle to load new models
   --cache-dir <dir>   store, clones and worktrees (default ~/.cache/review)
   --tab               open the UI in a browser tab instead of an app window
   --no-open           do not open the UI at all
@@ -35,7 +37,7 @@ const { values, positionals } = parseArgs({
   options: {
     base: { type: 'string' },
     port: { type: 'string', default: '5178' },
-    opencode: { type: 'string', default: 'http://localhost:4096' },
+    opencode: { type: 'string' },
     'cache-dir': { type: 'string', default: DEFAULT_CACHE_DIR },
     dev: { type: 'boolean', default: false },
     tab: { type: 'boolean', default: false },
@@ -54,7 +56,14 @@ const cacheDir = values['cache-dir']
 const serverUrl = `http://localhost:${port}`
 const uiUrl = values.dev ? 'http://localhost:5177' : serverUrl
 const openMode: OpenMode = values['no-open'] ? 'none' : values.tab ? 'tab' : 'window'
-const common = { port, opencodeUrl: values.opencode, cacheDir, serveBuiltClient: !values.dev }
+const common = { port, cacheDir, serveBuiltClient: !values.dev }
+
+/** The `--opencode` server when given, otherwise a private one this process owns. */
+async function opencode(): Promise<OpencodeServer> {
+  if (values.opencode) return attachOpencode(values.opencode, console.error)
+  await mkdir(cacheDir, { recursive: true })
+  return spawnOpencode(cacheDir, console.error)
+}
 
 function usage(code: number): never {
   console.log(USAGE)
@@ -86,7 +95,8 @@ async function startPr() {
   // A new `review` replaces the running server, so an update is live on the next launch.
   await stopRunningServer(cacheDir, port, console.error)
   // PR mode only talks to opencode on demand: listen right away so the client can connect.
-  await Promise.all([startPrMode(common), ensureOpencode(values.opencode, console.error)])
+  const server = await opencode()
+  await Promise.all([startPrMode({ ...common, opencode: server }), server.ready])
   console.log(`review: ${uiUrl}`)
   openUi(uiUrl, openMode, cacheDir, console.error)
 }
@@ -103,9 +113,8 @@ async function startDiff(path: string) {
     openUi(url, openMode, cacheDir, console.error)
     return
   }
-  // Diff mode opens a chat session at startup, so opencode has to be there first.
-  await ensureOpencode(values.opencode, console.error)
-  await startDiffMode({ ...common, target, base })
+  // Diff mode opens a chat session at startup; it waits for opencode to be ready.
+  await startDiffMode({ ...common, opencode: await opencode(), target, base })
   console.log(`review: ${uiUrl}`)
   openUi(uiUrl, openMode, cacheDir, console.error)
 }
@@ -121,7 +130,8 @@ async function reviewPr(reference: string) {
   const ownServer = !(await client.reachable())
   if (ownServer) {
     console.error(`no review server on :${port}; starting one`)
-    await Promise.all([startPrMode(common), ensureOpencode(values.opencode, console.error)])
+    const server = await opencode()
+    await Promise.all([startPrMode({ ...common, opencode: server }), server.ready])
   }
 
   const repo = await client.ensureRepo(parsed)

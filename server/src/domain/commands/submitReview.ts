@@ -1,6 +1,6 @@
 import type { Verdict } from '@review/shared'
 import { findOrCreateDraft } from '../actions/findOrCreateDraft.ts'
-import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed } from '../errors.ts'
+import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed, ReviewBodyRequired } from '../errors.ts'
 import { upsertPullRequests } from '../actions/upsertPullRequests.ts'
 import type { Clock, Events } from '../ports.ts'
 import type { ProviderKind, PullRequestProvider, ReviewPayload } from '../pullRequests.ts'
@@ -25,6 +25,7 @@ export type SubmitReviewRequest = { prId: number; verdict: Verdict; body: string
  * - no open draft for an older head (else `DraftStale`); a PR with no draft at all gets an
  *   empty one so a body-only review can go out
  * - `APPROVE` requires `confirmApprove` (else `ApproveNotConfirmed`)
+ * - `REQUEST_CHANGES` requires a body; `COMMENT` a body or a selected comment (else `ReviewBodyRequired`)
  * - every selected comment anchors to the cached diff; otherwise they are flagged
  *   `anchorValid = false` in their own transaction and `InvalidAnchors(ids)` is thrown
  * Post-conditions:
@@ -60,9 +61,14 @@ export async function submitReview(deps: SubmitReviewDeps, req: SubmitReviewRequ
   if (stale && stale.headSha !== pr.headSha) throw new DraftStale(stale.headSha, pr.headSha)
   const draft = stale
   const selected = draft ? store.drafts.comments(draft.id).filter((c) => c.selected) : []
+  const blank = req.body.trim() === ''
+  if (blank && (req.verdict === 'REQUEST_CHANGES' || (req.verdict === 'COMMENT' && selected.length === 0))) throw new ReviewBodyRequired(req.verdict)
 
   const diff = store.diffs.get(pr.id, pr.headSha)
-  const invalid = validateAnchors(selected, diff?.anchors ?? {})
+  const invalid = [...new Set([
+    ...selected.filter((comment) => !comment.anchorValid).map((comment) => comment.id),
+    ...validateAnchors(selected.filter((comment) => comment.inReplyTo === null), diff?.anchors ?? {}),
+  ])]
   if (invalid.length) {
     const now = deps.clock()
     store.transaction(() => invalid.forEach((id) => store.drafts.updateComment(id, { anchorValid: false }, now)))

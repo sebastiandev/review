@@ -21,7 +21,7 @@ import { usePublishSearchTargets, type SearchTargets } from '../shell/searchTarg
 import { TopPrBar } from '../files/TopPrBar'
 import type { ViewedState } from '../files/useViewed'
 import { MarkdownView, type MarkdownThread } from '../markdown/MarkdownView'
-import { keys, useConfig } from '../pr/queries'
+import { keys, useCommands, useConfig } from '../pr/queries'
 import { usePrArtifacts, type PrWorkspaceData } from '../pr/usePrArtifacts'
 import { OutdatedComments } from '../pr/OutdatedComments'
 import { outdatedThreads } from '../pr/comments'
@@ -139,6 +139,7 @@ export function Workspace({
   const pendingJump = useRef<{ path: string; start: number; end: number } | null>(null)
 
   const config = useConfig()
+  const commands = useCommands()
   const chat = useChatThreads(scope, chatEnabled)
   const turn = useTurnSettings()
   const dock = chat.thread(chatLine ?? DOCK_THREAD)
@@ -585,6 +586,7 @@ export function Workspace({
         permissions={dock.permissions}
         error={chatOpenError ?? dock.error}
         config={config.data}
+        commands={commands.data ?? []}
         notice={chatEnabled ? undefined : chatNotice}
         provenance={dockProvenance}
         turn={turn}

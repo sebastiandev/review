@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { AttentionThread, PrDetail } from '@review/shared'
 import { FileCode } from '@phosphor-icons/react'
 import { ReviewedPill } from '../inbox/ReviewedPill'
@@ -6,7 +6,7 @@ import { ChatMarkdown } from '../chat/ChatMarkdown'
 import { VisibleComment, useCommentTarget, useConversations } from './CommentAttention'
 import { useAttention } from './queries'
 import { AttentionTag, FilterChip, FoldCaret } from './AttentionParts'
-import { attentionKind, attentionPreview, shortLocation, canOpenConversation, descriptionMarkdown } from './attentionUi'
+import { attentionKind, attentionPreview, shortLocation, canOpenConversation, descriptionMarkdown, stableConversationOrder } from './attentionUi'
 
 /** Rich overview with a clamped description and foldable, filtered conversations. */
 export function PrOverview({ detail, onOpen }: { detail: PrDetail; onOpen: (thread: AttentionThread) => void }) {
@@ -17,8 +17,9 @@ export function PrOverview({ detail, onOpen }: { detail: PrDetail; onOpen: (thre
   const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [filter, setFilter] = useState('all')
   const [readError, setReadError] = useState(false)
-  const threads = (attention.data ?? []).filter((t) => t.prId === detail.pr.id && t.rootId !== 'description')
-    .sort((a, b) => ['mentions', 'replies', 'awaiting', 'answered'].indexOf(attentionKind(a)) - ['mentions', 'replies', 'awaiting', 'answered'].indexOf(attentionKind(b)))
+  const order = useRef<string[]>([])
+  const threads = stableConversationOrder((attention.data ?? []).filter((t) => t.prId === detail.pr.id && t.rootId !== 'description'), order.current)
+  order.current = threads.map((t) => `${t.prId}:${t.rootId}`)
   const targetRoot = threads.find((t) => t.comments.some((c) => c.remoteId === target))?.rootId
   useEffect(() => { if (targetRoot) { setExpanded((v) => ({ ...v, [targetRoot]: true })); setFilter('all') } }, [targetRoot, target])
   const needs = (t: AttentionThread) => Boolean(t.unreadMentions.length || t.unreadReplies.length)

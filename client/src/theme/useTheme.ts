@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 export const UI_THEMES = ['nocturne', 'ember', 'slate', 'atelier', 'darkula', 'neon', 'daylight'] as const
 export const STYLE_MODES = ['framed', 'tonal'] as const
 export const DIFF_THEMES = ['github', 'nocturne', 'muted', 'vivid', 'paper', 'darkula', 'neon', 'solar', 'acid'] as const
-export const CODE_FONTS = ['jetbrains-mono', 'ibm-plex-mono', 'fira-code', 'source-code-pro'] as const
+export const CODE_FONTS = ['system-mono', 'jetbrains-mono', 'ibm-plex-mono', 'fira-code', 'source-code-pro'] as const
 
 export type UiTheme = (typeof UI_THEMES)[number]
 export type StyleMode = (typeof STYLE_MODES)[number]
@@ -64,5 +64,5 @@ export function useDiffTheme(serverValue: string | undefined): [DiffTheme, (them
 
 /** Code face of the diff body on `<html data-code-font>`; same persistence rules as `useUiTheme`. */
 export function useCodeFont(serverValue: string | undefined): [CodeFont, (font: CodeFont) => void] {
-  return usePersistedAttribute(CODE_FONT_KEY, 'data-code-font', CODE_FONTS, 'jetbrains-mono', serverValue)
+  return usePersistedAttribute(CODE_FONT_KEY, 'data-code-font', CODE_FONTS, 'system-mono', serverValue)
 }

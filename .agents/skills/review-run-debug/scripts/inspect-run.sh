@@ -4,7 +4,7 @@
 set -euo pipefail
 
 CACHE_DIR="${REVIEW_CACHE_DIR:-$HOME/.cache/review}"
-OPENCODE="${REVIEW_OPENCODE_URL:-http://localhost:4096}"
+OPENCODE="${REVIEW_OPENCODE_URL:-}"
 RUN="latest"
 FULL=0
 while [ $# -gt 0 ]; do
@@ -15,6 +15,8 @@ while [ $# -gt 0 ]; do
     *) RUN="$1"; shift ;;
   esac
 done
+# Review runs its own opencode on a free port and records the URL.
+[ -n "$OPENCODE" ] || OPENCODE="$(cat "$CACHE_DIR/opencode.url" 2>/dev/null || echo http://localhost:4096)"
 DB="$CACHE_DIR/review.sqlite"
 [ -f "$DB" ] || { echo "no database at $DB"; exit 1; }
 

@@ -54,6 +54,9 @@ export type Store = {
     open(prId: number, headSha: string): ReviewDraft | null
     /** The open draft for the PR regardless of head, if any. */
     latestOpen(prId: number): ReviewDraft | null
+    listOpen(prId: number): ReviewDraft[]
+    moveComments(fromDraftId: number, toDraftId: number): void
+    deleteEmpty(id: number): void
     insert(prId: number, headSha: string, now: string): ReviewDraft
     markSubmitted(id: number, now: string): void
     comments(draftId: number): DraftComment[]

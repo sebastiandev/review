@@ -34,11 +34,13 @@ review pr … --cli                   same, printed to the terminal, no UI
 review pr … --agent a --model p/m --variant v
 review update                       pull the latest version, install, build, re-link
 
---port 5178   --opencode http://localhost:4096   --cache-dir ~/.cache/review
+--port 5178   --opencode <url>   --cache-dir ~/.cache/review
 --tab (browser tab instead of app window)   --no-open (no UI)   --dev (Vite client on :5177)
 ```
 
-`opencode serve` is started automatically when nothing answers at `--opencode`.
+Review starts its own `opencode serve` on a free port (URL in `~/.cache/review/opencode.url`) and
+restarts it once it is an hour old and no session is busy, so new models show up. `--opencode <url>`
+uses that server instead (started if local and not running; never restarted).
 
 ## Where things live
 

@@ -13,7 +13,7 @@ One command does the whole walk:
 .agents/skills/review-run-debug/scripts/inspect-run.sh 8 --full   # untruncated text + reasoning
 ```
 
-Flags: `--cache-dir DIR` (default `~/.cache/review`), `--opencode URL` (default `http://localhost:4096`).
+Flags: `--cache-dir DIR` (default `~/.cache/review`), `--opencode URL` (default: the URL in `<cache-dir>/opencode.url`, which Review writes for its private opencode).
 
 ## What it prints, and what each part tells you
 
@@ -47,7 +47,7 @@ Flags: `--cache-dir DIR` (default `~/.cache/review`), `--opencode URL` (default 
 ```
 sqlite3 ~/.cache/review/review.sqlite "select * from agent_review order by id desc limit 3"
 ls ~/.cache/review/payloads | tail
-curl -s "localhost:4096/session/<id>/message?directory=<url-encoded worktree>" | jq '.[].parts[] | select(.type=="tool") | {tool, status: .state.status}'
+curl -s "$(cat ~/.cache/review/opencode.url)/session/<id>/message?directory=<url-encoded worktree>" | jq '.[].parts[] | select(.type=="tool") | {tool, status: .state.status}'
 grep review.failed ~/.cache/review/logs/review-$(date +%F).log
 ```
 
@@ -64,7 +64,7 @@ grep review.failed ~/.cache/review/logs/review-$(date +%F).log
 opencode reads agent `.md` files at process start. After editing one:
 
 ```
-curl -s "localhost:4096/agent?directory=<encoded cwd>" | jq '.[] | select(.name=="pr-reviewer") | .prompt' | grep -c "<a phrase you just added>"
+curl -s "$(cat ~/.cache/review/opencode.url)/agent?directory=<encoded cwd>" | jq '.[] | select(.name=="pr-reviewer") | .prompt' | grep -c "<a phrase you just added>"
 ```
 
 `0` → restart `opencode serve` (the app spawns it; restarting the app restarts it).

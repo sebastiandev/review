@@ -453,6 +453,7 @@ export function App() {
               permissions={[]}
               error={null}
               config={undefined}
+              commands={[]}
               notice="Open a pull request to chat about it."
               turn={turn}
               lastTurn={null}

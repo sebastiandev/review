@@ -352,7 +352,7 @@ describe('runReview', () => {
       ['REQUEST_CHANGES', 'agreed'],
     ] as const)('pastReviews shows %s against the agent as %s', async (verdict, agreement) => {
       await runReview(deps, { prId: pr.id, ...request })
-      const submission = await submitReview(submitDeps(), { prId: pr.id, verdict, body: '', confirmApprove: false })
+      const submission = await submitReview(submitDeps(), { prId: pr.id, verdict, body: 'Notes.', confirmApprove: false })
       expect(store.views.pastReviews(null)).toMatchObject([{ submissionId: submission.id, agentVerdict: 'REQUEST_CHANGES', agentAgreement: agreement }])
     })
   })

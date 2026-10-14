@@ -110,7 +110,8 @@ export type PullRequestProvider = {
   /** Most recently updated open PRs (one page), for picking ones not assigned to me. */
   listOpen(repo: RepoRef): Promise<RemotePullRequest[]>
   get(repo: RepoRef, number: number): Promise<RemotePullRequest | null>
-  diff(repo: RepoRef, number: number): Promise<string>
+  /** Complete patch for the fetched PR revision; implementations may fall back to local Git. */
+  diff(repo: RepoRef, number: number, revision: Pick<RemotePullRequest, 'baseSha' | 'headSha'>): Promise<string>
   comments(repo: RepoRef, number: number): Promise<RemoteComment[]>
   /** Reviews the authenticated user submitted on this PR, oldest first. */
   myReviews(repo: RepoRef, number: number): Promise<RemoteReview[]>

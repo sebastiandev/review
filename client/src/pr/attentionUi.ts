@@ -3,6 +3,18 @@ import { parsePatch } from '../diff/parsePatch'
 
 export type AttentionKind = 'mentions' | 'replies' | 'awaiting' | 'answered'
 
+/** Keep existing conversations in place when read receipts refresh their priority. */
+export function stableConversationOrder(threads: AttentionThread[], previous: string[]): AttentionThread[] {
+  const ranks = new Map(previous.map((id, index) => [id, index]))
+  const priority = ['mentions', 'replies', 'awaiting', 'answered']
+  return [...threads].sort((a, b) => {
+    const aRank = ranks.get(`${a.prId}:${a.rootId}`)
+    const bRank = ranks.get(`${b.prId}:${b.rootId}`)
+    if (aRank !== undefined || bRank !== undefined) return (aRank ?? previous.length) - (bRank ?? previous.length)
+    return priority.indexOf(attentionKind(a)) - priority.indexOf(attentionKind(b))
+  })
+}
+
 /** Exclusive dashboard membership: a latest unread mention wins over a reply. */
 export function attentionKind(thread: AttentionThread): AttentionKind {
   const unread = new Set(thread.unreadComments ?? [...thread.unreadMentions, ...thread.unreadReplies])

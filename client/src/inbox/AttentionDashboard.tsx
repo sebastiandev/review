@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState, useRef, type CSSProperties } from 'react'
 import { At, ArrowBendDownRight, HourglassMedium, ArrowsInLineVertical, ArrowsOutLineVertical, Checks } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { AttentionThread } from '@review/shared'
@@ -6,7 +6,7 @@ import { useAttention, useSettings } from '../pr/queries'
 import { markCommentsRead } from '../api'
 import { ChatMarkdown } from '../chat/ChatMarkdown'
 import { Avatar, FoldCaret, AttentionTag, FilterChip } from '../pr/AttentionParts'
-import { attentionKind, attentionPreview, shortLocation, type AttentionKind } from '../pr/attentionUi'
+import { attentionKind, attentionPreview, shortLocation, stableConversationOrder, type AttentionKind } from '../pr/attentionUi'
 import { relativeTime } from './inboxRows'
 
 const SECTIONS = [
@@ -24,9 +24,12 @@ export function AttentionDashboard({ repoId, onOpen, onOpenPr }: { repoId: numbe
   const [foldSections, setFoldSections] = useState<Record<string, boolean>>({})
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [expandedBodies, setExpandedBodies] = useState<Record<string, boolean>>({})
+  const [expandedKinds, setExpandedKinds] = useState<Record<string, AttentionKind>>({})
   const [error, setError] = useState<string | null>(null)
-  const threads = (query.data ?? []).filter((t) => t.prState === 'open')
-  const sections = SECTIONS.map((s) => ({ ...s, rows: threads.filter((t) => attentionKind(t) === s.key) }))
+  const order = useRef<string[]>([])
+  const threads = stableConversationOrder((query.data ?? []).filter((t) => t.prState === 'open'), order.current)
+  order.current = threads.map((t) => `${t.prId}:${t.rootId}`)
+  const sections = SECTIONS.map((s) => ({ ...s, rows: threads.filter((t) => (expandedBodies[`${t.prId}:${t.rootId}`] ? expandedKinds[`${t.prId}:${t.rootId}`] : attentionKind(t)) === s.key) }))
   const markRead = async (rows: AttentionThread[]) => {
     try {
       setError(null)
@@ -80,7 +83,7 @@ export function AttentionDashboard({ repoId, onOpen, onOpenPr }: { repoId: numbe
                   <span className="mono attention-location" title={c.path}>{shortLocation(c)}</span><time>{section.key === 'awaiting' ? `waiting ${relativeTime(c.createdAt, Date.now()).replace(/ ago$/, '')}` : new Date(c.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}</time></div>
                   {section.key === 'replies' && own && <div className="attention-own-quote"><ArrowBendDownRight size={13} />You: {own.body}</div>}
                   <div className={expandedBodies[bodyKey] ? 'attention-preview expanded' : 'attention-preview'}><ChatMarkdown compact={!expandedBodies[bodyKey]} text={c.body} /></div>
-                  <div className="attention-row-footer">{c.body.length > 120 * (settings.data?.previewLines ?? 2) && <button onClick={(e) => { e.stopPropagation(); setExpandedBodies((v) => ({ ...v, [bodyKey]: !v[bodyKey] })) }}>{expandedBodies[bodyKey] ? 'Show less' : 'Show more'}</button>}
+                  <div className="attention-row-footer">{c.body.length > 120 * (settings.data?.previewLines ?? 2) && <button onClick={(e) => { e.stopPropagation(); setExpandedKinds((v) => ({ ...v, [bodyKey]: attentionKind(thread) })); setExpandedBodies((v) => ({ ...v, [bodyKey]: !v[bodyKey] })) }}>{expandedBodies[bodyKey] ? 'Show less' : 'Show more'}</button>}
                     <span>{canDiff ? 'Open in diff' : 'Open in overview'} →</span></div>
                 </div>
               </div>

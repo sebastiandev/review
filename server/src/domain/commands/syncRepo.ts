@@ -1,5 +1,6 @@
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
 import { carryViewedMarks } from '../actions/carryViewedMarks.ts'
+import { carryDraftComments } from '../actions/carryDraftComments.ts'
 import { recordRemoteReviews } from '../actions/recordRemoteReviews.ts'
 import { releaseWorktree } from '../actions/releaseWorktree.ts'
 import { replaceComments } from '../actions/replaceComments.ts'
@@ -12,7 +13,7 @@ import type { Store } from '../store.ts'
 import type { Worktrees } from '../worktrees.ts'
 
 export type SyncRepoDeps = {
-  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'agentReviews' | 'viewed' | 'submissions' | 'settings'>
+  store: Pick<Store, 'transaction' | 'repos' | 'pullRequests' | 'diffs' | 'comments' | 'drafts' | 'agentReviews' | 'viewed' | 'submissions' | 'settings'>
   providers: Record<ProviderKind, PullRequestProvider>
   worktrees: Pick<Worktrees, 'remove'>
   events: Events
@@ -34,6 +35,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * Post-conditions:
  * - `repo.syncedAt` set on success, `repo.syncError` set on failure (and the error rethrown)
  * - emits `sync.started`, then `sync.finished` or `sync.failed`; `worktree.removed` per release
+ * - pending comments move to each refreshed head, preserving their bodies and flagging changed locations
  */
 export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Promise<SyncRepoResult> {
   const { store, events, clock } = deps
@@ -66,7 +68,7 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
     }
     const content = new Map<number, { patch: string | null; comments: RemoteComment[] | null; reviews: RemoteReview[] | null }>()
     for (const r of remotes) {
-      const patch = needsDiff(r) ? await provider.diff(repo, r.number) : null
+      const patch = needsDiff(r) ? await provider.diff(repo, r.number, r) : null
       const comments = await provider.comments(repo, r.number)
       const reviews = await provider.myReviews(repo, r.number)
       if (patch !== null || comments !== null || reviews !== null) content.set(r.number, { patch, comments, reviews })
@@ -85,6 +87,7 @@ export async function syncRepo(deps: SyncRepoDeps, req: { repoId: number }): Pro
           if (previousDiff) carryViewedMarks(store.viewed, pr.id, previousDiff, next)
         }
         if (fetched.comments !== null) replaceComments(store.comments, pr.id, fetched.comments, now)
+        carryDraftComments(store, pr, now)
         if (fetched.reviews !== null) recordRemoteReviews(store, pr, fetched.reviews)
       }
       store.repos.update(repo.id, { syncedAt: now, syncError: null })

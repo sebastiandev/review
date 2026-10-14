@@ -1,5 +1,5 @@
-import { ArrowsOutLineVertical, CheckSquare, Square, ArrowUp, ArrowDown, ChatTeardropDots } from '@phosphor-icons/react'
-import { Fragment, useState, useEffect, type ReactNode, type RefObject } from 'react'
+import { ArrowLineDown, ArrowLineUp, ArrowsOutLineVertical, CheckSquare, Square, ArrowUp, ArrowDown, ChatTeardropDots } from '@phosphor-icons/react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import { ConversationPill } from '../pr/ConversationPill'
 import { useConversations } from '../pr/CommentAttention'
 import { FoldCaret } from '../pr/AttentionParts'
@@ -10,8 +10,9 @@ import { FileHeader } from './FileHeader'
 import type { LineRef } from './LineActionButton'
 import { LineMenu } from './LineMenu'
 import { splitRows, type DiffHunk, type DiffLine, type ParsedFile } from './parsePatch'
-import { highlightLine, languageOf } from './highlight'
-import type { ContextGap } from './contextGaps'
+import { languageOf, renderTokens } from './highlight'
+import { EXPAND_STEP, type ContextGap, type ExpandDirection } from './contextGaps'
+import { diffLineTokens } from './tokenLines'
 import { useExpandedContext, type ExpandedContext } from './useExpandedContext'
 
 export type DiffMode = 'unified' | 'split'
@@ -109,30 +110,116 @@ function ActionSlot({ path, line, side, openMenu, threads, onToggleMenu, onComme
   )
 }
 
-function Code({ line, marker, language }: { line: DiffLine; marker: string; language: string | null }) {
+/** Paints one line's code; built per file by `diffLineTokens` so multi-line tokens keep their colour. */
+type Paint = (line: DiffLine) => ReactNode
+
+function Code({ line, marker, paint }: { line: DiffLine; marker: string; paint: Paint }) {
   return (
     <span className="diff-code">
       <span className="diff-marker" aria-hidden>
         {marker}
       </span>
-      <span className="diff-text">{highlightLine(line.text, language)}</span>
+      <span className="diff-text">{paint(line)}</span>
     </span>
   )
 }
 
-type HunkProps = Omit<LineProps, 'line' | 'side'> & { hunk: DiffHunk }
+/** Where a gap sits: above the first hunk (only grows up), between hunks, or below the last (only grows down). */
+type GapPosition = 'first' | 'between' | 'last'
 
-function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
-  const language = languageOf(path)
+/**
+ * GitHub's expand controls in the hunk gutter: "expand all" once 20 lines or fewer are hidden,
+ * otherwise ↓ (20 more under the hunk above) and ↑ (20 more over the hunk below).
+ */
+function ExpandControl({ gap, context, position }: { gap: ContextGap; context: ExpandedContext; position: GapPosition }) {
+  const { hidden } = context.view(gap)
+  const button = (direction: ExpandDirection, icon: ReactNode, label: string) => (
+    <button type="button" className="hunk-expand" title={label} aria-label={label} onClick={() => context.expand(gap, direction)}>
+      {icon}
+    </button>
+  )
+  if (hidden !== null && hidden <= EXPAND_STEP) return button('all', <ArrowsOutLineVertical size={14} />, `Expand all ${hidden} line${hidden === 1 ? '' : 's'}`)
+  return (
+    <>
+      {position !== 'first' && button('down', <ArrowLineDown size={14} />, `Expand down ${EXPAND_STEP} lines`)}
+      {position !== 'last' && button('up', <ArrowLineUp size={14} />, `Expand up ${EXPAND_STEP} lines`)}
+    </>
+  )
+}
+
+/** Unchanged lines revealed from a gap. They carry no data-path / data-line: no menu, no anchor, no selection range. */
+function ContextRows({ lines, split, paint }: { lines: DiffLine[]; split: boolean; paint: Paint }) {
+  return (
+    <>
+      {lines.map((line) =>
+        split ? (
+          <div key={line.newLine} className="srow srow-context">
+            <div className="side side-left side-normal">
+              <span className="gutter">{line.oldLine}</span>
+              <Code line={line} marker="  " paint={paint} />
+            </div>
+            <div className="side side-normal">
+              <span className="gutter">{line.newLine}</span>
+              <span className="line-action-spacer" />
+              <Code line={line} marker="  " paint={paint} />
+            </div>
+          </div>
+        ) : (
+          <div key={line.newLine} className="drow drow-normal drow-context">
+            <span className="gutter">{line.oldLine}</span>
+            <span className="gutter">{line.newLine}</span>
+            <span className="line-action-spacer" />
+            <span className="diff-sign" />
+            <Code line={line} marker="" paint={paint} />
+          </div>
+        ),
+      )}
+    </>
+  )
+}
+
+/** The blue hunk row: expand controls in the gutter, the `@@` header (empty for the trailing gap) beside them. */
+function HunkHeaderRow({ header, gap, context, position, split }: { header: string; gap: ContextGap | undefined; context: ExpandedContext; position: GapPosition; split: boolean }) {
+  const control = gap && <ExpandControl gap={gap} context={context} position={position} />
+  return split ? (
+    <div className="srow">
+      <div className="side side-left side-hunk">
+        <span className="gutter hunk-gutter">{control}</span>
+        <span className="diff-code">{header}</span>
+      </div>
+      <div className="side side-hunk">
+        <span className="gutter" />
+      </div>
+    </div>
+  ) : (
+    <div className="drow drow-hunk">
+      <span className="gutter hunk-gutter">{control}</span>
+      <span className="gutter" />
+      <span className="line-action-spacer" />
+      <span className="diff-code">{header}</span>
+    </div>
+  )
+}
+
+/** Lines revealed under the hunk above, the header row while anything stays hidden, lines revealed over this hunk. */
+function GapBlock({ gap, context, position, header, split, paint }: { gap: ContextGap | undefined; context: ExpandedContext; position: GapPosition; header: string; split: boolean; paint: Paint }) {
+  if (!gap) return <HunkHeaderRow header={header} gap={undefined} context={context} position={position} split={split} />
+  const view = context.view(gap)
+  return (
+    <>
+      <ContextRows lines={view.top} split={split} paint={paint} />
+      {view.hidden !== 0 && <HunkHeaderRow header={header} gap={gap} context={context} position={position} split={split} />}
+      <ContextRows lines={view.bottom} split={split} paint={paint} />
+    </>
+  )
+}
+
+type HunkProps = Omit<LineProps, 'line' | 'side'> & { hunk: DiffHunk; paint: Paint }
+
+function UnifiedHunk({ path, hunk, paint, ...slot }: HunkProps) {
   const conversations = useConversations()
   return (
     <>
-      <div className="drow drow-hunk">
-        <span className="gutter"><ArrowsOutLineVertical size={13} /></span>
-        <span className="gutter" />
-        <span className="line-action-spacer" />
-        <span className="diff-code">{hunk.header}</span>
-      </div>
       {hunk.lines.map((line, i) => {
         const side = line.kind === 'del' ? 'old' : 'new'
         const key = lineKey(side, lineNumber(line, side))
@@ -152,7 +239,7 @@ function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
               <button className="gutter" data-number={line.oldLine} data-gutter-side="old" disabled={line.oldLine == null}>{line.oldLine}</button>
               <button className="gutter" data-number={line.newLine} data-gutter-side="new" disabled={line.newLine == null}>{line.newLine}</button>
               <ActionSlot path={path} line={line} side={side} oldLine={line.kind === 'normal' ? line.oldLine : null} {...slot} />
-              <span className="diff-sign">{MARKER[line.kind].trim()}</span><Code line={line} marker="" language={language} />
+              <span className="diff-sign">{MARKER[line.kind].trim()}</span><Code line={line} marker="" paint={paint} />
             </div>
             {artifact && <div className="artifacts">{artifact}</div>}
           </Fragment>
@@ -162,20 +249,10 @@ function UnifiedHunk({ path, hunk, ...slot }: HunkProps) {
   )
 }
 
-function SplitHunk({ path, hunk, ...slot }: HunkProps) {
-  const language = languageOf(path)
+function SplitHunk({ path, hunk, paint, ...slot }: HunkProps) {
   const conversations = useConversations()
   return (
     <>
-      <div className="srow">
-        <div className="side side-left side-hunk">
-          <span className="gutter">···</span>
-          <span className="diff-code">{hunk.header}</span>
-        </div>
-        <div className="side side-hunk">
-          <span className="gutter" />
-        </div>
-      </div>
       {splitRows(hunk.lines).map(({ left, right }, i) => {
         const artifact = splitArtifact(slot.artifacts, left, right)
         const marked = conversations?.threads.filter((t) => { const c = t.comments[0]!; return c.path === path && c.line !== null && c.line === (c.side === 'LEFT' ? left?.oldLine : right?.newLine) }) ?? []
@@ -191,7 +268,7 @@ function SplitHunk({ path, hunk, ...slot }: HunkProps) {
                 data-range-end={left && slot.threads[lineKey('old', left.oldLine ?? 0)] === 'open' && slot.threads[lineKey('old', (left.oldLine ?? 0) + 1)] !== 'open'}
               >
                 <button className="gutter" data-number={left?.oldLine} data-gutter-side="old" disabled={left?.oldLine == null}>{left?.oldLine}</button>
-                {left && <Code line={left} marker={MARKER[left.kind]} language={language} />}
+                {left && <Code line={left} marker={MARKER[left.kind]} paint={paint} />}
               </div>
               <div
                 className={`side${right ? ` side-${right.kind}` : ' side-empty'}${right && slot.threads[lineKey('new', right.newLine ?? 0)] === 'open' ? ' side-anchored' : ''}`}
@@ -203,72 +280,13 @@ function SplitHunk({ path, hunk, ...slot }: HunkProps) {
               >
                 <button className="gutter" data-number={right?.newLine} data-gutter-side="new" disabled={right?.newLine == null}>{right?.newLine}</button>
                 {right ? <ActionSlot path={path} line={right} side="new" oldLine={left?.oldLine} {...slot} /> : left ? <ActionSlot path={path} line={left} side="old" {...slot} /> : <span className="line-action-spacer" />}
-                {right && <Code line={right} marker={MARKER[right.kind]} language={language} />}
+                {right && <Code line={right} marker={MARKER[right.kind]} paint={paint} />}
               </div>
             </div>
             {artifact && <div className="artifacts">{artifact}</div>}
           </Fragment>
         )
       })}
-    </>
-  )
-}
-
-type GapProps = { gap: ContextGap; context: ExpandedContext; split: boolean }
-
-/** The `⋯ expand N lines` control for a gap, or its expanded read-only lines. Nothing when the gap turns out empty. */
-function GapRow({ gap, context, split, path }: GapProps & { path: string }) {
-  const lines = context.lines[gap.id]
-  if (context.isEmpty(gap)) return null
-  if (!lines) {
-    const count = gap.newEnd === null ? null : gap.newEnd - gap.newStart + 1
-    const label = context.loading === gap.id ? 'Loading…' : count === null ? 'Expand to the end of the file' : `Expand ${count} unchanged line${count === 1 ? '' : 's'}`
-    const button = (
-      <button type="button" className="expand-btn" disabled={context.loading !== null} onClick={() => context.expand(gap)}>
-        <ArrowsOutLineVertical size={12} />
-        {label}
-      </button>
-    )
-    return split ? (
-      <div className="srow srow-expand">
-        <div className="side side-left side-hunk">{button}</div>
-        <div className="side side-hunk" />
-      </div>
-    ) : (
-      <div className="drow drow-expand">{button}</div>
-    )
-  }
-  const language = languageOf(path)
-  // Expanded lines carry no data-path / data-line: no menu, no anchor, no selection range.
-  return (
-    <>
-      {lines.map((line) =>
-        split ? (
-          <div key={line.newLine} className="srow srow-context">
-            <div className="side side-left side-normal">
-              <span className="gutter">{line.oldLine}</span>
-              <Code line={line} marker="  " language={language} />
-            </div>
-            <div className="side side-normal">
-              <span className="gutter">{line.newLine}</span>
-              <span className="line-action-spacer" />
-              <Code line={line} marker="  " language={language} />
-            </div>
-          </div>
-        ) : (
-          <div key={line.newLine} className="drow drow-normal drow-context">
-            <span className="gutter">{line.oldLine}</span>
-            <span className="gutter">{line.newLine}</span>
-            <span className="line-action-spacer" />
-            <Code line={line} marker="  " language={language} />
-          </div>
-        ),
-      )}
-      <div className={split ? 'srow srow-expand' : 'drow drow-expand'}>
-        <button type="button" className="expand-btn" onClick={() => context.collapse(gap)}>
-          Collapse
-        </button>
-      </div>
     </>
   )
 }
@@ -326,7 +344,10 @@ export function DiffView({
     window.addEventListener('pointerdown', close)
     return () => window.removeEventListener('pointerdown', close)
   }, [openMenu, onToggleMenu])
-  const context = useExpandedContext(file.path, parsed?.hunks ?? NO_HUNKS, loadFile)
+  const hunks = parsed?.hunks ?? NO_HUNKS
+  const context = useExpandedContext(file.path, hunks, loadFile)
+  const tokensOf = useMemo(() => diffLineTokens(hunks, context.fileLines, languageOf(file.path)), [hunks, context.fileLines, file.path])
+  const paint = useCallback<Paint>((line) => renderTokens(tokensOf(line)), [tokensOf])
   const slot = { path: file.path, openMenu, threads, artifacts, onToggleMenu, onComment, onAsk, onCopyRef, onToggleThread }
   const touch = (target: EventTarget | null) => {
     const ref = lineRefFrom(target)
@@ -371,15 +392,13 @@ export function DiffView({
         ) : (
           <div className={mode === 'unified' ? 'diff-unified' : 'diff-split'}>
             {context.error && <p className="notice">{context.error}</p>}
-            {gapById(context, 'before') && <GapRow gap={gapById(context, 'before')!} context={context} split={mode === 'split'} path={file.path} />}
             {parsed.hunks.map((hunk, i) => (
               <Fragment key={i}>
-                {mode === 'unified' ? <UnifiedHunk hunk={hunk} {...slot} /> : <SplitHunk hunk={hunk} {...slot} />}
-                {gapById(context, i === parsed.hunks.length - 1 ? 'after' : `after:${i}`) && (
-                  <GapRow gap={gapById(context, i === parsed.hunks.length - 1 ? 'after' : `after:${i}`)!} context={context} split={mode === 'split'} path={file.path} />
-                )}
+                <GapBlock gap={gapById(context, i === 0 ? 'before' : `after:${i - 1}`)} context={context} position={i === 0 ? 'first' : 'between'} header={hunk.header} split={mode === 'split'} paint={paint} />
+                {mode === 'unified' ? <UnifiedHunk hunk={hunk} paint={paint} {...slot} /> : <SplitHunk hunk={hunk} paint={paint} {...slot} />}
               </Fragment>
             ))}
+            {gapById(context, 'after') && <GapBlock gap={gapById(context, 'after')} context={context} position="last" header="" split={mode === 'split'} paint={paint} />}
           </div>
         ))}
         {!folded && children}

@@ -105,6 +105,7 @@ export function usePrArtifacts({ pr, path, composer, now, onCloseComposer, onAsk
             <RemoteThreadCard
               threads={threads}
               pendingReplies={replies}
+              actions={pr.actions}
               now={now}
               onAsk={(thread) => onDiscuss({ path, line: thread.root.line ?? thread.root.originalLine ?? 1, side: thread.root.side === 'LEFT' ? 'old' : 'new', text: '' }, 'Summarize this conversation and tell me whether my concern is addressed.')}
               onReply={(root, body) =>

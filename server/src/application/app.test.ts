@@ -81,6 +81,7 @@ describe('PR mode app', () => {
       cli: fakeCli(),
       sleep: noSleep,
       opencodeUrl: 'http://opencode.test',
+      opencodeReady: Promise.resolve(),
       directory: '/tmp',
       staticDir: null,
       openChat: async () => hub,

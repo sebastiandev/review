@@ -3,6 +3,7 @@ import type {
   AccountRepo,
   AppConfig,
   ChatPart,
+  CommandInfo,
   ChatSendRequest,
   ChatThreadRef,
   DiffDocument,
@@ -102,9 +103,14 @@ export function fetchFile(path: string, scope = LOCAL_SCOPE): Promise<FileConten
   return requestJson<FileContent>(`${scopePath(scope)}/file?path=${encodeURIComponent(path)}`)
 }
 
-/** Agents, models and commands opencode offers, plus server settings. */
+/** Agents and models opencode offers, plus server settings. */
 export function fetchConfig(): Promise<AppConfig> {
   return requestJson<AppConfig>('/api/config')
+}
+
+/** Slash commands opencode offers; slow on a fresh opencode, so apart from `/api/config`. */
+export function fetchCommands(): Promise<CommandInfo[]> {
+  return requestJson<CommandInfo[]>('/api/commands')
 }
 
 /** Persisted user settings alone; cheaper than `/api/config`, which also asks opencode. */

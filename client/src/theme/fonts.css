@@ -20,6 +20,9 @@
   --font-code: var(--font-mono);
 }
 
+[data-code-font='system-mono'] {
+  --font-code: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
 [data-code-font='ibm-plex-mono'] {
   --font-code: 'IBM Plex Mono', ui-monospace, monospace;
 }

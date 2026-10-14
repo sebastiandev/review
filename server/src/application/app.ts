@@ -7,7 +7,7 @@ import { DomainError } from '../domain/errors.ts'
 import type { Events } from '../domain/ports.ts'
 import { updateSettings } from '../domain/commands/updateSettings.ts'
 import type { Store } from '../domain/store.ts'
-import { readOpencodeCatalog } from '../infrastructure/opencodeCatalog.ts'
+import { readOpencodeCatalog, readOpencodeCommands } from '../infrastructure/opencodeCatalog.ts'
 import type { ScopeRegistry } from './scopes.ts'
 
 export type AppDeps = {
@@ -17,6 +17,8 @@ export type AppDeps = {
   /** Called after settings change; the scheduler re-reads the poll interval. */
   settingsChanged: () => void
   opencodeUrl: string
+  /** Settles once opencode answers; `/api/config` waits for it instead of failing during startup. */
+  opencodeReady: Promise<void>
   /** Directory opencode resolves agents and config for. */
   directory: string
   /** Route groups mounted ahead of the static fallback (PR mode routes). */
@@ -114,8 +116,14 @@ export function createApp(deps: AppDeps) {
   app.route('/api/scopes/:scope', scoped)
 
   app.get('/api/config', async (c) => {
+    await deps.opencodeReady
     const catalog = await readOpencodeCatalog(deps.opencodeUrl, deps.directory)
     return c.json({ ...catalog, settings: deps.store.settings.read() })
+  })
+
+  app.get('/api/commands', async (c) => {
+    await deps.opencodeReady
+    return c.json(await readOpencodeCommands(deps.opencodeUrl, deps.directory))
   })
 
   app.get('/api/settings', (c) => c.json(deps.store.settings.read()))

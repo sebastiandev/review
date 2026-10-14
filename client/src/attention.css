@@ -138,8 +138,9 @@
 .diff-toolbar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px 20px 0; }
 .diff-toolbar-hint { margin-left: auto; color: var(--color-neutral-500); font-size: 12px; }
 .toolbar-btn kbd { font: 10px var(--font-mono); color: var(--color-neutral-500); border: 1px solid var(--color-neutral-700); border-radius: 2px; padding: 0 2px; margin-left: 4px; }
-.diff-body { padding: 14px 20px 24px; font-size: 12.5px; line-height: 20px; }
-.app-focus .diff-body { font-size: 13.5px; line-height: 26px; }
+.diff-body { padding: 14px 20px 24px; font-size: 12px; line-height: 20px; }
+/* GitHub sets code without ligatures (`->` stays two glyphs); Fira Code is picked for its ligatures. */
+:root:not([data-code-font='fira-code']) .diff-body { font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0; }
 .diff-file-card { border: 1px solid var(--seam); border-radius: var(--radius-md); overflow: clip; background: var(--code-bg); }
 .diff-file-card .file-header { position: sticky; top: -14px; z-index: 4; background: var(--color-surface); padding: 8px 12px 8px 36px; flex-wrap: nowrap; gap: 8px; min-height: 42px; }
 .diff-file-card .file-title { font-size: 12px; }
@@ -195,8 +196,6 @@
 .side-empty { background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--color-text) 4%, transparent) 5px 6px); }
 .side-hunk { min-height: 28px; background: var(--diff-hunk-bg, color-mix(in srgb, var(--color-accent) 7%, transparent)); }
 .side-hunk .diff-code { grid-column: 2 / -1; color: var(--diff-hunk-fg, var(--color-neutral-400)); }
-.drow.drow-expand, .srow-expand .side { display: flex; min-height: 28px; }
-.drow-expand .expand-btn { white-space: nowrap; }
 .diff-body .artifacts { margin: 6px 16px 10px 107px; width: auto; max-width: 860px; }
 .diff-split .artifacts { margin-left: 51px; }
 .review-thread-card { background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--card-shadow); overflow: hidden; }
@@ -206,7 +205,7 @@
 .review-thread-fold { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--color-neutral-500); font-size: 12px; white-space: nowrap; }
 .review-thread-preview { overflow: hidden; text-overflow: ellipsis; }
 .thread-reply-form { display: flex; gap: 8px; padding: 8px 12px; border-top: var(--sep); }
-.thread-reply-form input { min-width: 0; flex: 1; height: 30px; background: var(--ctl-bg); border: 1px solid var(--seam); border-radius: var(--radius-md); color: var(--color-text); padding: 0 9px; font: 12.5px var(--font-body); }
+.thread-reply-form textarea { min-width: 0; flex: 1; min-height: 60px; resize: vertical; background: var(--ctl-bg); border: 1px solid var(--seam); border-radius: var(--radius-md); color: var(--color-text); padding: 7px 9px; font: 12.5px var(--font-body); }
 .dock-title { font-size: 15px; font-weight: 500; }.dock-head { padding: 12px 14px 9px; border: 0; }
 .dock-context-tabs { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 14px 10px; border-bottom: var(--sep); }
 .dock-context-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; font-size: 11.5px; height: 26px; border: 1px solid var(--seam); background: var(--chip-bg); border-radius: var(--r-chip); color: var(--color-neutral-300); padding: 0 9px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -248,5 +247,7 @@
 .diff-body .tok.string { color: var(--syntax-string, oklch(0.82 0.08 75)); }
 .diff-body .tok.comment { color: var(--syntax-comment, var(--color-neutral-600)); }
 .diff-body .tok.number, .diff-body .tok.boolean { color: var(--syntax-constant, var(--color-accent-300)); }
+.diff-body .tok.property { color: var(--syntax-constant, var(--color-accent-400)); }
+.diff-body .tok.punctuation, .diff-body .tok.operator { color: var(--syntax-punctuation, var(--color-neutral-500)); }
 [data-theme="daylight"] { --syntax-call: oklch(0.42 0.07 235); --syntax-string: oklch(0.42 0.08 75); }
 @media(max-width: 1100px) { .attention-dashboard, .pr-overview { padding-left: 20px; padding-right: 20px; }.attention-section-head small { display: none; } }

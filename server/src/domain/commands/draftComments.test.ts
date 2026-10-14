@@ -33,6 +33,15 @@ describe('draft comments', () => {
     expect(store.drafts.comments(first.draftId)).toHaveLength(2)
   })
 
+  it('starts a new draft on the same head after submitting the previous draft', () => {
+    const first = addDraftComment(deps, { prId: pr.id, ...anchor })
+    store.transaction(() => store.drafts.markSubmitted(first.draftId, NOW))
+    const second = addDraftComment(deps, { prId: pr.id, ...anchor, body: 'another concern' })
+    expect(second.draftId).not.toBe(first.draftId)
+    expect(store.drafts.comments(first.draftId)).toEqual([first])
+    expect(store.drafts.open(pr.id, pr.headSha)?.id).toBe(second.draftId)
+  })
+
   it.each([
     ['a line outside the diff', { line: 42 }],
     ['a file outside the diff', { path: 'nope.py' }],

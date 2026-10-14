@@ -45,7 +45,7 @@ export type TurnSettings = {
 export type ChatSendRequest = TurnSettings & {
   text: string
   selections?: DiffSelection[]
-  /** A server-side command name (from `AppConfig.commands`); `text` is then its arguments. */
+  /** A server-side command name (from `GET /api/commands`); `text` is then its arguments. */
   command?: string
 }
 
@@ -106,6 +106,8 @@ export type ServerEvent =
   | { type: 'account.connected'; provider: 'github' | 'gitlab'; login: string; source: 'oauth' | 'cli' }
   | { type: 'account.failed'; provider: 'github' | 'gitlab'; message: string }
   | { type: 'account.disconnected'; provider: 'github' | 'gitlab' }
+  /** Review's own opencode server restarted, so its agents/models catalog may have changed. */
+  | { type: 'opencode.restarted' }
 
 export type Verdict = 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES'
 
@@ -363,10 +365,12 @@ export type WorktreeRow = {
   sizeBytes: number
 }
 
+/** A slash command opencode offers (its own, config-defined, or an MCP prompt); `GET /api/commands`. */
+export type CommandInfo = { name: string; description?: string }
+
 export type AppConfig = {
   agents: { name: string; description?: string }[]
   models: { providerID: string; modelID: string; name: string; variants: string[] }[]
-  commands: { name: string; description?: string }[]
   /** The persisted user settings; same as `GET /api/settings`. */
   settings: UserSettings
 }

@@ -75,7 +75,7 @@ export async function addPullRequests(
   for (const number of req.numbers) {
     const remote = await provider.get(repo, number)
     if (!remote) throw new NotFound('pull request', `${repoLabel(repo)}#${number}`)
-    fetched.push({ remote, patch: await provider.diff(repo, number), comments: await provider.comments(repo, number) })
+    fetched.push({ remote, patch: await provider.diff(repo, number, remote), comments: await provider.comments(repo, number) })
   }
 
   const now = deps.clock()

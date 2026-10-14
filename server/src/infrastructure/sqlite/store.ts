@@ -155,6 +155,13 @@ export function sqliteStore(db: DatabaseSync): Store {
         nullable(q("SELECT * FROM review_draft WHERE pr_id = ? AND head_sha = ? AND status = 'open'").get(prId, headSha), toDraft),
       latestOpen: (prId) =>
         nullable(q("SELECT * FROM review_draft WHERE pr_id = ? AND status = 'open' ORDER BY id DESC LIMIT 1").get(prId), toDraft),
+      listOpen: (prId) => q("SELECT * FROM review_draft WHERE pr_id = ? AND status = 'open' ORDER BY id").all(prId).map(toDraft),
+      moveComments(fromDraftId, toDraftId) {
+        q('UPDATE draft_comment SET draft_id = ? WHERE draft_id = ?').run(toDraftId, fromDraftId)
+      },
+      deleteEmpty(id) {
+        q("DELETE FROM review_draft WHERE id = ? AND status = 'open' AND NOT EXISTS (SELECT 1 FROM draft_comment WHERE draft_id = ?)").run(id, id)
+      },
       insert(prId, headSha, now) {
         const { lastInsertRowid } = q(
           "INSERT INTO review_draft (pr_id, head_sha, status, created_at, submitted_at) VALUES (?, ?, 'open', ?, NULL)",

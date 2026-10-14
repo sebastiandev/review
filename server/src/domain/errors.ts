@@ -33,6 +33,13 @@ export class ApproveNotConfirmed extends DomainError {
   }
 }
 
+/** GitHub needs words for REQUEST_CHANGES, and something (body or a comment) for COMMENT. */
+export class ReviewBodyRequired extends DomainError {
+  constructor(verdict: string) {
+    super('review_body_required', verdict === 'REQUEST_CHANGES' ? 'requesting changes needs a review body' : 'a comment review needs a body or at least one comment')
+  }
+}
+
 /** Some selected draft comments no longer point at lines in the diff. */
 export class InvalidAnchors extends DomainError {
   constructor(readonly ids: number[]) {

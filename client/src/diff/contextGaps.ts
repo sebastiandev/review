@@ -44,6 +44,45 @@ export function gapLines(gap: ContextGap, fileLines: string[]): DiffLine[] {
   return out
 }
 
+/** Lines one click on an expand control reveals, like GitHub. */
+export const EXPAND_STEP = 20
+
+/** Which way an expand control grows a gap: `down` from the hunk above, `up` from the hunk below, or all of it. */
+export type ExpandDirection = 'up' | 'down' | 'all'
+
+/** How much of a gap is showing: `top` lines under the hunk above, `bottom` lines over the hunk below. */
+export type GapReveal = { top: number; bottom: number }
+
+export const HIDDEN: GapReveal = { top: 0, bottom: 0 }
+
+/** Lines in the gap; null for the trailing gap until the file length is known. */
+export function gapSize(gap: ContextGap, fileLength: number | null): number | null {
+  if (gap.newEnd !== null) return gap.newEnd - gap.newStart + 1
+  return fileLength === null ? null : Math.max(0, fileLength - gap.newStart + 1)
+}
+
+/** Lines still hidden; null while the size is unknown. */
+export function hiddenCount(reveal: GapReveal, size: number | null): number | null {
+  return size === null ? null : Math.max(0, size - reveal.top - reveal.bottom)
+}
+
+/** `reveal` after one click: up to `EXPAND_STEP` more lines on one end, or everything. */
+export function revealMore(reveal: GapReveal, size: number, direction: ExpandDirection): GapReveal {
+  const hidden = hiddenCount(reveal, size) ?? 0
+  if (direction === 'all') return { ...reveal, top: reveal.top + hidden }
+  const step = Math.min(EXPAND_STEP, hidden)
+  return direction === 'down' ? { ...reveal, top: reveal.top + step } : { ...reveal, bottom: reveal.bottom + step }
+}
+
+/** The revealed lines of a gap, split at the part still hidden. */
+export function revealedLines(gap: ContextGap, reveal: GapReveal, fileLines: string[]): { top: DiffLine[]; bottom: DiffLine[] } {
+  const size = gapSize(gap, fileLines.length) ?? 0
+  const end = gap.newStart + size - 1
+  const top = reveal.top > 0 ? gapLines({ ...gap, newEnd: gap.newStart + Math.min(reveal.top, size) - 1 }, fileLines) : []
+  const bottom = reveal.bottom > 0 ? gapLines({ ...gap, newStart: Math.max(gap.newStart + reveal.top, end - reveal.bottom + 1), newEnd: end }, fileLines) : []
+  return { top, bottom }
+}
+
 /** Lines of a file body; a trailing newline does not add an empty last line. */
 export function splitFileLines(content: string): string[] {
   const lines = content.split('\n')

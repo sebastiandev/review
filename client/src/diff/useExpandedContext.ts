@@ -1,77 +1,69 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { contextGaps, gapLines, splitFileLines, type ContextGap } from './contextGaps'
+import { contextGaps, gapSize, hiddenCount, HIDDEN, revealedLines, revealMore, splitFileLines, type ContextGap, type ExpandDirection, type GapReveal } from './contextGaps'
 import type { DiffHunk, DiffLine } from './parsePatch'
+
+/** One gap as rendered: revealed lines above and below the part still hidden. */
+export type GapView = { top: DiffLine[]; bottom: DiffLine[]; hidden: number | null }
 
 export type ExpandedContext = {
   gaps: ContextGap[]
-  /** Lines of an expanded gap, by gap id; absent while collapsed or loading. */
-  lines: Record<string, DiffLine[]>
-  /** True once the file content is known and this gap has no lines (trailing gap at EOF). */
-  isEmpty: (gap: ContextGap) => boolean
-  loading: string | null
+  view: (gap: ContextGap) => GapView
+  /** The file's new-side lines; null while loading or when the source has none (patch files). */
+  fileLines: string[] | null
   error: string | null
-  expand: (gap: ContextGap) => void
-  collapse: (gap: ContextGap) => void
+  expand: (gap: ContextGap, direction: ExpandDirection) => void
 }
 
+type FileState = { path: string; status: 'loading' | 'ready' | 'unavailable'; lines: string[] | null }
+
 /**
- * Context lines around the hunks of one file, expanded on demand. The file's new-side content is
- * fetched once (through `loadFile`) on the first expand and sliced for every gap after that.
- * Resets when `path` changes.
+ * Context lines around the hunks of one file, revealed GitHub-style: 20 lines at a time from
+ * either end of a gap, or all of it. The file's new-side content is fetched once per path,
+ * up front, so expanding is instant and the highlighter can tokenize the whole file.
  */
 export function useExpandedContext(path: string, hunks: DiffHunk[], loadFile: (path: string) => Promise<string | null>): ExpandedContext {
   const gaps = useMemo(() => contextGaps(hunks), [hunks])
-  const [state, setState] = useState<{ path: string; fileLines: string[] | null; open: Set<string>; loading: string | null; error: string | null }>({
-    path,
-    fileLines: null,
-    open: new Set(),
-    loading: null,
-    error: null,
-  })
+  const [file, setFile] = useState<FileState>({ path, status: 'loading', lines: null })
+  const [reveals, setReveals] = useState<{ path: string; byGap: Record<string, GapReveal> }>({ path, byGap: {} })
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    setState({ path, fileLines: null, open: new Set(), loading: null, error: null })
-  }, [path])
+    let live = true
+    setFile({ path, status: 'loading', lines: null })
+    setReveals({ path, byGap: {} })
+    setError(null)
+    loadFile(path).then(
+      (content) => live && setFile({ path, status: content === null ? 'unavailable' : 'ready', lines: content === null ? null : splitFileLines(content) }),
+      () => live && setFile({ path, status: 'unavailable', lines: null }),
+    )
+    return () => {
+      live = false
+    }
+  }, [path, loadFile])
+
+  const fileLines = file.path === path ? file.lines : null
+  const byGap = reveals.path === path ? reveals.byGap : {}
 
   const expand = useCallback(
-    (gap: ContextGap) => {
-      if (state.fileLines) {
-        setState((s) => ({ ...s, open: new Set([...s.open, gap.id]) }))
+    (gap: ContextGap, direction: ExpandDirection) => {
+      if (!fileLines) {
+        if (file.status === 'unavailable') setError('file content is not available for this diff')
         return
       }
-      setState((s) => ({ ...s, loading: gap.id, error: null }))
-      void loadFile(path).then(
-        (content) =>
-          setState((s) =>
-            s.path !== path
-              ? s
-              : content === null
-                ? { ...s, loading: null, error: 'file content is not available for this diff' }
-                : { ...s, loading: null, fileLines: splitFileLines(content), open: new Set([...s.open, gap.id]) },
-          ),
-        (e: unknown) => setState((s) => ({ ...s, loading: null, error: e instanceof Error ? e.message : String(e) })),
-      )
+      const size = gapSize(gap, fileLines.length) ?? 0
+      setReveals((r) => ({ path, byGap: { ...r.byGap, [gap.id]: revealMore(r.byGap[gap.id] ?? HIDDEN, size, direction) } }))
     },
-    [state.fileLines, loadFile, path],
-  )
-  const collapse = useCallback((gap: ContextGap) => {
-    setState((s) => {
-      const open = new Set(s.open)
-      open.delete(gap.id)
-      return { ...s, open }
-    })
-  }, [])
-
-  const lines = useMemo(() => {
-    const out: Record<string, DiffLine[]> = {}
-    if (!state.fileLines) return out
-    for (const gap of gaps) if (state.open.has(gap.id)) out[gap.id] = gapLines(gap, state.fileLines)
-    return out
-  }, [gaps, state.open, state.fileLines])
-
-  const isEmpty = useCallback(
-    (gap: ContextGap) => state.fileLines !== null && gapLines(gap, state.fileLines).length === 0,
-    [state.fileLines],
+    [fileLines, file.status, path],
   )
 
-  return { gaps, lines, isEmpty, loading: state.loading, error: state.error, expand, collapse }
+  const view = useCallback(
+    (gap: ContextGap): GapView => {
+      const reveal = byGap[gap.id] ?? HIDDEN
+      const hidden = hiddenCount(reveal, gapSize(gap, fileLines?.length ?? null))
+      return fileLines ? { ...revealedLines(gap, reveal, fileLines), hidden } : { top: [], bottom: [], hidden }
+    },
+    [byGap, fileLines],
+  )
+
+  return { gaps, view, fileLines, error, expand }
 }

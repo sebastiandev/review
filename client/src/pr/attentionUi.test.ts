@@ -1,8 +1,18 @@
 import { expect, it } from 'vitest'
-import { attentionKind, attentionPreview, canOpenConversation, descriptionMarkdown, shortLocation } from './attentionUi'
+import { attentionKind, attentionPreview, canOpenConversation, descriptionMarkdown, shortLocation, stableConversationOrder } from './attentionUi'
 import type { AttentionThread, RemoteCommentRow } from '@review/shared'
 
 const comment: RemoteCommentRow = { remoteId: '1', author: 'a', body: 'b', path: 'src/domain/a.ts', line: 10, startLine: null, side: 'RIGHT', inReplyTo: null, createdAt: '', originalLine: null, originalCommitSha: null }
+
+it('keeps a conversation in place after its unread reply is marked read', () => {
+  const base: AttentionThread = { prId: 1, prState: 'open', number: 1, title: 'PR', rootId: '1', mine: true, lastOwnCommentId: '1', hasReply: true, awaitingReply: false, unreadComments: ['1'], unreadReplies: ['1'], unreadMentions: [], comments: [comment] }
+  const waiting = { ...base, rootId: '2', unreadComments: [], unreadReplies: [], awaitingReply: true }
+  const initial = stableConversationOrder([waiting, base], [])
+  const read = { ...base, unreadComments: [], unreadReplies: [] }
+  const refreshed = stableConversationOrder([waiting, read], initial.map((t) => `${t.prId}:${t.rootId}`))
+  expect(refreshed.map((t) => t.rootId)).toEqual(initial.map((t) => t.rootId))
+  expect(attentionKind(refreshed[0]!)).toBe('answered')
+})
 it.each([10, null])('only navigates current anchors (%s)', (line) => {
   const t = { comments: [{ ...comment, line }] } as AttentionThread
   expect(canOpenConversation(t, [{ path: comment.path }])).toBe(line !== null)

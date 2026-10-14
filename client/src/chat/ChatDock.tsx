@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CaretLeft, CaretRight, PaperPlaneRight, Stop } from '@phosphor-icons/react'
-import type { AppConfig, ChatPart, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
+import type { AppConfig, ChatPart, CommandInfo, ChatSendRequest, ModelRef, PermissionAsk, PermissionReply } from '@review/shared'
 import { ChatMarkdown } from './ChatMarkdown'
 import { Picker, type PickerItem } from './Picker'
 import { splitQuotes, type Quote } from './quotes'
@@ -26,7 +26,7 @@ type ChatDockProps = Omit<ChatPanelProps, 'placeholder' | 'autoFocus' | 'message
   contextLabel?: string
 }
 
-const EMPTY_CONFIG: Pick<AppConfig, 'agents' | 'models' | 'commands'> = { agents: [], models: [], commands: [] }
+const EMPTY_CONFIG: Pick<AppConfig, 'agents' | 'models'> = { agents: [], models: [] }
 
 const LOCAL_COMMAND_HINTS: Record<LocalCommand, string> = {
   models: 'pick a model',
@@ -129,7 +129,7 @@ function PermissionRow({ ask, onPermission }: PermissionRowProps) {
 
 type ComposerProps = {
   idle: boolean
-  commands: AppConfig['commands']
+  commands: CommandInfo[]
   filePaths: string[]
   placeholder?: string
   autoFocus?: boolean
@@ -265,7 +265,7 @@ function Composer({ idle, commands, filePaths, placeholder = 'Ask about the diff
 }
 
 type StatusRowProps = {
-  config: Pick<AppConfig, 'agents' | 'models' | 'commands'>
+  config: Pick<AppConfig, 'agents' | 'models'>
   idle: boolean
   turn: TurnSettingsState
   lastTurn: ChatTurn | null
@@ -355,6 +355,8 @@ export type ChatPanelProps = {
   error: string | null
   /** Undefined until /api/config has loaded. */
   config: AppConfig | undefined
+  /** Slash commands for `/`; empty until `/api/commands` has loaded. */
+  commands: CommandInfo[]
   /** Paths in the diff, offered when the user types `@`. */
   filePaths: string[]
   turn: TurnSettingsState
@@ -387,6 +389,7 @@ export function ChatPanel({
   permissions,
   error,
   config,
+  commands,
   filePaths,
   turn,
   lastTurn,
@@ -426,7 +429,7 @@ export function ChatPanel({
         <StatusRow config={catalog} idle={idle} turn={turn} lastTurn={lastTurn} picker={picker} onOpenPicker={setPicker} />
         <Composer
           idle={idle}
-          commands={catalog.commands}
+          commands={commands}
           filePaths={filePaths}
           placeholder={placeholder}
           autoFocus={autoFocus}
@@ -453,6 +456,7 @@ export function ChatDock({
   permissions,
   error,
   config,
+  commands,
   notice,
   provenance,
   turn,
@@ -512,6 +516,7 @@ export function ChatDock({
           permissions={permissions}
           error={error}
           config={config}
+          commands={commands}
           filePaths={filePaths}
           turn={turn}
           lastTurn={lastTurn}

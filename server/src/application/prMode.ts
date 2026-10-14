@@ -32,6 +32,8 @@ export type PrModeDeps = {
   /** Waits `seconds` between device-flow polls; tests pass a no-op. */
   sleep: (seconds: number) => Promise<void>
   opencodeUrl: string
+  /** Settles once opencode answers. */
+  opencodeReady: Promise<void>
   /** Directory opencode resolves agents and config for. */
   directory: string
   staticDir: string | null
@@ -77,6 +79,7 @@ export function prMode(deps: PrModeDeps): { app: ReturnType<typeof createApp>; s
     events: deps.events,
     settingsChanged: sync.reschedule,
     opencodeUrl: deps.opencodeUrl,
+    opencodeReady: deps.opencodeReady,
     directory: deps.directory,
     routes: [prRoutes({ ...deps, openPullRequest: makeOpenPullRequest(deps), scheduler: sync, reviewQueue: reviews, accounts, local })],
     staticDir: deps.staticDir,

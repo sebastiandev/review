@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contextGaps, gapLines, parseHunkHeader, splitFileLines } from './contextGaps'
+import { contextGaps, gapLines, gapSize, HIDDEN, parseHunkHeader, revealedLines, revealMore, splitFileLines } from './contextGaps'
 
 const hunk = (header: string) => ({ header, lines: [] })
 
@@ -57,5 +57,35 @@ describe('splitFileLines', () => {
   it('ignores the trailing newline', () => {
     expect(splitFileLines('a\nb\n')).toEqual(['a', 'b'])
     expect(splitFileLines('a\nb')).toEqual(['a', 'b'])
+  })
+})
+
+describe('revealMore', () => {
+  const size = 50
+  it.each([
+    ['down', { top: 0, bottom: 0 }, { top: 20, bottom: 0 }],
+    ['up', { top: 0, bottom: 0 }, { top: 0, bottom: 20 }],
+    ['up', { top: 20, bottom: 20 }, { top: 20, bottom: 30 }],
+    ['all', { top: 20, bottom: 5 }, { top: 45, bottom: 5 }],
+  ] as const)('%s from %o reveals %o', (direction, reveal, expected) => {
+    expect(revealMore(reveal, size, direction)).toEqual(expected)
+  })
+})
+
+describe('revealedLines', () => {
+  const file = Array.from({ length: 40 }, (_, i) => `line ${i + 1}`)
+  const gap = { id: 'after:0', newStart: 11, newEnd: 30, delta: 2 }
+
+  it('takes the top lines under the hunk above and the bottom lines over the hunk below', () => {
+    const { top, bottom } = revealedLines(gap, { top: 2, bottom: 3 }, file)
+    expect(top.map((l) => l.newLine)).toEqual([11, 12])
+    expect(bottom.map((l) => l.newLine)).toEqual([28, 29, 30])
+    expect(bottom[0]).toEqual({ kind: 'normal', oldLine: 30, newLine: 28, text: 'line 28' })
+  })
+
+  it('sizes the trailing gap from the file', () => {
+    const trailing = { id: 'after', newStart: 35, newEnd: null, delta: 0 }
+    expect(gapSize(trailing, file.length)).toBe(6)
+    expect(revealedLines(trailing, revealMore(HIDDEN, 6, 'down'), file).top.map((l) => l.newLine)).toEqual([35, 36, 37, 38, 39, 40])
   })
 })

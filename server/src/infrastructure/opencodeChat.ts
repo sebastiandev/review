@@ -1,4 +1,5 @@
 import { createOpencodeClient, type Event, type Message, type Part } from '@opencode-ai/sdk'
+import { createOpencodeClient as createOpencodeClientV2, type EventPermissionAsked, type EventPermissionReplied } from '@opencode-ai/sdk/v2'
 import type { ChatEvent, ChatPart, ChatThreadRef, DiffSelection } from '@review/shared'
 import type { ChatSessionRow } from '../domain/store.ts'
 import {
@@ -30,6 +31,8 @@ type Client = ReturnType<typeof createOpencodeClient>
  */
 export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatHub> {
   const client = createOpencodeClient({ baseUrl: opts.baseUrl })
+  // Permission requests moved to the v2 API (`permission.asked`, `/permission/:id/reply`).
+  const permissions = createOpencodeClientV2({ baseUrl: opts.baseUrl }).permission
   const query = { directory: opts.directory }
 
   const saved = new Map((opts.sessions?.list() ?? []).map((row) => [row.threadId, row]))
@@ -43,7 +46,7 @@ export async function openOpencodeChat(opts: OpencodeChatOptions): Promise<ChatH
   const emit = (e: ChatEvent) => listeners.forEach((l) => l(e))
 
   const register = (ref: ChatThreadRef, sessionID: string, preamble: string, reopened = false): ChatThread => {
-    const thread = makeThread(client, query, ref, sessionID, preamble, opts.defaultAgent, roles, reopened)
+    const thread = makeThread(client, permissions, query, ref, sessionID, preamble, opts.defaultAgent, roles, reopened)
     threads.set(ref.id, thread)
     threadBySession.set(sessionID, ref.id)
     return thread
@@ -90,6 +93,7 @@ async function createSession(client: Client, query: { directory: string }, title
 
 function makeThread(
   client: Client,
+  permissions: ReturnType<typeof createOpencodeClientV2>['permission'],
   query: { directory: string },
   ref: ChatThreadRef,
   sessionID: string,
@@ -151,11 +155,8 @@ function makeThread(
     },
 
     async respondPermission(permissionID, reply) {
-      await client.postSessionIdPermissionsPermissionId({
-        path: { id: sessionID, permissionID },
-        query,
-        body: { response: reply },
-      })
+      const res = await permissions.reply({ requestID: permissionID, directory: query.directory, reply })
+      if (res.error) throw new Error(`opencode: permission reply failed: ${JSON.stringify(res.error)}`)
     },
   }
 }
@@ -169,7 +170,8 @@ async function relayEvents(
 ) {
   const sse = await client.event.subscribe({ query: { directory } })
   for await (const raw of sse.stream) {
-    const event = raw as Event
+    // The v1 SDK's Event union predates `permission.asked`; opencode sends both generations.
+    const event = raw as Event | EventPermissionAsked | EventPermissionReplied
     switch (event.type) {
       case 'message.updated': {
         const info = event.properties.info
@@ -207,21 +209,22 @@ async function relayEvents(
         if (thread) emit({ type: 'chat.error', thread, message: describeError(event.properties.error) })
         break
       }
-      case 'permission.updated': {
+      case 'permission.asked': {
         const p = event.properties
         const thread = threadBySession.get(p.sessionID)
         if (thread) {
           emit({
             type: 'permission.ask',
             thread,
-            permission: { id: p.id, sessionID: p.sessionID, title: p.title, pattern: p.pattern },
+            permission: { id: p.id, sessionID: p.sessionID, title: `${p.permission}: ${p.patterns.join(', ')}`, pattern: p.patterns },
           })
         }
         break
       }
       case 'permission.replied': {
-        const thread = threadBySession.get(event.properties.sessionID)
-        if (thread) emit({ type: 'permission.done', thread, permissionID: event.properties.permissionID })
+        const p = event.properties as EventPermissionReplied['properties']
+        const thread = threadBySession.get(p.sessionID)
+        if (thread) emit({ type: 'permission.done', thread, permissionID: p.requestID })
         break
       }
     }

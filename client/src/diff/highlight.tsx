@@ -1,6 +1,6 @@
 import { refractor } from 'refractor/all'
-import type { ReactNode } from 'react'
-import type { RootContent } from 'hast'
+import { Fragment, type ReactNode } from 'react'
+import { tokenLines, type Token } from './tokenLines'
 
 const BY_EXTENSION: Record<string, string> = {
   py: 'python',
@@ -51,27 +51,12 @@ export function languageOf(path: string): string | null {
   return lang && refractor.registered(lang) ? lang : null
 }
 
-/**
- * Highlight one line of code as React nodes. Lines are tokenized independently, so a
- * multi-line string or comment loses its colour on continuation lines — acceptable for a diff.
- */
+/** Highlight one line on its own (quotes in the dock). Diffs use `tokenLines` over whole blocks instead. */
 export function highlightLine(text: string, language: string | null): ReactNode {
-  if (!language || text.length === 0) return text
-  try {
-    return refractor.highlight(text, language).children.map(toNode)
-  } catch {
-    return text
-  }
+  return renderTokens(tokenLines(text, language)[0] ?? [])
 }
 
-function toNode(node: RootContent, key = 0): ReactNode {
-  if (node.type === 'text') return node.value
-  if (node.type !== 'element') return null
-  const classes = Array.isArray(node.properties?.className) ? node.properties.className : []
-  const kinds = classes.filter((c) => c !== 'token').join(' ')
-  return (
-    <span key={key} className={`tok ${kinds}`}>
-      {node.children.map((c, i) => toNode(c, i))}
-    </span>
-  )
+/** Tokens of one line as nested `.tok` spans, innermost token class last, so CSS specificity follows Prism nesting. */
+export function renderTokens(tokens: Token[]): ReactNode {
+  return tokens.map((t, i) => <Fragment key={i}>{t.scopes.reduceRight<ReactNode>((inner, scope) => <span className={`tok ${scope}`}>{inner}</span>, t.text)}</Fragment>)
 }

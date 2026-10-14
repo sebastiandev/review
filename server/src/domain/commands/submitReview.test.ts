@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cachePrDiff } from '../actions/cachePrDiff.ts'
-import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed } from '../errors.ts'
+import { ApproveNotConfirmed, DraftStale, InvalidAnchors, NotFound, PullRequestClosed, ReviewBodyRequired } from '../errors.ts'
 import type { PullRequest, Repo } from '../pullRequests.ts'
 import type { Store } from '../store.ts'
 import { fakeProvider, fixedClock, GITHUB_REPO, memoryEvents, NOW, openTestStore, remotePr, SAMPLE_PATCH, type FakeProvider, type MemoryEvents } from '../testing/fakes.ts'
@@ -54,6 +54,15 @@ describe('submitReview', () => {
     expect(store.drafts.open(pr.id, pr.headSha)).toBeNull()
     expect(store.views.pastReviews(null)).toMatchObject([{ submissionId: submission.id, agentAgreement: 'not run' }])
     expect(events.events).toEqual([{ type: 'review.submitted', prId: pr.id, verdict: 'COMMENT', remoteReviewId: 'review-1' }])
+  })
+
+  it.each([
+    ['REQUEST_CHANGES', true],
+    ['COMMENT', false],
+  ] as const)('refuses a blank-body %s (with draft comments: %s) before calling the provider', async (verdict, withComment) => {
+    if (withComment) addDraftComment(draftDeps(), { prId: pr.id, ...anchor, body: 'first' })
+    await expect(submitReview(deps, { prId: pr.id, verdict, body: '  ', confirmApprove: false })).rejects.toBeInstanceOf(ReviewBodyRequired)
+    expect(provider.submitted).toEqual([])
   })
 
   it('marks every file of the head viewed once submitted', async () => {

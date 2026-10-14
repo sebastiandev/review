@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Store } from '../store.ts'
-import { NotFound } from '../errors.ts'
+import { DraftStale, InvalidAnchors, NotFound } from '../errors.ts'
+import { addDraftComment, editDraftComment } from './draftComments.ts'
+import { submitReview } from './submitReview.ts'
 import {
   fakeProvider,
   fakeWorktrees,
@@ -51,6 +53,47 @@ describe('refreshPullRequest', () => {
     expect(provider.calls).toEqual(['get:1', 'comments:1', 'myReviews:1'])
     expect(store.comments.list(prId).map((c) => c.body)).toEqual(['late remark'])
     expect(events.ofType('pr.refreshed')).toEqual([{ type: 'pr.refreshed', prId, headMoved: false }])
+  })
+
+  it.each(['refresh', 'sync'] as const)('%s repairs a stale draft after submission already advanced the cached PR head', async (method) => {
+    const comment = addDraftComment(deps, { prId, path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'keep this feedback', inReplyTo: null })
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+    const request = { prId, verdict: 'COMMENT' as const, body: '', confirmApprove: false }
+    await expect(submitReview(deps, request)).rejects.toBeInstanceOf(DraftStale)
+
+    if (method === 'refresh') await refreshPullRequest(deps, { prId })
+    else await syncRepo({ ...deps, worktrees }, { repoId: store.pullRequests.get(prId)!.repoId })
+
+    const carried = store.drafts.getComment(comment.id)!
+    expect(carried).toMatchObject({ body: comment.body, anchorValid: true, selected: comment.selected })
+    expect(store.drafts.open(prId, 'sha-b')?.id).toBe(carried.draftId)
+    await expect(submitReview(deps, request)).resolves.toMatchObject({ headSha: 'sha-b' })
+    expect(provider.submitted[0]!.payload.comments[0]!.body).toBe(comment.body)
+  })
+
+  it('preserves but blocks a comment when its file changed at the same line numbers', async () => {
+    const comment = addDraftComment(deps, { prId, path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT', body: 'original feedback', inReplyTo: null })
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+    provider.patches.set(1, SAMPLE_PATCH.replace('+new', '+different'))
+    await refreshPullRequest(deps, { prId })
+
+    expect(store.drafts.getComment(comment.id)).toMatchObject({ body: comment.body, anchorValid: false })
+    await expect(submitReview(deps, { prId, verdict: 'COMMENT', body: 'feedback', confirmApprove: false })).rejects.toBeInstanceOf(InvalidAnchors)
+    expect(provider.submitted).toEqual([])
+  })
+
+  it('merges older pending comments into an existing current-head draft and keeps them editable', async () => {
+    const anchor = { prId, path: 'src/a.py', line: 2, startLine: null, side: 'RIGHT' as const, inReplyTo: null }
+    const older = addDraftComment(deps, { ...anchor, body: 'old feedback' })
+    provider.remote.set(1, remotePr({ number: 1, headSha: 'sha-b' }))
+    store.transaction(() => store.pullRequests.upsert(store.pullRequests.get(prId)!.repoId, remotePr({ number: 1, headSha: 'sha-b' }), {}, NOW))
+    const newer = addDraftComment(deps, { ...anchor, body: 'new feedback' })
+
+    await refreshPullRequest(deps, { prId })
+
+    expect(store.drafts.listOpen(prId).map((draft) => draft.id)).toEqual([newer.draftId])
+    expect(store.drafts.comments(newer.draftId).map((comment) => comment.id)).toEqual([older.id, newer.id])
+    expect(editDraftComment(deps, { prId, commentId: older.id, body: 'edited feedback' }).body).toBe('edited feedback')
   })
 
   it('caches the new diff and moves the worktree when the head moved', async () => {
